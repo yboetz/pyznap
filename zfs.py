@@ -14,26 +14,26 @@ import os
 
 
 def zfs_list(filesystem=''):
-    """Lists all filesystems."""
-    cmd = ['zfs', 'list', '-r', filesystem]
-    try:
-        proc = Popen(cmd, stdout=PIPE, stderr=PIPE)
-    except TypeError:
-        print('Cannot convert to string.')
-        return
+    """Recusively lists filesystem. Returns false if filesystem does not exist."""
+    assert type(filesystem) is str, "Input must be string."
 
+    cmd = ['zfs', 'list', '-r', filesystem,'-o','name']
+    proc = Popen(cmd, stdout=PIPE, stderr=PIPE)
     out, err = proc.communicate()
+
     if not err:
+        out = out.splitlines()[1:]
+        out = [name.decode("utf-8") for name in out]
         return out
     else:
-        return err
+        return False
 
 
 def zfs_snap(filesystem, snapname='', recursive=True):
     """Takes a snapshot of a given filesystem."""
     if not snapname:
         today = datetime.today()
-        snapname = 'pyznap-{:s}'.format(today.strftime('%Y-%m-%d_%H:%M:%S'))
+        snapname = 'pyznap_{:s}'.format(today.strftime('%Y-%m-%d_%H:%M:%S'))
 
     if recursive:
         rec = '-r'
@@ -68,3 +68,5 @@ def zfs_send(filesystem, compress='lzop', out=''):
         compress = Popen(cmd_compress, stdin=mbuffer.stdout, stdout=file, stderr=PIPE)
     out, err = compress.communicate()
     print(out, err)
+
+
