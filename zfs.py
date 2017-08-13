@@ -10,6 +10,7 @@ ZFS bindings.
 
 from subprocess import Popen, PIPE, DEVNULL
 from datetime import datetime
+from getpass import getuser
 import os
 
 def exists(executable=''):
@@ -145,6 +146,61 @@ def zfs_send_file(snapname, outfile='/tmp/pyznap.out', compress='lzop', mbuffer=
 
         proc_send.stdout.close()
         proc_mbuffer.stdout.close()
-        _, _ = proc_compress.communicate()
+        _, err = proc_compress.communicate()
 
-    return True
+    if not err:
+        return True
+    else:
+        print(err.decode('utf-8'))
+        return False
+
+
+def zfs_send_ssh(snapname, outfile='/tmp/pyznap.out', compress='lzop', mbuffer=True,
+                 username=getuser(), hostname='localhost',
+                 keyfile=os.path.join(os.path.expanduser('~'), '.ssh/id_rsa')):
+    """Sends a snapshot to a file, with compression."""
+
+    if hostname == 'localhost':
+        return zfs_send_file(snapname, outfile, compress, mbuffer)
+
+    # Test ssh connection
+    cmd_ssh = ['ssh', '-i', keyfile, '{:s}@{:s}'.format(username, hostname)]
+    proc = Popen(cmd_ssh + ['exit'], stdout=PIPE, stderr=PIPE)
+    _, err = proc.communicate()
+    if err:
+        print('Cannot make ssh connection.')
+        print(err.decode('utf-8'))
+        return False
+
+    if not zfs_list_snap(snapname):
+        raise ValueError('Snapshot does not exist.')
+
+    if compress in ['lzop', 'gzip', 'pigz', 'lbzip2'] and exists(compress):
+        cmd_compress = [compress, '-c']
+    else:
+        cmd_compress = ['cat']
+
+    if mbuffer and exists('mbuffer'):
+        cmd_mbuffer = ['mbuffer', '-s', '128K', '-m', '1G']
+    else:
+        cmd_mbuffer = ['cat']
+
+    cmd_send = ['zfs', 'send', '-R', snapname]
+    cmd_ssh += ['cat - > {:s}'.format(outfile)]
+
+    # Send snapshot over ssh
+    proc_send = Popen(cmd_send, stdout=PIPE)
+    proc_mbuffer = Popen(cmd_mbuffer, stdin=proc_send.stdout, stdout=PIPE)
+    proc_compress = Popen(cmd_compress, stdin=proc_mbuffer.stdout, stdout=PIPE)
+    proc_ssh = Popen(cmd_ssh, stdin=proc_compress.stdout, stdout=PIPE)
+
+    proc_send.stdout.close()
+    proc_mbuffer.stdout.close()
+    proc_compress.stdout.close()
+    _, err = proc_ssh.communicate()
+
+    if not err:
+        return True
+    else:
+        print(err.decode('utf-8'))
+        return False
