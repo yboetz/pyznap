@@ -8,10 +8,12 @@ Created on Sat Aug 12 2017
 ZFS bindings.
 """
 
-from subprocess import Popen, PIPE, DEVNULL
+from subprocess import Popen, PIPE
 from datetime import datetime
 from getpass import getuser
+from weir import zfs
 import os
+
 
 def exists(executable=''):
     """Tests if an executable exists on the system."""
@@ -204,3 +206,25 @@ def zfs_send_ssh(snapname, outfile='/tmp/pyznap.out', compress='lzop', mbuffer=T
     else:
         print(err.decode('utf-8'))
         return False
+
+def zfs_prune(filesystem, hourly=24, daily=30, monthly=6, yearly=1):
+    """Deletes old snapshots. Keeps all snapshots in the past 24h,
+    then 30 in the past month, 6 in the past half year and 1 in the
+    last year."""
+
+    assert isinstance(filesystem, str), "Input must be string."
+    snaps = zfs_list_snap(filesystem)
+    snapdate = []
+    now = datetime.today()
+
+    for snap in snaps:
+        try:
+            date = snap.split('@')[1]
+            date = datetime.strptime(date, 'pyznap_%Y-%m-%d_%H:%M:%S')
+        except ValueError:
+            continue
+        snapdate.append((snap, date))
+
+
+
+    return snapdate
