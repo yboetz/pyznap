@@ -23,7 +23,7 @@ def read_config(path):
     snapshot strategy"""
 
     if not os.path.isfile(path):
-        return False
+        raise FileNotFoundError('File does not exist.')
 
     options = ['hourly', 'daily', 'weekly', 'monthly', 'yearly', 'snap', 'clean']
 
