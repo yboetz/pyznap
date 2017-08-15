@@ -13,8 +13,6 @@ from datetime import datetime
 from configparser import ConfigParser, NoOptionError
 from weir import zfs
 from weir.process import DatasetNotFoundError
-#from subprocess import Popen, PIPE
-#from time import time, sleep
 
 
 def read_config(path):
@@ -37,18 +35,22 @@ def read_config(path):
 
         for option in options:
             try:
-                dic[option] = int(config.get(section,option))
+                dic[option] = int(config.get(section, option))
             except NoOptionError:
                 dic[option] = None
             except ValueError:
                 if option in ['snap', 'clean']:
-                    dic[option] = True if config.get(section,option) == 'yes' else False
+                    dic[option] = True if config.get(section, option) == 'yes' else False
                 else:
                     dic[option] = None
 
     return res
 
+
 def take_snap(config):
+    """Takes snapshots according to strategy given in config"""
+
+    print('Taking snapshots...')
     for conf in config:
         if not conf['snap']:
             continue
@@ -68,7 +70,7 @@ def take_snap(config):
             snap_type = snap.name.split('_')[-1]
 
             try:
-                snapshots[snap_type].append((snap.name, snap_time))
+                snapshots[snap_type].append((snap, snap_time))
             except KeyError:
                 continue
 
@@ -102,3 +104,53 @@ def take_snap(config):
                                snapshots['yearly'][0][1].year != now.year):
             print('Taking snapshot {:s}@{:s}'.format(conf['name'], snapname + 'yearly'))
             filesystem.snapshot(snapname=snapname + 'yearly', recursive=True)
+
+def clean_snap(config):
+    """Deletes old snapshots according to strategy given in config"""
+
+    print('Cleaning snapshots...')
+    for conf in config:
+        if not conf['clean']:
+            continue
+
+        try:
+            filesystem = zfs.open(conf['name'])
+        except (ValueError, DatasetNotFoundError) as err:
+            print(err)
+            continue
+
+        snapshots = {'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
+        for snap in filesystem.snapshots():
+            # Ignore snapshots not taken with pyznap
+            if not snap.name.split('@')[1].startswith('pyznap'):
+                continue
+            snap_time = datetime.fromtimestamp(int(snap.getprop('creation')['value']))
+            snap_type = snap.name.split('_')[-1]
+
+            try:
+                snapshots[snap_type].append((snap, snap_time))
+            except KeyError:
+                continue
+
+        for snap_type, snaps in snapshots.items():
+            snapshots[snap_type] = sorted(snaps, key=lambda x: x[1], reverse=True)
+
+        for snap, _ in snapshots['hourly'][conf['hourly']:]:
+            print('Deleting snapshot {:s}'.format(snap.name))
+            snap.destroy(force=True)
+
+        for snap, _ in snapshots['daily'][conf['daily']:]:
+            print('Deleting snapshot {:s}'.format(snap.name))
+            snap.destroy(force=True)
+
+        for snap, _ in snapshots['weekly'][conf['weekly']:]:
+            print('Deleting snapshot {:s}'.format(snap.name))
+            snap.destroy(force=True)
+
+        for snap, _ in snapshots['monthly'][conf['monthly']:]:
+            print('Deleting snapshot {:s}'.format(snap.name))
+            snap.destroy(force=True)
+
+        for snap, _ in snapshots['yearly'][conf['yearly']:]:
+            print('Deleting snapshot {:s}'.format(snap.name))
+            snap.destroy(force=True)
