@@ -76,35 +76,29 @@ def take_snap(config):
             snapshots[snap_type] = sorted(snaps, key=lambda x: x[1], reverse=True)
 
         now = datetime.today()
-        hourly = now.replace(microsecond=0, second=0, minute=0, hour=now.hour + (now.minute >= 30))
-        daily = hourly.replace(hour=8)
-        weekly = daily.replace(day=daily.day - daily.weekday())
-        monthly = daily.replace(day=1)
-        yearly = monthly.replace(month=1)
-
         snapname = 'pyznap_{:s}_'.format(now.strftime('%Y-%m-%d_%H:%M:%S'))
 
         if conf['hourly'] and (not snapshots['hourly'] or
-                               (now - snapshots['hourly'][0][1]).total_seconds() > 3599 or
-                               abs((now - hourly).total_seconds()) <= 120):
+                               snapshots['hourly'][0][1].hour != now.hour):
+            print('Taking snapshot {:s}@{:s}'.format(conf['name'], snapname + 'hourly'))
             filesystem.snapshot(snapname=snapname + 'hourly', recursive=True)
 
         if conf['daily'] and (not snapshots['daily'] or
-                              (now - snapshots['daily'][0][1]).total_seconds() > 3599 or
-                              abs((now - daily).total_seconds()) <= 120):
+                              snapshots['daily'][0][1].day != now.day):
+            print('Taking snapshot {:s}@{:s}'.format(conf['name'], snapname + 'daily'))
             filesystem.snapshot(snapname=snapname + 'daily', recursive=True)
 
         if conf['weekly'] and (not snapshots['weekly'] or
-                               (now - snapshots['weekly'][0][1]).total_seconds() > 3599 or
-                               abs((now - weekly).total_seconds()) <= 120):
+                               snapshots['weekly'][0][1].isocalendar()[1] != now.isocalendar()[1]):
+            print('Taking snapshot {:s}@{:s}'.format(conf['name'], snapname + 'weekly'))
             filesystem.snapshot(snapname=snapname + 'weekly', recursive=True)
 
         if conf['monthly'] and (not snapshots['monthly'] or
-                                (now - snapshots['monthly'][0][1]).total_seconds() > 3599 or
-                                abs((now - monthly).total_seconds()) <= 120):
+                                snapshots['monthly'][0][1].month != now.month):
+            print('Taking snapshot {:s}@{:s}'.format(conf['name'], snapname + 'monthly'))
             filesystem.snapshot(snapname=snapname + 'monthly', recursive=True)
 
         if conf['yearly'] and (not snapshots['yearly'] or
-                               (now - snapshots['yearly'][0][1]).total_seconds() > 3599 or
-                               abs((now - yearly).total_seconds()) <= 120):
+                               snapshots['yearly'][0][1].year != now.year):
+            print('Taking snapshot {:s}@{:s}'.format(conf['name'], snapname + 'yearly'))
             filesystem.snapshot(snapname=snapname + 'yearly', recursive=True)
