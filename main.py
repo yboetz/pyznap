@@ -10,6 +10,7 @@ ZFS snapshot tool written in python.
 
 import sys
 from argparse import ArgumentParser
+from datetime import datetime
 from zfs import take_snap, clean_snap, read_config
 
 if __name__ == "__main__":
@@ -34,6 +35,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args(sys.argv[1:])
 
+    now = datetime.now()
 
     if args.command == 'snap':
         config_path = args.config if args.config else '/etc/pyznap/pyznap.conf'
@@ -41,7 +43,7 @@ if __name__ == "__main__":
         try:
             config = read_config(config_path)
         except FileNotFoundError:
-            print('Could not read config file...')
+            print('{:s} ERROR: Could not read config file...'.format(now.strftime('%b %d %H:%M:%S')))
             sys.exit(1)
 
         if args.full:
@@ -59,5 +61,5 @@ if __name__ == "__main__":
 
 
     elif args.command == 'send':
-        print('sending...')
+        print('{:s} INFO: sending...'.format(now.strftime('%b %d %H:%M:%S')))
         sys.exit(0)

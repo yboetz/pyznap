@@ -53,7 +53,8 @@ def read_config(path):
 def take_snap(config):
     """Takes snapshots according to strategy given in config"""
 
-    print('Taking snapshots...')
+    now = datetime.now()
+    print('{:s} INFO: Taking snapshots...'.format(now.strftime('%b %d %H:%M:%S')))
     for conf in config:
         if not conf['snap']:
             continue
@@ -80,39 +81,39 @@ def take_snap(config):
         for snap_type, snaps in snapshots.items():
             snapshots[snap_type] = sorted(snaps, key=lambda x: x[1], reverse=True)
 
-        now = datetime.today()
         snapname = 'pyznap_{:s}_'.format(now.strftime('%Y-%m-%d_%H:%M:%S'))
-
-        if conf['hourly'] and (not snapshots['hourly'] or
-                               snapshots['hourly'][0][1].hour != now.hour):
-            print('Taking snapshot {:s}@{:s}'.format(conf['name'], snapname + 'hourly'))
-            filesystem.snapshot(snapname=snapname + 'hourly', recursive=True)
-
-        if conf['daily'] and (not snapshots['daily'] or
-                              snapshots['daily'][0][1].day != now.day):
-            print('Taking snapshot {:s}@{:s}'.format(conf['name'], snapname + 'daily'))
-            filesystem.snapshot(snapname=snapname + 'daily', recursive=True)
-
-        if conf['weekly'] and (not snapshots['weekly'] or
-                               snapshots['weekly'][0][1].isocalendar()[1] != now.isocalendar()[1]):
-            print('Taking snapshot {:s}@{:s}'.format(conf['name'], snapname + 'weekly'))
-            filesystem.snapshot(snapname=snapname + 'weekly', recursive=True)
-
-        if conf['monthly'] and (not snapshots['monthly'] or
-                                snapshots['monthly'][0][1].month != now.month):
-            print('Taking snapshot {:s}@{:s}'.format(conf['name'], snapname + 'monthly'))
-            filesystem.snapshot(snapname=snapname + 'monthly', recursive=True)
 
         if conf['yearly'] and (not snapshots['yearly'] or
                                snapshots['yearly'][0][1].year != now.year):
-            print('Taking snapshot {:s}@{:s}'.format(conf['name'], snapname + 'yearly'))
+            print('{:s} INFO: Taking snapshot {:s}@{:s}'.format(now.strftime('%b %d %H:%M:%S'), conf['name'], snapname + 'yearly'))
             filesystem.snapshot(snapname=snapname + 'yearly', recursive=True)
+
+        if conf['monthly'] and (not snapshots['monthly'] or
+                                snapshots['monthly'][0][1].month != now.month):
+            print('{:s} INFO: Taking snapshot {:s}@{:s}'.format(now.strftime('%b %d %H:%M:%S'), conf['name'], snapname + 'monthly'))
+            filesystem.snapshot(snapname=snapname + 'monthly', recursive=True)
+
+        if conf['weekly'] and (not snapshots['weekly'] or
+                               snapshots['weekly'][0][1].isocalendar()[1] != now.isocalendar()[1]):
+            print('{:s} INFO: Taking snapshot {:s}@{:s}'.format(now.strftime('%b %d %H:%M:%S'), conf['name'], snapname + 'weekly'))
+            filesystem.snapshot(snapname=snapname + 'weekly', recursive=True)
+
+        if conf['daily'] and (not snapshots['daily'] or
+                              snapshots['daily'][0][1].day != now.day):
+            print('{:s} INFO: Taking snapshot {:s}@{:s}'.format(now.strftime('%b %d %H:%M:%S'), conf['name'], snapname + 'daily'))
+            filesystem.snapshot(snapname=snapname + 'daily', recursive=True)
+
+        if conf['hourly'] and (not snapshots['hourly'] or
+                               snapshots['hourly'][0][1].hour != now.hour):
+            print('{:s} INFO: Taking snapshot {:s}@{:s}'.format(now.strftime('%b %d %H:%M:%S'), conf['name'], snapname + 'hourly'))
+            filesystem.snapshot(snapname=snapname + 'hourly', recursive=True)
 
 
 def clean_snap(config):
     """Deletes old snapshots according to strategy given in config"""
 
-    print('Cleaning snapshots...')
+    now = datetime.now()
+    print('{:s} INFO: Cleaning snapshots...'.format(now.strftime('%b %d %H:%M:%S')))
     for conf in config:
         if not conf['clean']:
             continue
@@ -139,24 +140,24 @@ def clean_snap(config):
         for snap_type, snaps in snapshots.items():
             snapshots[snap_type] = sorted(snaps, key=lambda x: x[1], reverse=True)
 
-        for snap, _ in snapshots['hourly'][conf['hourly']:]:
-            print('Deleting snapshot {:s}'.format(snap.name))
-            snap.destroy(force=True)
-
-        for snap, _ in snapshots['daily'][conf['daily']:]:
-            print('Deleting snapshot {:s}'.format(snap.name))
-            snap.destroy(force=True)
-
-        for snap, _ in snapshots['weekly'][conf['weekly']:]:
-            print('Deleting snapshot {:s}'.format(snap.name))
+        for snap, _ in snapshots['yearly'][conf['yearly']:]:
+            print('{:s} INFO: Deleting snapshot {:s}'.format(now.strftime('%b %d %H:%M:%S'), snap.name))
             snap.destroy(force=True)
 
         for snap, _ in snapshots['monthly'][conf['monthly']:]:
-            print('Deleting snapshot {:s}'.format(snap.name))
+            print('{:s} INFO: Deleting snapshot {:s}'.format(now.strftime('%b %d %H:%M:%S'), snap.name))
             snap.destroy(force=True)
 
-        for snap, _ in snapshots['yearly'][conf['yearly']:]:
-            print('Deleting snapshot {:s}'.format(snap.name))
+        for snap, _ in snapshots['weekly'][conf['weekly']:]:
+            print('{:s} INFO: Deleting snapshot {:s}'.format(now.strftime('%b %d %H:%M:%S'), snap.name))
+            snap.destroy(force=True)
+
+        for snap, _ in snapshots['daily'][conf['daily']:]:
+            print('{:s} INFO: Deleting snapshot {:s}'.format(now.strftime('%b %d %H:%M:%S'), snap.name))
+            snap.destroy(force=True)
+
+        for snap, _ in snapshots['hourly'][conf['hourly']:]:
+            print('{:s} INFO: Deleting snapshot {:s}'.format(now.strftime('%b %d %H:%M:%S'), snap.name))
             snap.destroy(force=True)
 
 
