@@ -36,20 +36,12 @@ def find(path=None, max_depth=None, types=[]):
 
 
 def findprops(path=None, max_depth=None, props=['all'], sources=[], types=[]):
+    """Lists all properties of a given filesystem"""
     cmd = ['zfs', 'get']
 
     cmd.append('-H')
     cmd.append('-p')
 
-    # workaround for lack of support for zfs get -t types in ZEVO:
-    # use zfs list to find relevant datasets
-    # if True and types:
-    #     paths = [dataset._url.path for dataset in
-    #         find(path, max_depth=max_depth, types=types)]
-
-    #     if not paths:
-    #         return []
-    # else:
     if max_depth is None:
         cmd.append('-r')
     elif max_depth >= 0:
@@ -62,8 +54,6 @@ def findprops(path=None, max_depth=None, props=['all'], sources=[], types=[]):
         cmd.append('-t')
         cmd.append(','.join(types))
 
-        # paths = [url.path] if url.path else []
-
     if sources:
         cmd.append('-s')
         cmd.append(','.join(sources))
@@ -73,7 +63,6 @@ def findprops(path=None, max_depth=None, props=['all'], sources=[], types=[]):
     if path:
         cmd.append(path)
 
-    # cmd.extend(paths)
     out = sp.check_output(cmd, universal_newlines=True)
     out = [tuple(line.split('\t')) for line in out.splitlines()]
 
@@ -82,6 +71,7 @@ def findprops(path=None, max_depth=None, props=['all'], sources=[], types=[]):
 
 # Factory function for dataset objects
 def open(name, type=None):
+    """Opens a volume, filesystem or snapshot"""
     if type is None:
         type = findprops(name, max_depth=0, props=['type'])[0]['value']
 
@@ -118,7 +108,7 @@ def create(name, type='filesystem', props={}, force=False):
 
     cmd.append(name)
 
-    sp.check_call(cmd)
+    sp.check_output(cmd)
     return ZFSFilesystem(name)
 
 
@@ -191,7 +181,7 @@ class ZFSDataset(object):
 
         cmd.append(self.name)
 
-        sp.check_call(cmd)
+        sp.check_output(cmd)
 
     def snapshot(self, snapname, recursive=False, props={}):
         cmd = ['zfs', 'snapshot']
@@ -206,7 +196,7 @@ class ZFSDataset(object):
         name = self.name + '@' + snapname
         cmd.append(name)
 
-        sp.check_call(cmd)
+        sp.check_output(cmd)
         return ZFSSnapshot(name)
 
     # TODO: split force to allow -f, -r and -R to be specified individually
@@ -236,7 +226,7 @@ class ZFSDataset(object):
         cmd.append(prop + '=' + str(value))
         cmd.append(self.name)
 
-        sp.check_call(cmd)
+        sp.check_output(cmd)
 
     def delprop(self, prop, recursive=False):
         cmd = ['zfs', 'inherit']
@@ -247,7 +237,7 @@ class ZFSDataset(object):
         cmd.append(prop)
         cmd.append(self.name)
 
-        sp.check_call(cmd)
+        sp.check_output(cmd)
 
     def userspace(self, *args, **kwargs):
         raise NotImplementedError()
@@ -332,7 +322,7 @@ class ZFSSnapshot(ZFSDataset):
         cmd.append(tag)
         cmd.append(self.name)
 
-        sp.check_call(cmd)
+        sp.check_output(cmd)
 
     def holds(self):
         cmd = ['zfs', 'holds']
@@ -356,4 +346,4 @@ class ZFSSnapshot(ZFSDataset):
         cmd.append(tag)
         cmd.append(self.name)
 
-        sp.check_call(cmd)
+        sp.check_output(cmd)
