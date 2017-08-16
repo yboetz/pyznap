@@ -11,39 +11,43 @@ ZFS snapshot tool written in python.
 import sys
 from argparse import ArgumentParser
 from datetime import datetime
+from configparser import MissingSectionHeaderError
 from zfs import take_snap, clean_snap, read_config
 
 if __name__ == "__main__":
     parser = ArgumentParser(prog='pyznap', description='ZFS snapshot tool written in python')
     subparsers = parser.add_subparsers(dest='command')
 
-    parser_snap = subparsers.add_parser('snap', help='Snapshot tools')
-    parser_snap.add_argument('-c', '--config', action="store",
-                             dest="config", help='Path to config file')
+    parser_snap = subparsers.add_parser('snap', help='snapshot tools')
+    parser_snap.add_argument('--config', action="store",
+                             dest="config", help='path to config file')
     parser_snap.add_argument('--take', action="store_true",
-                             help='Take snapshots according to config file')
+                             help='take snapshots according to config file')
     parser_snap.add_argument('--clean', action="store_true",
-                             help='Clean old snapshots according to config file')
+                             help='clean old snapshots according to config file')
     parser_snap.add_argument('--full', action="store_true",
-                             help='Take snapshots then clean old according to config file')
+                             help='take snapshots then clean old according to config file')
 
-    parser_send = subparsers.add_parser('send', help='ZFS send/receive tools')
+    parser_send = subparsers.add_parser('send', help='zfs send/receive tools')
     parser_send.add_argument('-s', '--source', action="store",
-                             dest='source', help='Source filesystem')
+                             dest='source', help='source filesystem')
     parser_send.add_argument('-d', '--dest', action="store",
-                             dest='dest', help='Destination filesystem')
+                             dest='dest', help='destination filesystem')
 
     args = parser.parse_args(sys.argv[1:])
 
     now = datetime.now()
+    logtime = now.strftime('%b %d %H:%M:%S')
 
     if args.command == 'snap':
-        config_path = args.config if args.config else '/etc/pyznap/pyznap.conf'
-
         try:
+            config_path = args.config if args.config else '/etc/pyznap/pyznap.conf'
             config = read_config(config_path)
-        except FileNotFoundError:
-            print('{:s} ERROR: Could not read config file...'.format(now.strftime('%b %d %H:%M:%S')))
+        except FileNotFoundError as err:
+            print('{:s} ERROR: Config file does not exist...'.format(logtime))
+            sys.exit(1)
+        except MissingSectionHeaderError as err:
+            print('{:s} ERROR: Config file contains no section headers...'.format(logtime))
             sys.exit(1)
 
         if args.full:
@@ -61,5 +65,5 @@ if __name__ == "__main__":
 
 
     elif args.command == 'send':
-        print('{:s} INFO: sending...'.format(now.strftime('%b %d %H:%M:%S')))
+        print('{:s} INFO: sending...'.format(logtime))
         sys.exit(0)
