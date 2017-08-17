@@ -3,6 +3,7 @@ ZFS bindings, forked from weir
 """
 
 import subprocess as sp
+import process
 
 
 def find(path=None, max_depth=None, types=[]):
@@ -29,8 +30,7 @@ def find(path=None, max_depth=None, types=[]):
     if path:
         cmd.append(path)
 
-    out = sp.check_output(cmd, universal_newlines=True)
-    out = [line.split('\t') for line in out.splitlines()]
+    out = sp.check_output(cmd)
 
     return [open(name, type) for name, type in out]
 
@@ -63,8 +63,7 @@ def findprops(path=None, max_depth=None, props=['all'], sources=[], types=[]):
     if path:
         cmd.append(path)
 
-    out = sp.check_output(cmd, universal_newlines=True)
-    out = [line.split('\t') for line in out.splitlines()]
+    out = sp.check_output(cmd)
 
     names = set(map(lambda x: x[0], out))
 
@@ -334,8 +333,7 @@ class ZFSSnapshot(ZFSDataset):
 
         cmd.append(self.name)
 
-        out = sp.check_output(cmd, universal_newlines=True)
-        out = [tuple(line.split('\t')) for line in out.splitlines()]
+        out = sp.check_output(cmd)
 
         # return hold tag names only
         return [hold[1] for hold in out]
