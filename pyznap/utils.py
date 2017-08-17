@@ -12,8 +12,8 @@ import os
 
 from datetime import datetime
 from configparser import ConfigParser, NoOptionError
-from pyzfs import zfs
-from pyzfs.process import DatasetNotFoundError
+import zfs
+from process import DatasetNotFoundError
 
 from subprocess import Popen, PIPE, CalledProcessError
 from getpass import getuser
