@@ -30,7 +30,7 @@ def find(path=None, max_depth=None, types=[]):
         cmd.append(path)
 
     out = sp.check_output(cmd, universal_newlines=True)
-    out = [tuple(line.split('\t')) for line in out.splitlines()]
+    out = [line.split('\t') for line in out.splitlines()]
 
     return [open(name, type) for name, type in out]
 
@@ -64,16 +64,19 @@ def findprops(path=None, max_depth=None, props=['all'], sources=[], types=[]):
         cmd.append(path)
 
     out = sp.check_output(cmd, universal_newlines=True)
-    out = [tuple(line.split('\t')) for line in out.splitlines()]
+    out = [line.split('\t') for line in out.splitlines()]
 
-    return [dict(name=n, property=p, value=v, source=s) for n, p, v, s in out]
+    names = set(map(lambda x: x[0], out))
+
+    # return [dict(name=n, property=p, value=v, source=s) for n, p, v, s in out]
+    return {name: {i[1]: (i[2], i[3]) for i in out if i[0] == name} for name in names}
 
 
 # Factory function for dataset objects
 def open(name, type=None):
     """Opens a volume, filesystem or snapshot"""
     if type is None:
-        type = findprops(name, max_depth=0, props=['type'])[0]['value']
+        type = findprops(name, max_depth=0, props=['type'])[name]['type'][0]
 
     if type == 'volume':
         return ZFSVolume(name)
@@ -211,10 +214,10 @@ class ZFSDataset(object):
         raise NotImplementedError()
 
     def getprops(self):
-        return findprops(self.name, max_depth=0)
+        return findprops(self.name, max_depth=0)[self.name]
 
     def getprop(self, prop):
-        return findprops(self.name, max_depth=0, props=[prop])[0]
+        return findprops(self.name, max_depth=0, props=[prop])[self.name].get(prop, None)
 
     def getpropval(self, prop, default=None):
         value = self.getprop(prop)['value']
