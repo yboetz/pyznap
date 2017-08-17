@@ -73,7 +73,7 @@ def take_snap(config):
             # Ignore snapshots not taken with pyznap
             if not snap.name.split('@')[1].startswith('pyznap'):
                 continue
-            snap_time = datetime.fromtimestamp(int(snap.getprop('creation')['value']))
+            snap_time = datetime.fromtimestamp(int(snap.getprop('creation')[0]))
             snap_type = snap.name.split('_')[-1]
 
             try:
@@ -134,7 +134,7 @@ def clean_snap(config):
             # Ignore snapshots not taken with pyznap
             if not snap.name.split('@')[1].startswith('pyznap'):
                 continue
-            snap_time = datetime.fromtimestamp(int(snap.getprop('creation')['value']))
+            snap_time = datetime.fromtimestamp(int(snap.getprop('creation')[0]))
             snap_type = snap.name.split('_')[-1]
 
             try:
