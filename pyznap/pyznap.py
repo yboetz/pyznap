@@ -39,6 +39,7 @@ if __name__ == "__main__":
     now = datetime.now()
     logtime = now.strftime('%b %d %H:%M:%S')
 
+
     if args.command == 'snap':
         try:
             config_path = args.config if args.config else '/etc/pyznap/pyznap.conf'
@@ -62,7 +63,6 @@ if __name__ == "__main__":
         if args.clean:
             clean_snap(config)
             sys.exit(0)
-
 
     elif args.command == 'send':
         print('{:s} INFO: sending...'.format(logtime))

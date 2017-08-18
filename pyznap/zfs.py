@@ -114,29 +114,26 @@ def create(name, type='filesystem', props={}, force=False):
     return ZFSFilesystem(name)
 
 
-def receive(name, append_name=False, append_path=False,
-        force=False, nomount=False):
-    raise NotImplementedError()
-
-    # url = _urlsplit(name)
-
-    # cmd = ['zfs', 'receive']
+def receive(name, stdin, append_name=False, append_path=False,
+            force=False, nomount=False):
+    cmd = ['zfs', 'receive']
 
     # cmd.append('-v')
 
-    # if append_name:
-    #     cmd.append('-e')
-    # elif append_path:
-    #     cmd.append('-d')
+    if append_name:
+        cmd.append('-e')
+    elif append_path:
+        cmd.append('-d')
 
-    # if force:
-    #     cmd.append('-F')
-    # if nomount:
-    #     cmd.append('-u')
+    if force:
+        cmd.append('-F')
+    if nomount:
+        cmd.append('-u')
 
-    # cmd.append(url.path)
+    cmd.append(name)
 
-    # return process.popen(cmd, mode='wb', netloc=url.netloc)
+    return sp.Popen(cmd, stdin=stdin).communicate()
+
 
 class ZFSDataset(object):
     def __init__(self, name):
@@ -286,34 +283,29 @@ class ZFSSnapshot(ZFSDataset):
         raise NotImplementedError()
 
     def send(self, base=None, intermediates=False, replicate=False,
-            properties=False, deduplicate=False):
-        raise NotImplementedError()
-
-        # cmd = ['zfs', 'send']
+             properties=False, deduplicate=False):
+        cmd = ['zfs', 'send']
 
         # cmd.append('-v')
-        # cmd.append('-P')
+        cmd.append('-P')
 
-        # if replicate:
-        #     cmd.append('-R')
-        # if properties:
-        #     cmd.append('-p')
-        # if deduplicate:
-        #     cmd.append('-D')
+        if replicate:
+            cmd.append('-R')
+        if properties:
+            cmd.append('-p')
+        if deduplicate:
+            cmd.append('-D')
 
-        # if base is not None:
-        #     base = _urlsplit(base)
-        #     if base.netloc and base.netloc != self._url.netloc:
-        #         raise ValueError('snapshots must be on same host')
-        #     if intermediates:
-        #         cmd.append('-I')
-        #     else:
-        #         cmd.append('-i')
-        #     cmd.append(base.path)
+        if base is not None:
+            if intermediates:
+                cmd.append('-I')
+            else:
+                cmd.append('-i')
+            cmd.append(base.name)
 
-        # cmd.append(self._url.path)
+        cmd.append(self.name)
 
-        # return process.popen(cmd, mode='rb', netloc=self._url.netloc)
+        return sp.Popen(cmd, stdout=sp.PIPE)
 
     def hold(self, tag, recursive=False):
         cmd = ['zfs', 'hold']
