@@ -12,15 +12,15 @@ import sys
 from argparse import ArgumentParser
 from datetime import datetime
 from configparser import MissingSectionHeaderError
-from utils import take_snap, clean_snap, read_config
+from utils import take_snap, clean_snap, read_config, send_snap
 
 if __name__ == "__main__":
     parser = ArgumentParser(prog='pyznap', description='ZFS snapshot tool written in python')
+    parser.add_argument('--config', action="store",
+                         dest="config", help='path to config file')
     subparsers = parser.add_subparsers(dest='command')
 
     parser_snap = subparsers.add_parser('snap', help='snapshot tools')
-    parser_snap.add_argument('--config', action="store",
-                             dest="config", help='path to config file')
     parser_snap.add_argument('--take', action="store_true",
                              help='take snapshots according to config file')
     parser_snap.add_argument('--clean', action="store_true",
@@ -39,18 +39,17 @@ if __name__ == "__main__":
     now = datetime.now()
     logtime = now.strftime('%b %d %H:%M:%S')
 
+    try:
+        config_path = args.config if args.config else '/etc/pyznap/pyznap.conf'
+        config = read_config(config_path)
+    except FileNotFoundError as err:
+        print('{:s} ERROR: Config file does not exist...'.format(logtime))
+        sys.exit(1)
+    except MissingSectionHeaderError as err:
+        print('{:s} ERROR: Config file contains no section headers...'.format(logtime))
+        sys.exit(1)
 
     if args.command == 'snap':
-        try:
-            config_path = args.config if args.config else '/etc/pyznap/pyznap.conf'
-            config = read_config(config_path)
-        except FileNotFoundError as err:
-            print('{:s} ERROR: Config file does not exist...'.format(logtime))
-            sys.exit(1)
-        except MissingSectionHeaderError as err:
-            print('{:s} ERROR: Config file contains no section headers...'.format(logtime))
-            sys.exit(1)
-
         if args.full:
             take_snap(config)
             clean_snap(config)
@@ -65,5 +64,5 @@ if __name__ == "__main__":
             sys.exit(0)
 
     elif args.command == 'send':
-        print('{:s} INFO: sending...'.format(logtime))
+        send_snap(config)
         sys.exit(0)

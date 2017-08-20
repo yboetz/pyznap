@@ -29,7 +29,7 @@ def read_config(path):
     if not os.path.isfile(path):
         raise FileNotFoundError('File does not exist.')
 
-    options = ['hourly', 'daily', 'weekly', 'monthly', 'yearly', 'snap', 'clean']
+    options = ['hourly', 'daily', 'weekly', 'monthly', 'yearly', 'snap', 'clean', 'dest']
 
     config = ConfigParser()
     config.read(path)
@@ -60,8 +60,8 @@ def take_snap(config):
     """Takes snapshots according to strategy given in config"""
 
     now = datetime.now()
-    logtime = now.strftime('%b %d %H:%M:%S')
-    print('{:s} INFO: Taking snapshots...'.format(logtime))
+    logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
+    print('{:s} INFO: Taking snapshots...'.format(logtime()))
 
     for conf in config:
         if not conf.get('snap', None):
@@ -70,7 +70,7 @@ def take_snap(config):
         try:
             filesystem = zfs.open(conf['name'])
         except (ValueError, DatasetNotFoundError, CalledProcessError) as err:
-            print('{:s} ERROR: {}'.format(logtime, err))
+            print('{:s} ERROR: {}'.format(logtime(), err))
             continue
 
         snapshots = {'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
@@ -93,36 +93,35 @@ def take_snap(config):
 
         if conf['yearly'] and (not snapshots['yearly'] or
                                snapshots['yearly'][0][1].year != now.year):
-            print('{:s} INFO: Taking snapshot {:s}@{:s}'.format(logtime, conf['name'], snapname + 'yearly'))
+            print('{:s} INFO: Taking snapshot {:s}@{:s}'.format(logtime(), conf['name'], snapname + 'yearly'))
             filesystem.snapshot(snapname=snapname + 'yearly', recursive=True)
 
         if conf['monthly'] and (not snapshots['monthly'] or
                                 snapshots['monthly'][0][1].month != now.month):
-            print('{:s} INFO: Taking snapshot {:s}@{:s}'.format(logtime, conf['name'], snapname + 'monthly'))
+            print('{:s} INFO: Taking snapshot {:s}@{:s}'.format(logtime(), conf['name'], snapname + 'monthly'))
             filesystem.snapshot(snapname=snapname + 'monthly', recursive=True)
 
         if conf['weekly'] and (not snapshots['weekly'] or
                                snapshots['weekly'][0][1].isocalendar()[1] != now.isocalendar()[1]):
-            print('{:s} INFO: Taking snapshot {:s}@{:s}'.format(logtime, conf['name'], snapname + 'weekly'))
+            print('{:s} INFO: Taking snapshot {:s}@{:s}'.format(logtime(), conf['name'], snapname + 'weekly'))
             filesystem.snapshot(snapname=snapname + 'weekly', recursive=True)
 
         if conf['daily'] and (not snapshots['daily'] or
                               snapshots['daily'][0][1].day != now.day):
-            print('{:s} INFO: Taking snapshot {:s}@{:s}'.format(logtime, conf['name'], snapname + 'daily'))
+            print('{:s} INFO: Taking snapshot {:s}@{:s}'.format(logtime(), conf['name'], snapname + 'daily'))
             filesystem.snapshot(snapname=snapname + 'daily', recursive=True)
 
         if conf['hourly'] and (not snapshots['hourly'] or
                                snapshots['hourly'][0][1].hour != now.hour):
-            print('{:s} INFO: Taking snapshot {:s}@{:s}'.format(logtime, conf['name'], snapname + 'hourly'))
+            print('{:s} INFO: Taking snapshot {:s}@{:s}'.format(logtime(), conf['name'], snapname + 'hourly'))
             filesystem.snapshot(snapname=snapname + 'hourly', recursive=True)
 
 
 def clean_snap(config):
     """Deletes old snapshots according to strategy given in config"""
 
-    now = datetime.now()
-    logtime = now.strftime('%b %d %H:%M:%S')
-    print('{:s} INFO: Cleaning snapshots...'.format(logtime))
+    logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
+    print('{:s} INFO: Cleaning snapshots...'.format(logtime()))
 
     for conf in config:
         if not conf.get('clean', None):
@@ -131,7 +130,7 @@ def clean_snap(config):
         try:
             filesystem = zfs.open(conf['name'])
         except (ValueError, DatasetNotFoundError, CalledProcessError) as err:
-            print('{:s} ERROR: {}'.format(logtime, err))
+            print('{:s} ERROR: {}'.format(logtime(), err))
             continue
 
         snapshots = {'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
@@ -151,32 +150,36 @@ def clean_snap(config):
             snapshots[snap_type] = sorted(snaps, key=lambda x: x[1], reverse=True)
 
         for snap, _ in snapshots['yearly'][conf['yearly']:]:
-            print('{:s} INFO: Deleting snapshot {:s}'.format(logtime, snap.name))
+            print('{:s} INFO: Deleting snapshot {:s}'.format(logtime(), snap.name))
             snap.destroy(force=True)
 
         for snap, _ in snapshots['monthly'][conf['monthly']:]:
-            print('{:s} INFO: Deleting snapshot {:s}'.format(logtime, snap.name))
+            print('{:s} INFO: Deleting snapshot {:s}'.format(logtime(), snap.name))
             snap.destroy(force=True)
 
         for snap, _ in snapshots['weekly'][conf['weekly']:]:
-            print('{:s} INFO: Deleting snapshot {:s}'.format(logtime, snap.name))
+            print('{:s} INFO: Deleting snapshot {:s}'.format(logtime(), snap.name))
             snap.destroy(force=True)
 
         for snap, _ in snapshots['daily'][conf['daily']:]:
-            print('{:s} INFO: Deleting snapshot {:s}'.format(logtime, snap.name))
+            print('{:s} INFO: Deleting snapshot {:s}'.format(logtime(), snap.name))
             snap.destroy(force=True)
 
         for snap, _ in snapshots['hourly'][conf['hourly']:]:
-            print('{:s} INFO: Deleting snapshot {:s}'.format(logtime, snap.name))
+            print('{:s} INFO: Deleting snapshot {:s}'.format(logtime(), snap.name))
             snap.destroy(force=True)
 
 
 def send_snap(config):
     """Syncs filesystems according to strategy given in config"""
 
-    now = datetime.now()
-    logtime = now.strftime('%b %d %H:%M:%S')
-    print('{:s} INFO: Sending snapshots...'.format(logtime))
+    logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
+    print('{:s} INFO: Sending snapshots...'.format(logtime()))
+
+    if exists('mbuffer'):
+        cmd_mbuffer = ['mbuffer', '-s', '128K', '-m', '1G']
+    else:
+        cmd_mbuffer = ['cat']
 
     for conf in config:
         if not conf.get('dest', None):
@@ -185,22 +188,24 @@ def send_snap(config):
         try:
             filesystem = zfs.open(conf['name'])
         except (ValueError, DatasetNotFoundError, CalledProcessError) as err:
-            print('{:s} ERROR: {}'.format(logtime, err))
+            print('{:s} ERROR: {}'.format(logtime(), err))
             continue
 
         snapshots = filesystem.snapshots()
         snapshots.reverse()
         snapnames = [snap.name.split('@')[1] for snap in snapshots if
                      snap.name.split('@')[1].startswith('pyznap')]
-        if not snapshots:
-            print('{:s} ERROR: No snapshots on {:s}, aborting...'.format(logtime, filesystem.name))
+        try:
+            snapshot = snapshots[0]
+        except IndexError:
+            print('{:s} ERROR: No snapshots on {:s}, aborting...'.format(logtime(), filesystem.name))
             continue
 
         for dest in conf['dest']:
             try:
                 remote_fs = zfs.open(dest)
             except (ValueError, DatasetNotFoundError, CalledProcessError) as err:
-                print('{:s} ERROR: {}'.format(logtime, err))
+                print('{:s} ERROR: {}'.format(logtime(), err))
                 continue
 
             remote_snaps = [snap.name.split('@')[1] for snap in remote_fs.snapshots() if
@@ -211,24 +216,17 @@ def send_snap(config):
             base = next(filter(lambda x: x.name.split('@')[1] in common, snapshots), None)
 
             if not base:
-                print('{:s} INFO: No common snapshots found, sending full stream...'.format(logtime))
-                pass
-            else:
-                recent = snapshots[0]
-                print('{:s} INFO: Found common snapshot {:s}, sending incremental stream...'.format(logtime, recent.name))
-
-                if exists('mbuffer'):
-                    cmd_mbuffer = ['mbuffer', '-s', '128K', '-m', '1G']
-                else:
-                    cmd_mbuffer = ['cat']
-
-                with recent.send(base=base, intermediates=True, replicate=True) as send:
+                print('{:s} INFO: No common snapshots between {:s} and {:s}, sending full stream...'.format(logtime(), filesystem.name, dest))
+                with snapshot.send(replicate=True) as send:
                     with Popen(cmd_mbuffer, stdin=send.stdout, stdout=PIPE) as mbuffer:
-                        zfs.receive(name=dest, stdin=mbuffer.stdout, append_path=True, nomount=True)
-
-
-
-
+                        zfs.receive(name=dest, stdin=mbuffer.stdout, force=True, nomount=True)
+            elif base.name != snapshot.name:
+                print('{:s} INFO: Found common snapshot {:s} on {:s}, sending incremental stream...'.format(logtime(), snapshot.name.split('@')[1], dest))
+                with snapshot.send(base=base, intermediates=True, replicate=True) as send:
+                    with Popen(cmd_mbuffer, stdin=send.stdout, stdout=PIPE) as mbuffer:
+                        zfs.receive(name=dest, stdin=mbuffer.stdout, nomount=True)
+            else:
+                print('{:s} INFO: {:s} is up to date with {:s}...'.format(logtime(), dest, filesystem.name))
 
 
 #------------------------------------------------------------------------------------------
@@ -238,8 +236,7 @@ def exists(executable=''):
 
     assert isinstance(executable, str), "Input must be string."
     cmd = ['which', executable]
-    proc = Popen(cmd, stdout=PIPE, stderr=PIPE)
-    out, _ = proc.communicate()
+    out, _ = Popen(cmd, stdout=PIPE, stderr=PIPE).communicate()
 
     return bool(out)
 
