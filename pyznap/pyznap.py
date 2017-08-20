@@ -36,17 +36,16 @@ if __name__ == "__main__":
 
     args = parser.parse_args(sys.argv[1:])
 
-    now = datetime.now()
-    logtime = now.strftime('%b %d %H:%M:%S')
+    logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
 
     try:
         config_path = args.config if args.config else '/etc/pyznap/pyznap.conf'
         config = read_config(config_path)
     except FileNotFoundError as err:
-        print('{:s} ERROR: Config file does not exist...'.format(logtime))
+        print('{:s} ERROR: Config file does not exist...'.format(logtime()))
         sys.exit(1)
     except MissingSectionHeaderError as err:
-        print('{:s} ERROR: Config file contains no section headers...'.format(logtime))
+        print('{:s} ERROR: Config file contains no section headers...'.format(logtime()))
         sys.exit(1)
 
     if args.command == 'snap':
