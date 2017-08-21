@@ -204,7 +204,10 @@ def send_snap(config):
         for dest in conf['dest']:
             try:
                 remote_fs = zfs.open(dest)
-            except (ValueError, DatasetNotFoundError, CalledProcessError) as err:
+            except DatasetNotFoundError:
+                print('{:s} ERROR: Destination {:s} for dataset {:s} does not exist...'.format(logtime(), dest, filesystem.name))
+                continue
+            except (ValueError, CalledProcessError) as err:
                 print('{:s} ERROR: {}'.format(logtime(), err))
                 continue
 
@@ -221,7 +224,7 @@ def send_snap(config):
                     with Popen(cmd_mbuffer, stdin=send.stdout, stdout=PIPE) as mbuffer:
                         zfs.receive(name=dest, stdin=mbuffer.stdout, force=True, nomount=True)
             elif base.name != snapshot.name:
-                print('{:s} INFO: Found common snapshot {:s} on {:s}, sending incremental stream...'.format(logtime(), snapshot.name.split('@')[1], dest), flush=True)
+                print('{:s} INFO: Found common snapshot {:s} on {:s}, sending incremental stream...'.format(logtime(), snapshot.name, dest), flush=True)
                 with snapshot.send(base=base, intermediates=True, replicate=True) as send:
                     with Popen(cmd_mbuffer, stdin=send.stdout, stdout=PIPE) as mbuffer:
                         zfs.receive(name=dest, stdin=mbuffer.stdout, nomount=True)
