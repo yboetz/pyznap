@@ -216,12 +216,12 @@ def send_snap(config):
             base = next(filter(lambda x: x.name.split('@')[1] in common, snapshots), None)
 
             if not base:
-                print('{:s} INFO: No common snapshots between {:s} and {:s}, sending full stream...'.format(logtime(), filesystem.name, dest))
+                print('{:s} INFO: No common snapshots between {:s} and {:s}, sending full stream...'.format(logtime(), filesystem.name, dest), flush=True)
                 with snapshot.send(replicate=True) as send:
                     with Popen(cmd_mbuffer, stdin=send.stdout, stdout=PIPE) as mbuffer:
                         zfs.receive(name=dest, stdin=mbuffer.stdout, force=True, nomount=True)
             elif base.name != snapshot.name:
-                print('{:s} INFO: Found common snapshot {:s} on {:s}, sending incremental stream...'.format(logtime(), snapshot.name.split('@')[1], dest))
+                print('{:s} INFO: Found common snapshot {:s} on {:s}, sending incremental stream...'.format(logtime(), snapshot.name.split('@')[1], dest), flush=True)
                 with snapshot.send(base=base, intermediates=True, replicate=True) as send:
                     with Popen(cmd_mbuffer, stdin=send.stdout, stdout=PIPE) as mbuffer:
                         zfs.receive(name=dest, stdin=mbuffer.stdout, nomount=True)
