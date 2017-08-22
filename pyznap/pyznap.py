@@ -14,10 +14,16 @@ from datetime import datetime
 from configparser import MissingSectionHeaderError
 from utils import take_snap, clean_snap, read_config, send_snap
 
+__version__ = '0.1.0'
+
 if __name__ == "__main__":
+    logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
+    print('{:s} INFO: Starting pyznap...'.format(logtime()))
+
     parser = ArgumentParser(prog='pyznap', description='ZFS snapshot tool written in python')
     parser.add_argument('--config', action="store",
                          dest="config", help='path to config file')
+    parser.add_argument('--version', action="store_true", help='prints version and exits')
     subparsers = parser.add_subparsers(dest='command')
 
     parser_snap = subparsers.add_parser('snap', help='snapshot tools')
@@ -29,14 +35,12 @@ if __name__ == "__main__":
                              help='take snapshots then clean old according to config file')
 
     parser_send = subparsers.add_parser('send', help='zfs send/receive tools')
-    parser_send.add_argument('-s', '--source', action="store",
-                             dest='source', help='source filesystem')
-    parser_send.add_argument('-d', '--dest', action="store",
-                             dest='dest', help='destination filesystem')
+    # parser_send.add_argument('-s', '--source', action="store",
+    #                          dest='source', help='source filesystem')
+    # parser_send.add_argument('-d', '--dest', action="store",
+    #                          dest='dest', help='destination filesystem')
 
     args = parser.parse_args(sys.argv[1:])
-
-    logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
 
     try:
         config_path = args.config if args.config else '/etc/pyznap/pyznap.conf'
@@ -48,23 +52,22 @@ if __name__ == "__main__":
         print('{:s} ERROR: Config file contains no section headers...'.format(logtime()))
         sys.exit(1)
 
-    if args.command == 'snap':
+    if args.version:
+        print('{:s} INFO: pyznap version: {:s}'.format(logtime(), __version__))
+
+    elif args.command == 'snap':
         # Default if no args are given
         if not args.take and not args.clean:
             args.full = True
-        if args.full:
-            take_snap(config)
-            clean_snap(config)
-            sys.exit(0)
 
-        if args.take:
+        if args.take or args.full:
             take_snap(config)
-            sys.exit(0)
 
-        if args.clean:
+        if args.clean or args.full:
             clean_snap(config)
-            sys.exit(0)
 
     elif args.command == 'send':
         send_snap(config)
-        sys.exit(0)
+
+    print('{:s} INFO: Finished successfully...'.format(logtime()))
+    sys.exit(0)
