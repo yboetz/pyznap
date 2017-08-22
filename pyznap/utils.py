@@ -29,7 +29,7 @@ def read_config(path):
     if not os.path.isfile(path):
         raise FileNotFoundError('File does not exist.')
 
-    options = ['hourly', 'daily', 'weekly', 'monthly', 'yearly', 'snap', 'clean', 'dest']
+    options = ['hourly', 'daily', 'weekly', 'monthly', 'yearly', 'snap', 'clean', 'dest', 'key']
 
     config = ConfigParser()
     config.read(path)
@@ -41,19 +41,37 @@ def read_config(path):
         dic['name'] = section
 
         for option in options:
+            value = config.get(section, option)
             try:
-                dic[option] = int(config.get(section, option))
+                dic[option] = int(value)
             except NoOptionError:
                 dic[option] = None
             except ValueError:
                 if option in ['snap', 'clean']:
-                    dic[option] = True if config.get(section, option) == 'yes' else False
-                elif option in ['dest']:
-                    dic[option] = [i.strip(' ') for i in config.get(section, option).split(',')]
+                    dic[option] = True if value == 'yes' else False
+                elif option in ['dest', 'key']:
+                    dic[option] = [i.strip(' ') for i in value.split(',')]
                 else:
                     dic[option] = None
-
     return res
+
+
+def read_dest(value):
+    """Split a dest config entry in its parts"""
+    if value.startswith(('ssh', 'sftp')):
+        _type, port, host, dest = value.split(':', maxsplit=3)
+        if not port:
+            port = 22
+        else:
+            port = int(port)
+        user, host = host.split('@', maxsplit=1)
+    elif value.startswith('file'):
+        _type, dest = value.split(':', maxsplit=1)
+        user, host, port = None, None, None
+    else:
+        _type, user, host, port = 'local', None, None, None
+        dest = value
+    return _type, dest, user, host, port
 
 
 def take_snap(config):
