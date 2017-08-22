@@ -49,6 +49,9 @@ if __name__ == "__main__":
         sys.exit(1)
 
     if args.command == 'snap':
+        # Default if no args are given
+        if not args.take and not args.clean:
+            args.full = True
         if args.full:
             take_snap(config)
             clean_snap(config)

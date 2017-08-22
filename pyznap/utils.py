@@ -224,7 +224,7 @@ def send_snap(config):
                     with Popen(cmd_mbuffer, stdin=send.stdout, stdout=PIPE) as mbuffer:
                         zfs.receive(name=dest, stdin=mbuffer.stdout, force=True, nomount=True)
             elif base.name != snapshot.name:
-                print('{:s} INFO: Found common snapshot {:s} on {:s}, sending incremental stream...'.format(logtime(), snapshot.name, dest), flush=True)
+                print('{:s} INFO: Found common snapshot {:s} on {:s}, sending incremental stream...'.format(logtime(), base.name, dest), flush=True)
                 with snapshot.send(base=base, intermediates=True, replicate=True) as send:
                     with Popen(cmd_mbuffer, stdin=send.stdout, stdout=PIPE) as mbuffer:
                         zfs.receive(name=dest, stdin=mbuffer.stdout, nomount=True)
