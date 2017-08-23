@@ -41,18 +41,17 @@ def read_config(path):
         dic['name'] = section
 
         for option in options:
-            value = config.get(section, option)
             try:
-                dic[option] = int(value)
+                value = config.get(section, option)
             except NoOptionError:
                 dic[option] = None
-            except ValueError:
-                if option in ['snap', 'clean']:
+            else:
+                if option in ['hourly', 'daily', 'weekly', 'monthly', 'yearly']:
+                    dic[option] = int(value)
+                elif option in ['snap', 'clean']:
                     dic[option] = True if value == 'yes' else False
                 elif option in ['dest', 'key']:
                     dic[option] = [i.strip(' ') for i in value.split(',')]
-                else:
-                    dic[option] = None
     return res
 
 
@@ -220,34 +219,46 @@ def send_snap(config):
             continue
 
         for dest in conf['dest']:
-            try:
-                remote_fs = zfs.open(dest)
-            except DatasetNotFoundError:
-                print('{:s} ERROR: Destination {:s} for dataset {:s} does not exist...'.format(logtime(), dest, filesystem.name))
-                continue
-            except (ValueError, CalledProcessError) as err:
-                print('{:s} ERROR: {}'.format(logtime(), err))
-                continue
+            _type, _dest, user, host, port = read_dest(dest)
+            if _type == 'local':
+                print('{:s} INFO: Local backup of {:s} on {:s}...'.format(logtime(), filesystem.name, dest))
+                try:
+                    remote_fs = zfs.open(dest)
+                except DatasetNotFoundError:
+                    print('{:s} ERROR: Destination {:s} does not exist...'.format(logtime(), dest))
+                    continue
+                except (ValueError, CalledProcessError) as err:
+                    print('{:s} ERROR: {}'.format(logtime(), err))
+                    continue
 
-            remote_snaps = [snap.name.split('@')[1] for snap in remote_fs.snapshots() if
-                            snap.name.split('@')[1].startswith('pyznap')]
-            # Find common snapshots between local & remote
-            common = set(snapnames) & set(remote_snaps)
-            # Get the most recent local common snapshot and use it as base
-            base = next(filter(lambda x: x.name.split('@')[1] in common, snapshots), None)
+                remote_snaps = [snap.name.split('@')[1] for snap in remote_fs.snapshots() if
+                                snap.name.split('@')[1].startswith('pyznap')]
+                # Find common snapshots between local & remote
+                common = set(snapnames) & set(remote_snaps)
+                # Get the most recent local common snapshot and use it as base
+                base = next(filter(lambda x: x.name.split('@')[1] in common, snapshots), None)
 
-            if not base:
-                print('{:s} INFO: No common snapshots between {:s} and {:s}, sending full stream...'.format(logtime(), filesystem.name, dest), flush=True)
-                with snapshot.send(replicate=True) as send:
-                    with Popen(cmd_mbuffer, stdin=send.stdout, stdout=PIPE) as mbuffer:
-                        zfs.receive(name=dest, stdin=mbuffer.stdout, force=True, nomount=True)
-            elif base.name != snapshot.name:
-                print('{:s} INFO: Found common snapshot {:s} on {:s}, sending incremental stream...'.format(logtime(), base.name, dest), flush=True)
-                with snapshot.send(base=base, intermediates=True, replicate=True) as send:
-                    with Popen(cmd_mbuffer, stdin=send.stdout, stdout=PIPE) as mbuffer:
-                        zfs.receive(name=dest, stdin=mbuffer.stdout, nomount=True)
-            else:
-                print('{:s} INFO: {:s} is up to date with {:s}...'.format(logtime(), dest, filesystem.name))
+                if not base:
+                    print('{:s} INFO: No common snapshots on {:s}, sending full stream...'.format(logtime(), dest), flush=True)
+                    with snapshot.send(replicate=True) as send:
+                        with Popen(cmd_mbuffer, stdin=send.stdout, stdout=PIPE) as mbuffer:
+                            zfs.receive(name=dest, stdin=mbuffer.stdout, force=True, nomount=True)
+                elif base.name != snapshot.name:
+                    print('{:s} INFO: Found common snapshot {:s} on {:s}, sending incremental stream...'.format(logtime(), base.name.split('@')[1], dest), flush=True)
+                    with snapshot.send(base=base, intermediates=True, replicate=True) as send:
+                        with Popen(cmd_mbuffer, stdin=send.stdout, stdout=PIPE) as mbuffer:
+                            zfs.receive(name=dest, stdin=mbuffer.stdout, nomount=True)
+                else:
+                    print('{:s} INFO: {:s} is up to date...'.format(logtime(), dest))
+            elif _type == 'file':
+                print('{:s} INFO: Local file backup of {:s} on {:s}...'.format(logtime(), filesystem.name, dest))
+                pass
+            elif _type == 'ssh':
+                print('{:s} INFO: Remote ssh backup of {:s} on {:s}...'.format(logtime(), filesystem.name, dest))
+                pass
+            elif _type == 'sftp':
+                print('{:s} INFO: Remote ssh backup of {:s} on {:s}...'.format(logtime(), filesystem.name, dest))
+                pass
 
 
 #------------------------------------------------------------------------------------------
