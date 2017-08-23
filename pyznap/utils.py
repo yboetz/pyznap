@@ -257,7 +257,7 @@ def send_snap(config):
                 else:
                     print('{:s} INFO: {:s} is up to date...'.format(logtime(), dest))
                     continue
-                zfs_send_local(snapshot, dest=dest, base=base)
+                zfs_send_local(snapshot, dest, base=base)
 
             elif _type == 'file':
                 print('{:s} INFO: Local file backup of {:s} on {:s}...'.format(logtime(), filesystem.name, dest))
@@ -279,13 +279,46 @@ def send_snap(config):
                 else:
                     print('{:s} INFO: {:s} is up to date...'.format(logtime(), dest))
                     continue
-                zfs_send_file(snapshot, dest=dest, base=base, compress=compress)
-
-            elif _type == 'ssh':
-                print('{:s} INFO: Remote ssh backup of {:s} on {:s} is not implemented yet...'.format(logtime(), filesystem.name, dest))
+                zfs_send_file(snapshot, dest, base=base, compress=compress)
 
             elif _type == 'sftp':
-                print('{:s} INFO: Remote ssh backup of {:s} on {:s}...'.format(logtime(), filesystem.name, dest))
+                print('{:s} INFO: Remote sftp backup of {:s} on {:s}:{:s}...'.format(logtime(), filesystem.name, host, dest))
+                path, filename = os.path.split(dest)
+                try:
+                    key = conf['key'].pop(0) if conf['key'] else None
+                    ssh, sftp = open_sftp(user, host, key=key, port=port)
+                except FileNotFoundError:
+                    print('{:s} ERROR: Could not find a key file for host {:s}...'.format(logtime(), host))
+                    continue
+                except AssertionError:
+                    print('{:s} ERROR: Could not connect to host {:s}...'.format(logtime(), host))
+                    continue
+
+                try:
+                    sftp.stat(path)
+                except FileNotFoundError:
+                    sftp.mkdir(path)
+
+                files = sftp.listdir(path)
+                remote_snaps = [file.split('@')[1] for file in files if '@' in file and
+                                filename == file.split('@')[0].split('_')[0] and file.split('@')[1].startswith('pyznap')]
+
+                common = set(snapnames) & set(remote_snaps)
+                base = next(filter(lambda x: x.name.split('@')[1] in common, snapshots), None)
+
+                if not base:
+                    print('{:s} INFO: No common snapshots on {:s}:{:s}, sending full stream...'.format(logtime(), host, dest), flush=True)
+                elif base.name != snapshot.name:
+                    print('{:s} INFO: Found common snapshot {:s} on {:s}:{:s}, sending incremental stream...'.format(logtime(), base.name.split('@')[1], host, dest), flush=True)
+                else:
+                    print('{:s} INFO: {:s}:{:s} is up to date...'.format(logtime(), host, dest))
+                    continue
+                zfs_send_ssh(snapshot, dest, sftp, base=base, compress='lzop')
+                ssh.close()
+
+            elif _type == 'ssh':
+                print('{:s} ERROR: Remote ssh backup of {:s} on {:s} is not implemented yet...'.format(logtime(), filesystem.name, dest))
+                pass
 
 
 #------------------------------------------------------------------------------------------
@@ -344,24 +377,19 @@ def zfs_send_file(snapshot, dest, base=None, compress='lzop'):
         return False
 
 
-def zfs_send_ssh(snapshot, user, host, key=None, port=22, base=None,
-                 intermediates=False, replicate=False, properties=False,
-                 deduplicate=False, outfile='/tmp/pyznap.out', compress='lzop'):
-    """Sends a snapshot to a file, with compression."""
-
-    ssh, sftp = open_sftp(user=user, host=host, key=key, port=port)
-
+def zfs_send_ssh(snapshot, dest, sftp, base=None, compress='lzop'):
+    """Sends a snapshot to a sftp file, with compression."""
     if compress in ['lzop', 'gzip', 'pigz', 'lbzip2'] and exists(compress):
         cmd_compress = [compress, '-c']
+        dest += '_{:s}'.format(compress)
     else:
         cmd_compress = ['cat']
 
-    with sftp.open(outfile, 'w') as file:
-        with snapshot.send(base=base, intermediates=intermediates, replicate=replicate,
-                           properties=properties, deduplicate=deduplicate) as send:
+    filename = '{:s}@{:s}'.format(dest, snapshot.name.split('@')[1])
+
+    with sftp.open(filename, 'wb') as file:
+        with snapshot.send(base=base, intermediates=True, replicate=True) as send:
             with Popen(MBUFFER, stdin=send.stdout, stdout=PIPE) as mbuffer:
                 with Popen(cmd_compress, stdin=mbuffer.stdout, stdout=PIPE) as comp:
-                    shutil.copyfileobj(comp.stdout, file)
-    ssh.close()
-
+                    shutil.copyfileobj(comp.stdout, file, 128*1024)
     return True
