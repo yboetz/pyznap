@@ -69,5 +69,5 @@ if __name__ == "__main__":
     elif args.command == 'send':
         send_snap(config)
 
-    print('{:s} INFO: Finished successfully...'.format(logtime()))
+    print('{:s} INFO: Finished successfully...\n'.format(logtime()))
     sys.exit(0)

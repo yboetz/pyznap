@@ -22,6 +22,22 @@ import zfs
 from process import DatasetNotFoundError
 
 
+def exists(executable=''):
+    """Tests if an executable exists on the system."""
+
+    assert isinstance(executable, str), "Input must be string."
+    cmd = ['which', executable]
+    out, _ = Popen(cmd, stdout=PIPE, stderr=PIPE).communicate()
+
+    return bool(out)
+
+# Use mbuffer if installed on the system
+if exists('mbuffer'):
+    MBUFFER = ['mbuffer', '-s', '128K', '-m', '1G']
+else:
+    MBUFFER = ['cat']
+
+
 def read_config(path):
     """Reads a config file and outputs a list of dicts with the given
     snapshot strategy"""
@@ -64,13 +80,14 @@ def read_dest(value):
         else:
             port = int(port)
         user, host = host.split('@', maxsplit=1)
+        compress = None
     elif value.startswith('file'):
-        _type, dest = value.split(':', maxsplit=1)
+        _type, compress, dest = value.split(':', maxsplit=2)
         user, host, port = None, None, None
     else:
-        _type, user, host, port = 'local', None, None, None
+        _type, user, host, port, compress = 'local', None, None, None, None
         dest = value
-    return _type, dest, user, host, port
+    return _type, dest, user, host, port, compress
 
 
 def take_snap(config):
@@ -193,11 +210,6 @@ def send_snap(config):
     logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
     print('{:s} INFO: Sending snapshots...'.format(logtime()))
 
-    if exists('mbuffer'):
-        cmd_mbuffer = ['mbuffer', '-s', '128K', '-m', '1G']
-    else:
-        cmd_mbuffer = ['cat']
-
     for conf in config:
         if not conf.get('dest', None):
             continue
@@ -218,8 +230,9 @@ def send_snap(config):
             print('{:s} ERROR: No snapshots on {:s}, aborting...'.format(logtime(), filesystem.name))
             continue
 
-        for dest in conf['dest']:
-            _type, _dest, user, host, port = read_dest(dest)
+        for backup_dest in conf['dest']:
+            _type, dest, user, host, port, compress = read_dest(backup_dest)
+
             if _type == 'local':
                 print('{:s} INFO: Local backup of {:s} on {:s}...'.format(logtime(), filesystem.name, dest))
                 try:
@@ -233,44 +246,49 @@ def send_snap(config):
 
                 remote_snaps = [snap.name.split('@')[1] for snap in remote_fs.snapshots() if
                                 snap.name.split('@')[1].startswith('pyznap')]
-                # Find common snapshots between local & remote
+                # Find common snapshots between local & remote, then use most recent as base
                 common = set(snapnames) & set(remote_snaps)
-                # Get the most recent local common snapshot and use it as base
                 base = next(filter(lambda x: x.name.split('@')[1] in common, snapshots), None)
 
                 if not base:
                     print('{:s} INFO: No common snapshots on {:s}, sending full stream...'.format(logtime(), dest), flush=True)
-                    with snapshot.send(replicate=True) as send:
-                        with Popen(cmd_mbuffer, stdin=send.stdout, stdout=PIPE) as mbuffer:
-                            zfs.receive(name=dest, stdin=mbuffer.stdout, force=True, nomount=True)
                 elif base.name != snapshot.name:
                     print('{:s} INFO: Found common snapshot {:s} on {:s}, sending incremental stream...'.format(logtime(), base.name.split('@')[1], dest), flush=True)
-                    with snapshot.send(base=base, intermediates=True, replicate=True) as send:
-                        with Popen(cmd_mbuffer, stdin=send.stdout, stdout=PIPE) as mbuffer:
-                            zfs.receive(name=dest, stdin=mbuffer.stdout, nomount=True)
                 else:
                     print('{:s} INFO: {:s} is up to date...'.format(logtime(), dest))
+                    continue
+                zfs_send_local(snapshot, dest=dest, base=base)
+
             elif _type == 'file':
                 print('{:s} INFO: Local file backup of {:s} on {:s}...'.format(logtime(), filesystem.name, dest))
-                pass
+                path, filename = os.path.split(dest)
+                if not os.path.isdir(path):
+                    os.makedirs(path)
+
+                files = os.listdir(path)
+                remote_snaps = [file.split('@')[1] for file in files if '@' in file and
+                                filename == file.split('@')[0].split('_')[0] and file.split('@')[1].startswith('pyznap')]
+
+                common = set(snapnames) & set(remote_snaps)
+                base = next(filter(lambda x: x.name.split('@')[1] in common, snapshots), None)
+
+                if not base:
+                    print('{:s} INFO: No common snapshots on {:s}, sending full stream...'.format(logtime(), dest), flush=True)
+                elif base.name != snapshot.name:
+                    print('{:s} INFO: Found common snapshot {:s} on {:s}, sending incremental stream...'.format(logtime(), base.name.split('@')[1], dest), flush=True)
+                else:
+                    print('{:s} INFO: {:s} is up to date...'.format(logtime(), dest))
+                    continue
+                zfs_send_file(snapshot, dest=dest, base=base, compress=compress)
+
             elif _type == 'ssh':
-                print('{:s} INFO: Remote ssh backup of {:s} on {:s}...'.format(logtime(), filesystem.name, dest))
-                pass
+                print('{:s} INFO: Remote ssh backup of {:s} on {:s} is not implemented yet...'.format(logtime(), filesystem.name, dest))
+
             elif _type == 'sftp':
                 print('{:s} INFO: Remote ssh backup of {:s} on {:s}...'.format(logtime(), filesystem.name, dest))
-                pass
 
 
 #------------------------------------------------------------------------------------------
-
-def exists(executable=''):
-    """Tests if an executable exists on the system."""
-
-    assert isinstance(executable, str), "Input must be string."
-    cmd = ['which', executable]
-    out, _ = Popen(cmd, stdout=PIPE, stderr=PIPE).communicate()
-
-    return bool(out)
 
 
 def open_sftp(user, host, key=None, port=22):
@@ -291,28 +309,32 @@ def open_sftp(user, host, key=None, port=22):
     return ssh, ssh.open_sftp()
 
 
-def zfs_send_file(snapshot, base=None, intermediates=False, replicate=False,
-                  properties=False, deduplicate=False, outfile='/tmp/pyznap.out',
-                  compress='lzop'):
-    """Sends a snapshot to a file, with compression."""
+def zfs_send_local(snapshot, dest, base=None):
+    """Sends a snapshot to a local zfs filesystem"""
+    with snapshot.send(base=base, intermediates=True, replicate=True) as send:
+        with Popen(MBUFFER, stdin=send.stdout, stdout=PIPE) as mbuffer:
+            _, err = zfs.receive(name=dest, stdin=mbuffer.stdout, force=True, nomount=True)
 
-    if not os.path.isdir(os.path.dirname(outfile)):
-        os.makedirs(os.path.dirname(outfile))
+    if not err:
+        return True
+    else:
+        print(err.decode('utf-8'))
+        return False
 
+
+def zfs_send_file(snapshot, dest, base=None, compress='lzop'):
+    """Sends a compressed snapshot to a file"""
     if compress in ['lzop', 'gzip', 'pigz', 'lbzip2'] and exists(compress):
         cmd_compress = [compress, '-c']
+        dest += '_{:s}'.format(compress)
     else:
         cmd_compress = ['cat']
 
-    if exists('mbuffer'):
-        cmd_mbuffer = ['mbuffer', '-s', '128K', '-m', '1G']
-    else:
-        cmd_mbuffer = ['cat']
+    filename = '{:s}@{:s}'.format(dest, snapshot.name.split('@')[1])
 
-    with open(outfile, 'w') as file:
-        with snapshot.send(base=base, intermediates=intermediates, replicate=replicate,
-                           properties=properties, deduplicate=deduplicate) as send:
-            with Popen(cmd_mbuffer, stdin=send.stdout, stdout=PIPE) as mbuffer:
+    with open(filename, 'w') as file:
+        with snapshot.send(base=base, intermediates=True, replicate=True) as send:
+            with Popen(MBUFFER, stdin=send.stdout, stdout=PIPE) as mbuffer:
                 _, err = Popen(cmd_compress, stdin=mbuffer.stdout, stdout=file).communicate()
 
     if not err:
@@ -334,15 +356,10 @@ def zfs_send_ssh(snapshot, user, host, key=None, port=22, base=None,
     else:
         cmd_compress = ['cat']
 
-    if exists('mbuffer'):
-        cmd_mbuffer = ['mbuffer', '-s', '128K', '-m', '1G']
-    else:
-        cmd_mbuffer = ['cat']
-
     with sftp.open(outfile, 'w') as file:
         with snapshot.send(base=base, intermediates=intermediates, replicate=replicate,
                            properties=properties, deduplicate=deduplicate) as send:
-            with Popen(cmd_mbuffer, stdin=send.stdout, stdout=PIPE) as mbuffer:
+            with Popen(MBUFFER, stdin=send.stdout, stdout=PIPE) as mbuffer:
                 with Popen(cmd_compress, stdin=mbuffer.stdout, stdout=PIPE) as comp:
                     shutil.copyfileobj(comp.stdout, file)
     ssh.close()
