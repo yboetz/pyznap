@@ -313,15 +313,24 @@ def send_snap(config):
                 else:
                     print('{:s} INFO: {:s}:{:s} is up to date...'.format(logtime(), host, dest))
                     continue
-                zfs_send_ssh(snapshot, dest, sftp, base=base, compress='lzop')
+                zfs_send_ssh(snapshot, dest, ssh, base=base, compress='lzop')
                 ssh.close()
 
             elif _type == 'ssh':
-                print('{:s} ERROR: Remote ssh backup of {:s} on {:s} is not implemented yet...'.format(logtime(), filesystem.name, dest))
+                print('{:s} ERROR: Remote ssh backup of {:s} on {:s}:{:s} is not implemented yet...'.format(logtime(), filesystem.name, host, dest))
                 pass
 
 
 #------------------------------------------------------------------------------------------
+
+def pipe_ssh(stdin, outfile, user, host, key=None, port=22):
+    """Takes stdin and pipes it into a file via ssh"""
+    if not key:
+        key = '/home/{:s}/.ssh/id_rsa'.format(user)
+    if not os.path.isfile(key):
+        raise FileNotFoundError(key)
+    cmd_ssh = ['ssh', '-p', port, '-i', key, '{:s}@{:s}'.format(user, host), 'cat - > {:s}'.format(outfile)]
+    return Popen(cmd_ssh, stdin=stdin, stdout=PIPE).communicate()
 
 
 def open_sftp(user, host, key=None, port=22):
@@ -377,7 +386,7 @@ def zfs_send_file(snapshot, dest, base=None, compress='lzop'):
         return False
 
 
-def zfs_send_ssh(snapshot, dest, sftp, base=None, compress='lzop'):
+def zfs_send_ssh(snapshot, dest, ssh, base=None, compress='lzop'):
     """Sends a snapshot to a sftp file, with compression."""
     if compress in ['lzop', 'gzip', 'pigz', 'lbzip2'] and exists(compress):
         cmd_compress = [compress, '-c']
@@ -387,9 +396,9 @@ def zfs_send_ssh(snapshot, dest, sftp, base=None, compress='lzop'):
 
     filename = '{:s}@{:s}'.format(dest, snapshot.name.split('@')[1])
 
-    with sftp.open(filename, 'wb') as file:
-        with snapshot.send(base=base, intermediates=True, replicate=True) as send:
-            with Popen(MBUFFER, stdin=send.stdout, stdout=PIPE) as mbuffer:
-                with Popen(cmd_compress, stdin=mbuffer.stdout, stdout=PIPE) as comp:
-                    shutil.copyfileobj(comp.stdout, file, 128*1024)
+    with snapshot.send(base=base, intermediates=True, replicate=True) as send:
+        with Popen(MBUFFER, stdin=send.stdout, stdout=PIPE) as mbuffer:
+            with Popen(cmd_compress, stdin=mbuffer.stdout, stdout=PIPE) as comp:
+                ssh_stdin, _, _ = ssh.exec_command('cat - > {:s}'.format(filename))
+                shutil.copyfileobj(comp.stdout, ssh_stdin, 128*1024)
     return True
