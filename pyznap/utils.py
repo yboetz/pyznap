@@ -15,6 +15,7 @@ from datetime import datetime
 from configparser import ConfigParser, NoOptionError
 from subprocess import Popen, PIPE, CalledProcessError
 
+from socket import timeout
 import paramiko as pm
 from paramiko.ssh_exception import (AuthenticationException, BadAuthenticationType,
                                     BadHostKeyException, ChannelException, NoValidConnectionsError,
@@ -77,13 +78,16 @@ def read_config(path):
 def read_dest(value):
     """Split a dest config entry in its parts"""
     if value.startswith(('ssh', 'sftp')):
-        _type, port, host, dest = value.split(':', maxsplit=3)
-        if not port:
-            port = 22
+        _type, options, host, dest = value.split(':', maxsplit=3)
+        if not options:
+            port, compress = 22, None
         else:
-            port = int(port)
+            options = set(options.split('/')) - set([''])
+            compress = set(['lzop', 'gzip', 'pigz', 'lbzip2']) & options
+            compress = compress.pop() if compress else None
+            port = [o for o in options if o.isdigit()]
+            port = int(port[0]) if port else 22
         user, host = host.split('@', maxsplit=1)
-        compress = None
     elif value.startswith('file'):
         _type, compress, dest = value.split(':', maxsplit=2)
         user, host, port = None, None, None
@@ -235,7 +239,12 @@ def send_snap(config):
             continue
 
         for backup_dest in conf['dest']:
-            _type, dest, user, host, port, compress = read_dest(backup_dest)
+            try:
+                _type, dest, user, host, port, compress = read_dest(backup_dest)
+            except ValueError as err:
+                print('{:s} ERROR: Could not parse destination {:s}: {}...'
+                      .format(logtime(), dest, err))
+                continue
 
             if _type == 'local':
                 print('{:s} INFO: Local backup of {:s} on {:s}...'
@@ -308,7 +317,7 @@ def send_snap(config):
                 except (AssertionError, AuthenticationException, BadAuthenticationType,
                         BadHostKeyException, ChannelException, NoValidConnectionsError,
                         PasswordRequiredException, SSHException, PartialAuthentication,
-                        ProxyCommandFailure) as err:
+                        ProxyCommandFailure, timeout) as err:
                     print('{:s} ERROR: Could not connect to host {:s}: {}...'
                           .format(logtime(), host, err))
                     continue
@@ -335,7 +344,7 @@ def send_snap(config):
                 else:
                     print('{:s} INFO: {:s}:{:s} is up to date...'.format(logtime(), host, dest))
                     continue
-                zfs_send_ssh(snapshot, dest, ssh, base=base, compress='lzop')
+                zfs_send_ssh(snapshot, dest, ssh, base=base, compress=compress)
                 ssh.close()
 
             elif _type == 'ssh':
@@ -373,7 +382,7 @@ def zfs_send_local(snapshot, dest, base=None):
 
 def zfs_send_file(snapshot, dest, base=None, compress='lzop'):
     """Sends a compressed snapshot to a file"""
-    if compress in ['lzop', 'gzip', 'pigz', 'lbzip2'] and exists(compress):
+    if exists(compress):
         cmd_compress = [compress, '-c']
     else:
         cmd_compress = ['cat']
@@ -388,7 +397,7 @@ def zfs_send_file(snapshot, dest, base=None, compress='lzop'):
 
 def zfs_send_ssh(snapshot, dest, ssh, base=None, compress='lzop'):
     """Sends a snapshot to a sftp file, with compression."""
-    if compress in ['lzop', 'gzip', 'pigz', 'lbzip2'] and exists(compress):
+    if exists(compress):
         cmd_compress = [compress, '-c']
     else:
         cmd_compress = ['cat']
