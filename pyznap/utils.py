@@ -15,12 +15,7 @@ from datetime import datetime
 from configparser import ConfigParser, NoOptionError
 from subprocess import Popen, PIPE, CalledProcessError
 
-from socket import timeout
 import paramiko as pm
-from paramiko.ssh_exception import (AuthenticationException, BadAuthenticationType,
-                                    BadHostKeyException, ChannelException, NoValidConnectionsError,
-                                    PasswordRequiredException, SSHException, PartialAuthentication,
-                                    ProxyCommandFailure)
 
 import zfs
 from process import DatasetNotFoundError
@@ -274,77 +269,6 @@ def send_snap(config):
                     print('{:s} INFO: {:s} is up to date...'.format(logtime(), dest))
                     continue
                 zfs_send_local(snapshot, dest, base=base)
-
-            elif _type == 'file':
-                print('{:s} INFO: Local file backup of {:s} on {:s}...'
-                      .format(logtime(), filesystem.name, dest))
-                path, filename = os.path.split(dest)
-                if not os.path.isdir(path):
-                    os.makedirs(path)
-
-                files = os.listdir(path)
-                remote_snaps = [file.split('@')[1] for file in files if '@' in file and
-                                filename == file.split('@')[0].split('_')[0] and
-                                file.split('@')[1].startswith('pyznap')]
-
-                common = set(snapnames) & set(remote_snaps)
-                base = next(filter(lambda x: x.name.split('@')[1] in common, snapshots), None)
-
-                if not base:
-                    print('{:s} INFO: No common snapshots on {:s}, sending full stream...'
-                          .format(logtime(), dest), flush=True)
-                elif base.name != snapshot.name:
-                    print('{:s} INFO: Found common snapshot {:s} on {:s}, sending incremental stream...'
-                          .format(logtime(), base.name.split('@')[1], dest), flush=True)
-                else:
-                    print('{:s} INFO: {:s} is up to date...'.format(logtime(), dest))
-                    continue
-                zfs_send_file(snapshot, dest, base=base, compress=compress)
-
-            elif _type == 'sftp':
-                print('{:s} INFO: Remote sftp backup of {:s} on {:s}:{:s}...'
-                      .format(logtime(), filesystem.name, host, dest))
-                path, filename = os.path.split(dest)
-
-                try:
-                    key = conf['key'].pop(0) if conf['key'] else None
-                    ssh, sftp = open_sftp(user, host, key=key, port=port)
-                except FileNotFoundError:
-                    print('{:s} ERROR: Could not find a key file for host {:s}...'
-                          .format(logtime(), host))
-                    continue
-                except (AssertionError, AuthenticationException, BadAuthenticationType,
-                        BadHostKeyException, ChannelException, NoValidConnectionsError,
-                        PasswordRequiredException, SSHException, PartialAuthentication,
-                        ProxyCommandFailure, timeout) as err:
-                    print('{:s} ERROR: Could not connect to host {:s}: {}...'
-                          .format(logtime(), host, err))
-                    continue
-
-                try:
-                    sftp.stat(path)
-                except FileNotFoundError:
-                    sftp.mkdir(path)
-
-                files = sftp.listdir(path)
-                remote_snaps = [file.split('@')[1] for file in files if '@' in file and
-                                filename == file.split('@')[0].split('_')[0] and
-                                file.split('@')[1].startswith('pyznap')]
-
-                common = set(snapnames) & set(remote_snaps)
-                base = next(filter(lambda x: x.name.split('@')[1] in common, snapshots), None)
-
-                if not base:
-                    print('{:s} INFO: No common snapshots on {:s}:{:s}, sending full stream...'
-                          .format(logtime(), host, dest), flush=True)
-                elif base.name != snapshot.name:
-                    print('{:s} INFO: Found common snapshot {:s} on {:s}:{:s}, sending incremental stream...'
-                          .format(logtime(), base.name.split('@')[1], host, dest), flush=True)
-                else:
-                    print('{:s} INFO: {:s}:{:s} is up to date...'.format(logtime(), host, dest))
-                    continue
-                zfs_send_ssh(snapshot, dest, ssh, base=base, compress=compress)
-                ssh.close()
 
             elif _type == 'ssh':
                 print('{:s} ERROR: Remote ssh backup of {:s} on {:s}:{:s} is not implemented yet...'
