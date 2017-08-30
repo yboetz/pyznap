@@ -227,8 +227,7 @@ def send_snap(config):
             print('{:s} ERROR: {}'.format(logtime(), err))
             continue
 
-        snapshots = filesystem.snapshots()
-        snapshots.reverse()
+        snapshots = filesystem.snapshots()[::-1]
         snapnames = [snap.name.split('@')[1] for snap in snapshots if
                      snap.name.split('@')[1].startswith('pyznap')]
         try:
