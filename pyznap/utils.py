@@ -126,23 +126,16 @@ def read_config(path):
     return res
 
 
-def read_dest(value):
-    """Split a dest config entry in its parts"""
+def parse_name(value):
+    """Split a name/dest config entry in its parts"""
     if value.startswith('ssh'):
-        _type, options, host, dest = value.split(':', maxsplit=3)
-        if not options:
-            port, compress = 22, None
-        else:
-            options = set(options.split('/')) - set([''])
-            compress = set(['lzop', 'gzip', 'pigz', 'lbzip2']) & options
-            compress = compress.pop() if compress else None
-            port = [o for o in options if o.isdigit()]
-            port = int(port[0]) if port else 22
+        _type, options, host, fsname = value.split(':', maxsplit=3)
+        port = int(options) if options else 22
         user, host = host.split('@', maxsplit=1)
     else:
-        _type, user, host, port, compress = 'local', None, None, None, None
-        dest = value
-    return _type, dest, user, host, port, compress
+        _type, user, host, port = 'local', None, None, None
+        fsname = value
+    return _type, fsname, user, host, port
 
 
 def take_snap(config):
@@ -150,14 +143,32 @@ def take_snap(config):
 
     now = datetime.now()
     logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
-    print('{:s} INFO: Taking snapshots...'.format(logtime()))
 
     for conf in config:
         if not conf.get('snap', None):
             continue
 
+        name = conf['name']
         try:
-            filesystem = zfs.open(conf['name'])
+            _type, fsname, user, host, port = parse_name(name)
+        except ValueError as err:
+            print('{:s} ERROR: Could not parse {:s}: {}...'
+                    .format(logtime(), name, err))
+            continue
+
+        if _type == 'ssh':
+            name = name.split(':', maxsplit=2)[-1]
+            remote = Remote(user, host, port, conf['key'])
+            if not remote.test():
+                continue
+        else:
+            remote = None
+
+        print('{:s} INFO: Taking snapshots on {:s}...'.format(logtime(), name))
+
+
+        try:
+            filesystem = zfs.open(fsname, remote=remote)
         except (ValueError, DatasetNotFoundError, CalledProcessError) as err:
             print('{:s} ERROR: {}'.format(logtime(), err))
             continue
@@ -182,27 +193,27 @@ def take_snap(config):
 
         if conf['yearly'] and (not snapshots['yearly'] or
                                snapshots['yearly'][0][1].year != now.year):
-            print('{:s} INFO: Taking snapshot {:s}@{:s}'.format(logtime(), conf['name'], snapname + 'yearly'))
+            print('{:s} INFO: Taking snapshot {:s}@{:s}'.format(logtime(), name, snapname + 'yearly'))
             filesystem.snapshot(snapname=snapname + 'yearly', recursive=True)
 
         if conf['monthly'] and (not snapshots['monthly'] or
                                 snapshots['monthly'][0][1].month != now.month):
-            print('{:s} INFO: Taking snapshot {:s}@{:s}'.format(logtime(), conf['name'], snapname + 'monthly'))
+            print('{:s} INFO: Taking snapshot {:s}@{:s}'.format(logtime(), name, snapname + 'monthly'))
             filesystem.snapshot(snapname=snapname + 'monthly', recursive=True)
 
         if conf['weekly'] and (not snapshots['weekly'] or
                                snapshots['weekly'][0][1].isocalendar()[1] != now.isocalendar()[1]):
-            print('{:s} INFO: Taking snapshot {:s}@{:s}'.format(logtime(), conf['name'], snapname + 'weekly'))
+            print('{:s} INFO: Taking snapshot {:s}@{:s}'.format(logtime(), name, snapname + 'weekly'))
             filesystem.snapshot(snapname=snapname + 'weekly', recursive=True)
 
         if conf['daily'] and (not snapshots['daily'] or
                               snapshots['daily'][0][1].day != now.day):
-            print('{:s} INFO: Taking snapshot {:s}@{:s}'.format(logtime(), conf['name'], snapname + 'daily'))
+            print('{:s} INFO: Taking snapshot {:s}@{:s}'.format(logtime(), name, snapname + 'daily'))
             filesystem.snapshot(snapname=snapname + 'daily', recursive=True)
 
         if conf['hourly'] and (not snapshots['hourly'] or
                                snapshots['hourly'][0][1].hour != now.hour):
-            print('{:s} INFO: Taking snapshot {:s}@{:s}'.format(logtime(), conf['name'], snapname + 'hourly'))
+            print('{:s} INFO: Taking snapshot {:s}@{:s}'.format(logtime(), name, snapname + 'hourly'))
             filesystem.snapshot(snapname=snapname + 'hourly', recursive=True)
 
 
@@ -210,14 +221,32 @@ def clean_snap(config):
     """Deletes old snapshots according to strategy given in config"""
 
     logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
-    print('{:s} INFO: Cleaning snapshots...'.format(logtime()))
 
     for conf in config:
         if not conf.get('clean', None):
             continue
 
+        name = conf['name']
         try:
-            filesystem = zfs.open(conf['name'])
+            _type, fsname, user, host, port = parse_name(name)
+        except ValueError as err:
+            print('{:s} ERROR: Could not parse {:s}: {}...'
+                    .format(logtime(), name, err))
+            continue
+
+        if _type == 'ssh':
+            name = name.split(':', maxsplit=2)[-1]
+            remote = Remote(user, host, port, conf['key'])
+            if not remote.test():
+                continue
+        else:
+            remote = None
+
+        print('{:s} INFO: Cleaning snapshots on {:s}...'.format(logtime(), name))
+
+
+        try:
+            filesystem = zfs.open(fsname, remote=remote)
         except (ValueError, DatasetNotFoundError, CalledProcessError) as err:
             print('{:s} ERROR: {}'.format(logtime(), err))
             continue
@@ -269,6 +298,10 @@ def send_snap(config):
         if not conf.get('dest', None):
             continue
 
+        if conf['name'].startswith('ssh'):
+            print('{:s} ERROR: Cannot send from remote location...'.format(logtime()))
+            continue
+
         try:
             filesystem = zfs.open(conf['name'])
         except (ValueError, DatasetNotFoundError, CalledProcessError) as err:
@@ -287,25 +320,26 @@ def send_snap(config):
 
         for backup_dest in conf['dest']:
             try:
-                _type, dest, user, host, port, compress = read_dest(backup_dest)
+                _type, fsname, user, host, port = parse_name(backup_dest)
             except ValueError as err:
-                print('{:s} ERROR: Could not parse destination {:s}: {}...'
-                      .format(logtime(), dest, err))
+                print('{:s} ERROR: Could not parse {:s}: {}...'
+                      .format(logtime(), backup_dest, err))
                 continue
 
             if _type == 'ssh':
                 remote = Remote(user, host, port, conf['key'])
-                print('{:s} INFO: ssh backup of {:s} on {:s}@{:s}:{:s}...'
-                      .format(logtime(), filesystem.name, user, host, dest))
+                dest = '{:s}@{:s}:{:s}'.format(user, host, fsname)
                 if not remote.test():
                     continue
             else:
                 remote = None
-                print('{:s} INFO: Local backup of {:s} on {:s}...'
-                      .format(logtime(), filesystem.name, dest))
+                dest = fsname
+
+            print('{:s} INFO: Sending {:s} to {:s}...'
+                  .format(logtime(), filesystem.name, dest))
 
             try:
-                remote_fs = zfs.open(dest, remote=remote)
+                remote_fs = zfs.open(fsname, remote=remote)
             except DatasetNotFoundError:
                 print('{:s} ERROR: Destination {:s} does not exist...'.format(logtime(), dest))
                 continue
@@ -331,4 +365,4 @@ def send_snap(config):
 
             with snapshot.send(base=base, intermediates=True, replicate=True) as send:
                 with Popen(MBUFFER, stdin=send.stdout, stdout=PIPE) as mbuffer:
-                    zfs.receive(name=dest, stdin=mbuffer.stdout, remote=remote, force=True, nomount=True)
+                    zfs.receive(name=fsname, stdin=mbuffer.stdout, remote=remote, force=True, nomount=True)
