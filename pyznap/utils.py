@@ -256,34 +256,33 @@ def clean_snap(config):
             # Ignore snapshots not taken with pyznap
             if not snap.name.split('@')[1].startswith('pyznap'):
                 continue
-            snap_time = datetime.fromtimestamp(int(snap.getprop('creation')[0]))
             snap_type = snap.name.split('_')[-1]
 
             try:
-                snapshots[snap_type].append((snap, snap_time))
+                snapshots[snap_type].append(snap)
             except KeyError:
                 continue
 
-        for snap_type, snaps in snapshots.items():
-            snapshots[snap_type] = sorted(snaps, key=lambda x: x[1], reverse=True)
+        for snaps in snapshots.values():
+            snaps.reverse()
 
-        for snap, _ in snapshots['yearly'][conf['yearly']:]:
+        for snap in snapshots['yearly'][conf['yearly']:]:
             print('{:s} INFO: Deleting snapshot {:s}'.format(logtime(), snap.name))
             snap.destroy(force=True)
 
-        for snap, _ in snapshots['monthly'][conf['monthly']:]:
+        for snap in snapshots['monthly'][conf['monthly']:]:
             print('{:s} INFO: Deleting snapshot {:s}'.format(logtime(), snap.name))
             snap.destroy(force=True)
 
-        for snap, _ in snapshots['weekly'][conf['weekly']:]:
+        for snap in snapshots['weekly'][conf['weekly']:]:
             print('{:s} INFO: Deleting snapshot {:s}'.format(logtime(), snap.name))
             snap.destroy(force=True)
 
-        for snap, _ in snapshots['daily'][conf['daily']:]:
+        for snap in snapshots['daily'][conf['daily']:]:
             print('{:s} INFO: Deleting snapshot {:s}'.format(logtime(), snap.name))
             snap.destroy(force=True)
 
-        for snap, _ in snapshots['hourly'][conf['hourly']:]:
+        for snap in snapshots['hourly'][conf['hourly']:]:
             print('{:s} INFO: Deleting snapshot {:s}'.format(logtime(), snap.name))
             snap.destroy(force=True)
 
