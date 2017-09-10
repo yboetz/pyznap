@@ -16,9 +16,65 @@ from configparser import ConfigParser, NoOptionError
 from subprocess import Popen, PIPE, CalledProcessError
 
 import paramiko as pm
+from socket import timeout, gaierror
+from paramiko.ssh_exception import (AuthenticationException, BadAuthenticationType,
+                                    BadHostKeyException, ChannelException, NoValidConnectionsError,
+                                    PasswordRequiredException, SSHException, PartialAuthentication,
+                                    ProxyCommandFailure)
 
 import zfs
 from process import DatasetNotFoundError
+
+
+class Remote:
+    """
+    Class to combine all variables necessary for ssh connection
+    """
+    def __init__(self, user, host, port=22, key=None, proxy=None):
+        self.host = host
+        self.user = user
+        self.port = port
+
+        self.key = key if key else '/home/{:s}/.ssh/id_rsa'.format(self.user)
+        if not os.path.isfile(self.key):
+            raise FileNotFoundError(self.key)
+
+        self.proxy = proxy
+        self.cmd = self.ssh_cmd()
+
+    def ssh_cmd(self):
+        """"Returns a command to connect via ssh"""
+        hostsfile = '/home/{:s}/.ssh/known_hosts'.format(self.user)
+        hostsfile = hostsfile if os.path.isfile(hostsfile) else '/dev/null'
+        cmd = ['ssh', '{:s}@{:s}'.format(self.user, self.host),
+               '-i', '{:s}'.format(self.key),
+               '-o', 'UserKnownHostsFile={:s}'.format(hostsfile)]
+        if self.proxy:
+            cmd += ['-J', '{:s}'.format(self.proxy)]
+
+        return cmd
+
+    def test(self):
+        """Tests if ssh connection can be made"""
+        logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
+        ssh = pm.SSHClient()
+        try:
+            ssh.load_system_host_keys('/home/{:s}/.ssh/known_hosts'.format(self.user))
+        except FileNotFoundError:
+            ssh.load_system_host_keys()
+        ssh.set_missing_host_key_policy(pm.WarningPolicy())
+        try:
+            ssh.connect(hostname=self.host, username=self.user, port=self.port,
+                        key_filename=self.key, timeout=5)
+            ssh.exec_command('ls', timeout=5)
+            return True
+        except (AuthenticationException, BadAuthenticationType,
+                BadHostKeyException, ChannelException, NoValidConnectionsError,
+                PasswordRequiredException, SSHException, PartialAuthentication,
+                ProxyCommandFailure, timeout, gaierror) as err:
+            print('{:s} ERROR: Could not connect to host {:s}: {}...'
+                  .format(logtime(), self.host, err))
+            return False
 
 
 def exists(executable=''):
@@ -72,7 +128,7 @@ def read_config(path):
 
 def read_dest(value):
     """Split a dest config entry in its parts"""
-    if value.startswith(('ssh', 'sftp')):
+    if value.startswith('ssh'):
         _type, options, host, dest = value.split(':', maxsplit=3)
         if not options:
             port, compress = 22, None
@@ -83,9 +139,6 @@ def read_dest(value):
             port = [o for o in options if o.isdigit()]
             port = int(port[0]) if port else 22
         user, host = host.split('@', maxsplit=1)
-    elif value.startswith('file'):
-        _type, compress, dest = value.split(':', maxsplit=2)
-        user, host, port = None, None, None
     else:
         _type, user, host, port, compress = 'local', None, None, None, None
         dest = value
@@ -240,95 +293,42 @@ def send_snap(config):
                       .format(logtime(), dest, err))
                 continue
 
-            if _type == 'local':
+            if _type == 'ssh':
+                remote = Remote(user, host, port, conf['key'])
+                print('{:s} INFO: ssh backup of {:s} on {:s}@{:s}:{:s}...'
+                      .format(logtime(), filesystem.name, user, host, dest))
+                if not remote.test():
+                    continue
+            else:
+                remote = None
                 print('{:s} INFO: Local backup of {:s} on {:s}...'
                       .format(logtime(), filesystem.name, dest))
 
-                try:
-                    remote_fs = zfs.open(dest)
-                except DatasetNotFoundError:
-                    print('{:s} ERROR: Destination {:s} does not exist...'.format(logtime(), dest))
-                    continue
-                except (ValueError, CalledProcessError) as err:
-                    print('{:s} ERROR: {}'.format(logtime(), err))
-                    continue
+            try:
+                remote_fs = zfs.open(dest, remote=remote)
+            except DatasetNotFoundError:
+                print('{:s} ERROR: Destination {:s} does not exist...'.format(logtime(), dest))
+                continue
+            except (ValueError, CalledProcessError) as err:
+                print('{:s} ERROR: {}'.format(logtime(), err))
+                continue
 
-                remote_snaps = [snap.name.split('@')[1] for snap in remote_fs.snapshots() if
-                                snap.name.split('@')[1].startswith('pyznap')]
-                # Find common snapshots between local & remote, then use most recent as base
-                common = set(snapnames) & set(remote_snaps)
-                base = next(filter(lambda x: x.name.split('@')[1] in common, snapshots), None)
+            remote_snaps = [snap.name.split('@')[1] for snap in remote_fs.snapshots() if
+                            snap.name.split('@')[1].startswith('pyznap')]
+            # Find common snapshots between local & remote, then use most recent as base
+            common = set(snapnames) & set(remote_snaps)
+            base = next(filter(lambda x: x.name.split('@')[1] in common, snapshots), None)
 
-                if not base:
-                    print('{:s} INFO: No common snapshots on {:s}, sending full stream...'
-                          .format(logtime(), dest), flush=True)
-                elif base.name != snapshot.name:
-                    print('{:s} INFO: Found common snapshot {:s} on {:s}, sending incremental stream...'
-                          .format(logtime(), base.name.split('@')[1], dest), flush=True)
-                else:
-                    print('{:s} INFO: {:s} is up to date...'.format(logtime(), dest))
-                    continue
-                zfs_send_local(snapshot, dest, base=base)
+            if not base:
+                print('{:s} INFO: No common snapshots on {:s}, sending full stream...'
+                        .format(logtime(), dest), flush=True)
+            elif base.name != snapshot.name:
+                print('{:s} INFO: Found common snapshot {:s} on {:s}, sending incremental stream...'
+                        .format(logtime(), base.name.split('@')[1], dest), flush=True)
+            else:
+                print('{:s} INFO: {:s} is up to date...'.format(logtime(), dest))
+                continue
 
-            elif _type == 'ssh':
-                print('{:s} ERROR: Remote ssh backup of {:s} on {:s}:{:s} is not implemented yet...'
-                      .format(logtime(), filesystem.name, host, dest))
-
-
-#------------------------------------------------------------------------------------------
-
-
-def open_sftp(user, host, key=None, port=22):
-    """Opens an sftp connection to host"""
-    ssh = pm.SSHClient()
-    if not key:
-        key = '/home/{:s}/.ssh/id_rsa'.format(user)
-    if not os.path.isfile(key):
-        raise FileNotFoundError(key)
-    try:
-        ssh.load_system_host_keys('/home/{:s}/.ssh/known_hosts'.format(user))
-    except FileNotFoundError:
-        ssh.load_system_host_keys()
-    ssh.set_missing_host_key_policy(pm.WarningPolicy())
-    ssh.connect(hostname=host, port=port, username=user, key_filename=key, timeout=10)
-
-    assert ssh.get_transport().is_active(), 'Failed to connect to server'
-    return ssh, ssh.open_sftp()
-
-
-def zfs_send_local(snapshot, dest, base=None):
-    """Sends a snapshot to a local zfs filesystem"""
-    with snapshot.send(base=base, intermediates=True, replicate=True) as send:
-        with Popen(MBUFFER, stdin=send.stdout, stdout=PIPE) as mbuffer:
-            zfs.receive(name=dest, stdin=mbuffer.stdout, force=True, nomount=True)
-
-
-def zfs_send_file(snapshot, dest, base=None, compress='lzop'):
-    """Sends a compressed snapshot to a file"""
-    if exists(compress):
-        cmd_compress = [compress, '-c']
-    else:
-        cmd_compress = ['cat']
-
-    filename = '{:s}@{:s}'.format(dest, snapshot.name.split('@')[1])
-
-    with open(filename, 'w') as file:
-        with snapshot.send(base=base, intermediates=True, replicate=True) as send:
-            with Popen(MBUFFER, stdin=send.stdout, stdout=PIPE) as mbuffer:
-                Popen(cmd_compress, stdin=mbuffer.stdout, stdout=file).communicate()
-
-
-def zfs_send_ssh(snapshot, dest, ssh, base=None, compress='lzop'):
-    """Sends a snapshot to a sftp file, with compression."""
-    if exists(compress):
-        cmd_compress = [compress, '-c']
-    else:
-        cmd_compress = ['cat']
-
-    filename = '{:s}@{:s}'.format(dest, snapshot.name.split('@')[1])
-
-    with snapshot.send(base=base, intermediates=True, replicate=True) as send:
-        with Popen(MBUFFER, stdin=send.stdout, stdout=PIPE) as mbuffer:
-            with Popen(cmd_compress, stdin=mbuffer.stdout, stdout=PIPE) as comp:
-                ssh_stdin, _, _ = ssh.exec_command('cat - > {:s}'.format(filename))
-                shutil.copyfileobj(comp.stdout, ssh_stdin, 128*1024)
+            with snapshot.send(base=base, intermediates=True, replicate=True) as send:
+                with Popen(MBUFFER, stdin=send.stdout, stdout=PIPE) as mbuffer:
+                    zfs.receive(name=dest, stdin=mbuffer.stdout, remote=remote, force=True, nomount=True)

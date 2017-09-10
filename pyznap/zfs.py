@@ -6,9 +6,10 @@ import subprocess as sp
 import process
 
 
-def find(path=None, max_depth=None, types=[]):
+def find(path=None, remote=None, max_depth=None, types=[]):
     """Lists filesystems and snapshots for a given path"""
-    cmd = ['zfs', 'list']
+    cmd = remote.cmd + ['sudo'] if remote else []
+    cmd += ['zfs', 'list']
 
     cmd.append('-H')
 
@@ -32,12 +33,13 @@ def find(path=None, max_depth=None, types=[]):
 
     out = sp.check_output(cmd)
 
-    return [open(name, type) for name, type in out]
+    return [open(name, remote=remote, type=type) for name, type in out]
 
 
-def findprops(path=None, max_depth=None, props=['all'], sources=[], types=[]):
+def findprops(path=None, remote=None, max_depth=None, props=['all'], sources=[], types=[]):
     """Lists all properties of a given filesystem"""
-    cmd = ['zfs', 'get']
+    cmd = remote.cmd + ['sudo'] if remote else []
+    cmd += ['zfs', 'get']
 
     cmd.append('-H')
     cmd.append('-p')
@@ -72,29 +74,30 @@ def findprops(path=None, max_depth=None, props=['all'], sources=[], types=[]):
 
 
 # Factory function for dataset objects
-def open(name, type=None):
+def open(name, remote=None, type=None):
     """Opens a volume, filesystem or snapshot"""
     if type is None:
-        type = findprops(name, max_depth=0, props=['type'])[name]['type'][0]
+        type = findprops(name, remote=remote, max_depth=0, props=['type'])[name]['type'][0]
 
     if type == 'volume':
-        return ZFSVolume(name)
+        return ZFSVolume(name, remote)
 
     if type == 'filesystem':
-        return ZFSFilesystem(name)
+        return ZFSFilesystem(name, remote)
 
     if type == 'snapshot':
-        return ZFSSnapshot(name)
+        return ZFSSnapshot(name, remote)
 
     raise ValueError('invalid dataset type %s' % type)
 
 
-def roots():
-    return find(max_depth=0)
+def roots(remote=None):
+    return find(remote=remote, max_depth=0)
 
 # note: force means create missing parent filesystems
-def create(name, type='filesystem', props={}, force=False):
-    cmd = ['zfs', 'create']
+def create(name, remote=None, type='filesystem', props={}, force=False):
+    cmd = remote.cmd + ['sudo'] if remote else []
+    cmd += ['zfs', 'create']
 
     if type == 'volume':
         raise NotImplementedError()
@@ -114,9 +117,10 @@ def create(name, type='filesystem', props={}, force=False):
     return ZFSFilesystem(name)
 
 
-def receive(name, stdin, append_name=False, append_path=False,
+def receive(name, stdin, remote=None, append_name=False, append_path=False,
             force=False, nomount=False):
-    cmd = ['zfs', 'receive']
+    cmd = remote.cmd + ['sudo'] if remote else []
+    cmd += ['zfs', 'receive']
 
     # cmd.append('-v')
 
@@ -134,10 +138,10 @@ def receive(name, stdin, append_name=False, append_path=False,
 
     return sp.Popen(cmd, stdin=stdin).communicate()
 
-
 class ZFSDataset(object):
-    def __init__(self, name):
+    def __init__(self, name, remote=None):
         self.name = name
+        self.remote = remote
 
     def __str__(self):
         return self.name
@@ -147,16 +151,16 @@ class ZFSDataset(object):
 
     def parent(self):
         parent_name, _, _ = self.name.rpartition('/')
-        return open(parent_name) if parent_name else None
+        return open(parent_name, remote=self.remote) if parent_name else None
 
     def filesystems(self):
-        return find(self.name, max_depth=1, types=['filesystem'])[1:]
+        return find(self.name, remote=self.remote, max_depth=1, types=['filesystem'])[1:]
 
     def snapshots(self):
-        return find(self.name, max_depth=1, types=['snapshot'])
+        return find(self.name, remote=self.remote, max_depth=1, types=['snapshot'])
 
     def children(self):
-        return find(self.name, max_depth=1, types=['all'])[1:]
+        return find(self.name, remote=self.remote, max_depth=1, types=['all'])[1:]
 
     def clones(self):
         raise NotImplementedError()
@@ -167,7 +171,8 @@ class ZFSDataset(object):
     # TODO: split force to allow -f, -r and -R to be specified individually
     # TODO: remove or ignore defer option for non-snapshot datasets
     def destroy(self, defer=False, force=False):
-        cmd = ['zfs', 'destroy']
+        cmd = self.remote.cmd + ['sudo'] if self.remote else []
+        cmd += ['zfs', 'destroy']
 
         cmd.append('-v')
 
@@ -183,7 +188,8 @@ class ZFSDataset(object):
         sp.check_output(cmd)
 
     def snapshot(self, snapname, recursive=False, props={}):
-        cmd = ['zfs', 'snapshot']
+        cmd = self.remote.cmd + ['sudo'] if self.remote else []
+        cmd += ['zfs', 'snapshot']
 
         if recursive:
             cmd.append('-r')
@@ -210,17 +216,18 @@ class ZFSDataset(object):
         raise NotImplementedError()
 
     def getprops(self):
-        return findprops(self.name, max_depth=0)[self.name]
+        return findprops(self.name, remote=self.remote, max_depth=0)[self.name]
 
     def getprop(self, prop):
-        return findprops(self.name, max_depth=0, props=[prop])[self.name].get(prop, None)
+        return findprops(self.name, remote=self.remote, max_depth=0, props=[prop])[self.name].get(prop, None)
 
     def getpropval(self, prop, default=None):
         value = self.getprop(prop)['value']
         return default if value == '-' else value
 
     def setprop(self, prop, value):
-        cmd = ['zfs', 'set']
+        cmd = self.remote.cmd + ['sudo'] if self.remote else []
+        cmd += ['zfs', 'set']
 
         cmd.append(prop + '=' + str(value))
         cmd.append(self.name)
@@ -228,7 +235,8 @@ class ZFSDataset(object):
         sp.check_output(cmd)
 
     def delprop(self, prop, recursive=False):
-        cmd = ['zfs', 'inherit']
+        cmd = self.remote.cmd + ['sudo'] if self.remote else []
+        cmd += ['zfs', 'inherit']
 
         if recursive:
             cmd.append('-r')
@@ -276,7 +284,7 @@ class ZFSSnapshot(ZFSDataset):
 
     def parent(self):
         parent_path = self.name.split('@')[0]
-        return open(name=parent_path)
+        return open(name=parent_path, remote=self.remote)
 
     # note: force means create missing parent filesystems
     def clone(self, name, props={}, force=False):
@@ -284,7 +292,8 @@ class ZFSSnapshot(ZFSDataset):
 
     def send(self, base=None, intermediates=False, replicate=False,
              properties=False, deduplicate=False):
-        cmd = ['zfs', 'send']
+        cmd = self.remote.cmd + ['sudo'] if self.remote else []
+        cmd += ['zfs', 'send']
 
         # cmd.append('-v')
         cmd.append('-P')
@@ -308,7 +317,8 @@ class ZFSSnapshot(ZFSDataset):
         return sp.Popen(cmd, stdout=sp.PIPE)
 
     def hold(self, tag, recursive=False):
-        cmd = ['zfs', 'hold']
+        cmd = self.remote.cmd + ['sudo'] if self.remote else []
+        cmd += ['zfs', 'hold']
 
         if recursive:
             cmd.append('-r')
@@ -319,7 +329,8 @@ class ZFSSnapshot(ZFSDataset):
         sp.check_output(cmd)
 
     def holds(self):
-        cmd = ['zfs', 'holds']
+        cmd = self.remote.cmd + ['sudo'] if self.remote else []
+        cmd += ['zfs', 'holds']
 
         cmd.append('-H')
 
@@ -331,7 +342,8 @@ class ZFSSnapshot(ZFSDataset):
         return [hold[1] for hold in out]
 
     def release(self, tag, recursive=False):
-        cmd = ['zfs', 'release']
+        cmd = self.remote.cmd + ['sudo'] if self.remote else []
+        cmd += ['zfs', 'release']
 
         if recursive:
             cmd.append('-r')
