@@ -97,12 +97,13 @@ else:
 
 def read_config(path):
     """Reads a config file and outputs a list of dicts with the given
-    snapshot strategy"""
+    snapshot strategy. If ssh keyfiles do not exist it will take standard
+    location in .ssh folder"""
 
     if not os.path.isfile(path):
         raise FileNotFoundError('File does not exist.')
 
-    options = ['hourly', 'daily', 'weekly', 'monthly', 'yearly', 'snap', 'clean', 'dest', 'key']
+    options = ['key', 'hourly', 'daily', 'weekly', 'monthly', 'yearly', 'snap', 'clean', 'dest', 'dest_keys']
 
     config = ConfigParser()
     config.read(path)
@@ -119,12 +120,17 @@ def read_config(path):
             except NoOptionError:
                 dic[option] = None
             else:
-                if option in ['hourly', 'daily', 'weekly', 'monthly', 'yearly']:
+                if option in ['key']:
+                    dic[option] = value if os.path.isfile(value) else None
+                elif option in ['hourly', 'daily', 'weekly', 'monthly', 'yearly']:
                     dic[option] = int(value)
                 elif option in ['snap', 'clean']:
                     dic[option] = True if value == 'yes' else False
-                elif option in ['dest', 'key']:
-                    dic[option] = [i.strip(' ') for i in value.split(',')]
+                elif option in ['dest']:
+                    dic[option] = [i.strip() for i in value.split(',')]
+                elif option in ['dest_keys']:
+                    dic[option] = [i.strip() if os.path.isfile(i.strip()) else None
+                                   for i in value.split(',')]
     return res
 
 
@@ -330,7 +336,8 @@ def send_snap(config):
                 continue
 
             if _type == 'ssh':
-                ssh = Remote(user, host, port, conf['key'])
+                dest_key = conf['dest_keys'].pop(0) if conf['dest_keys'] else None
+                ssh = Remote(user, host, port, dest_key)
                 dest = '{:s}@{:s}:{:s}'.format(user, host, fsname)
                 if not ssh.test():
                     continue
