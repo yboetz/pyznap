@@ -161,17 +161,17 @@ def take_snap(config):
 
         if _type == 'ssh':
             name = name.split(':', maxsplit=2)[-1]
-            remote = Remote(user, host, port, conf['key'])
-            if not remote.test():
+            ssh = Remote(user, host, port, conf['key'])
+            if not ssh.test():
                 continue
         else:
-            remote = None
+            ssh = None
 
         print('{:s} INFO: Taking snapshots on {:s}...'.format(logtime(), name))
 
 
         try:
-            filesystem = zfs.open(fsname, remote=remote)
+            filesystem = zfs.open(fsname, ssh=ssh)
         except (ValueError, DatasetNotFoundError, CalledProcessError) as err:
             print('{:s} ERROR: {}'.format(logtime(), err))
             continue
@@ -240,17 +240,17 @@ def clean_snap(config):
 
         if _type == 'ssh':
             name = name.split(':', maxsplit=2)[-1]
-            remote = Remote(user, host, port, conf['key'])
-            if not remote.test():
+            ssh = Remote(user, host, port, conf['key'])
+            if not ssh.test():
                 continue
         else:
-            remote = None
+            ssh = None
 
         print('{:s} INFO: Cleaning snapshots on {:s}...'.format(logtime(), name))
 
 
         try:
-            filesystem = zfs.open(fsname, remote=remote)
+            filesystem = zfs.open(fsname, ssh=ssh)
         except (ValueError, DatasetNotFoundError, CalledProcessError) as err:
             print('{:s} ERROR: {}'.format(logtime(), err))
             continue
@@ -302,7 +302,7 @@ def send_snap(config):
             continue
 
         if conf['name'].startswith('ssh'):
-            print('{:s} ERROR: Cannot send from remote location...'.format(logtime()))
+            print('{:s} ERROR: Cannot send from ssh location...'.format(logtime()))
             continue
 
         try:
@@ -330,19 +330,19 @@ def send_snap(config):
                 continue
 
             if _type == 'ssh':
-                remote = Remote(user, host, port, conf['key'])
+                ssh = Remote(user, host, port, conf['key'])
                 dest = '{:s}@{:s}:{:s}'.format(user, host, fsname)
-                if not remote.test():
+                if not ssh.test():
                     continue
             else:
-                remote = None
+                ssh = None
                 dest = fsname
 
             print('{:s} INFO: Sending {:s} to {:s}...'
                   .format(logtime(), filesystem.name, dest))
 
             try:
-                remote_fs = zfs.open(fsname, remote=remote)
+                remote_fs = zfs.open(fsname, ssh=ssh)
             except DatasetNotFoundError:
                 print('{:s} ERROR: Destination {:s} does not exist...'.format(logtime(), dest))
                 continue
@@ -368,4 +368,4 @@ def send_snap(config):
 
             with snapshot.send(base=base, intermediates=True, replicate=True) as send:
                 with Popen(MBUFFER, stdin=send.stdout, stdout=PIPE) as mbuffer:
-                    zfs.receive(name=fsname, stdin=mbuffer.stdout, remote=remote, force=True, nomount=True)
+                    zfs.receive(name=fsname, stdin=mbuffer.stdout, ssh=ssh, force=True, nomount=True)
