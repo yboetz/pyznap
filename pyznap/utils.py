@@ -52,6 +52,8 @@ class Remote:
         if self.proxy:
             cmd += ['-J', '{:s}'.format(self.proxy)]
 
+        cmd += ['sudo']
+
         return cmd
 
     def test(self):
@@ -143,6 +145,7 @@ def take_snap(config):
 
     now = datetime.now()
     logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
+    print('{:s} INFO: Taking snapshots...'.format(logtime()))
 
     for conf in config:
         if not conf.get('snap', None):
@@ -221,6 +224,7 @@ def clean_snap(config):
     """Deletes old snapshots according to strategy given in config"""
 
     logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
+    print('{:s} INFO: Cleaning snapshots...'.format(logtime()))
 
     for conf in config:
         if not conf.get('clean', None):
