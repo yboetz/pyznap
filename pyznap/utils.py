@@ -308,7 +308,7 @@ def send_snap(config):
             continue
 
         if conf['name'].startswith('ssh'):
-            print('{:s} ERROR: Cannot send from ssh location...'.format(logtime()))
+            print('{:s} ERROR: Cannot send from remote location...'.format(logtime()))
             continue
 
         try:
@@ -349,7 +349,7 @@ def send_snap(config):
                   .format(logtime(), filesystem.name, dest))
 
             try:
-                remote_fs = zfs.open(fsname, ssh=ssh)
+                dest_fs = zfs.open(fsname, ssh=ssh)
             except DatasetNotFoundError:
                 print('{:s} ERROR: Destination {:s} does not exist...'.format(logtime(), dest))
                 continue
@@ -357,10 +357,10 @@ def send_snap(config):
                 print('{:s} ERROR: {}'.format(logtime(), err))
                 continue
 
-            remote_snaps = [snap.name.split('@')[1] for snap in remote_fs.snapshots() if
+            dest_snaps = [snap.name.split('@')[1] for snap in dest_fs.snapshots() if
                             snap.name.split('@')[1].startswith('pyznap')]
-            # Find common snapshots between local & remote, then use most recent as base
-            common = set(snapnames) & set(remote_snaps)
+            # Find common snapshots between local & dest, then use most recent as base
+            common = set(snapnames) & set(dest_snaps)
             base = next(filter(lambda x: x.name.split('@')[1] in common, snapshots), None)
 
             if not base:
