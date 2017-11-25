@@ -263,8 +263,8 @@ def clean_snap(config):
 
         snapshots = {'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
         for snap in filesystem.snapshots():
-            # Ignore snapshots not taken with pyznap
-            if not snap.name.split('@')[1].startswith('pyznap'):
+            # Ignore snapshots not taken with pyznap or sanoid
+            if not snap.name.split('@')[1].startswith(('pyznap', 'autosnap')):
                 continue
             snap_type = snap.name.split('_')[-1]
 
@@ -358,7 +358,7 @@ def send_snap(config):
                 continue
 
             dest_snaps = [snap.name.split('@')[1] for snap in dest_fs.snapshots() if
-                            snap.name.split('@')[1].startswith('pyznap')]
+                          snap.name.split('@')[1].startswith('pyznap')]
             # Find common snapshots between local & dest, then use most recent as base
             common = set(snapnames) & set(dest_snaps)
             base = next(filter(lambda x: x.name.split('@')[1] in common, snapshots), None)
