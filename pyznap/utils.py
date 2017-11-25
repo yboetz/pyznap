@@ -26,6 +26,22 @@ import zfs
 from process import DatasetNotFoundError
 
 
+def exists(executable=''):
+    """Tests if an executable exists on the system."""
+
+    assert isinstance(executable, str), "Input must be string."
+    cmd = ['which', executable]
+    out, _ = Popen(cmd, stdout=PIPE, stderr=PIPE).communicate()
+
+    return bool(out)
+
+# Use mbuffer if installed on the system
+if exists('mbuffer'):
+    MBUFFER = ['mbuffer', '-s', '128K', '-m', '1G']
+else:
+    MBUFFER = ['cat']
+
+
 class Remote:
     """
     Class to combine all variables necessary for ssh connection
@@ -77,22 +93,6 @@ class Remote:
             print('{:s} ERROR: Could not connect to host {:s}: {}...'
                   .format(logtime(), self.host, err))
             return False
-
-
-def exists(executable=''):
-    """Tests if an executable exists on the system."""
-
-    assert isinstance(executable, str), "Input must be string."
-    cmd = ['which', executable]
-    out, _ = Popen(cmd, stdout=PIPE, stderr=PIPE).communicate()
-
-    return bool(out)
-
-# Use mbuffer if installed on the system
-if exists('mbuffer'):
-    MBUFFER = ['mbuffer', '-s', '128K', '-m', '1G']
-else:
-    MBUFFER = ['cat']
 
 
 def read_config(path):
@@ -318,8 +318,7 @@ def send_snap(config):
             continue
 
         snapshots = filesystem.snapshots()[::-1]
-        snapnames = [snap.name.split('@')[1] for snap in snapshots if
-                     snap.name.split('@')[1].startswith('pyznap')]
+        snapnames = [snap.name.split('@')[1] for snap in snapshots]
         try:
             snapshot = snapshots[0]
         except IndexError:
@@ -357,15 +356,22 @@ def send_snap(config):
                 print('{:s} ERROR: {}'.format(logtime(), err))
                 continue
 
-            dest_snaps = [snap.name.split('@')[1] for snap in dest_fs.snapshots() if
-                          snap.name.split('@')[1].startswith('pyznap')]
+            dest_snaps = [snap.name.split('@')[1] for snap in dest_fs.snapshots()]
             # Find common snapshots between local & dest, then use most recent as base
             common = set(snapnames) & set(dest_snaps)
             base = next(filter(lambda x: x.name.split('@')[1] in common, snapshots), None)
 
-            if not base:
+            if not base and dest_snaps:
+                print('{:s} ERROR: No common snapshots on {:s}, but snapshots exist. Not sending...'
+                      .format(logtime(), dest), flush=True)
+                continue
+            elif not base and not dest_snaps:
                 print('{:s} INFO: No common snapshots on {:s}, sending full stream...'
-                        .format(logtime(), dest), flush=True)
+                      .format(logtime(), dest), flush=True)
+            elif base.name.split('@')[1] != dest_snaps[-1]:
+                print('{:s} ERROR: {:s} has more recent snapshots. Not sending...'
+                      .format(logtime(), dest), flush=True)
+                continue
             elif base.name != snapshot.name:
                 print('{:s} INFO: Found common snapshot {:s} on {:s}, sending incremental stream...'
                         .format(logtime(), base.name.split('@')[1], dest), flush=True)
