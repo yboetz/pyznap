@@ -35,10 +35,12 @@ if __name__ == "__main__":
                              help='take snapshots then clean old according to config file')
 
     parser_send = subparsers.add_parser('send', help='zfs send/receive tools')
-    # parser_send.add_argument('-s', '--source', action="store",
-    #                          dest='source', help='source filesystem')
-    # parser_send.add_argument('-d', '--dest', action="store",
-    #                          dest='dest', help='destination filesystem')
+    parser_send.add_argument('-s', '--source', action="store",
+                             dest='source', help='source filesystem')
+    parser_send.add_argument('-d', '--dest', action="store",
+                             dest='dest', help='destination filesystem')
+    parser_send.add_argument('-i', '--key', action="store",
+                             dest='key', help='ssh key for destination')
 
     args = parser.parse_args(sys.argv[1:])
 
@@ -67,7 +69,15 @@ if __name__ == "__main__":
             clean_snap(config)
 
     elif args.command == 'send':
-        send_snap(config)
+        if args.source and args.dest:
+            key = [args.key] if args.key else None
+            send_snap([{'name': args.source, 'dest': [args.dest], 'dest_keys': key}])
+        elif args.source and not args.dest:
+            print('{:s} ERROR: Missing dest...'.format(logtime()))
+        elif args.dest and not args.source:
+            print('{:s} ERROR: Missing source...'.format(logtime()))
+        else:
+            send_snap(config)
 
     print('{:s} INFO: Finished successfully...\n'.format(logtime()))
     sys.exit(0)
