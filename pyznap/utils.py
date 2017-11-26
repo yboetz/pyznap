@@ -368,10 +368,6 @@ def send_snap(config):
             elif not base and not dest_snaps:
                 print('{:s} INFO: No common snapshots on {:s}, sending full stream...'
                       .format(logtime(), dest), flush=True)
-            elif base.name.split('@')[1] != dest_snaps[-1]:
-                print('{:s} ERROR: {:s} has more recent snapshots. Not sending...'
-                      .format(logtime(), dest), flush=True)
-                continue
             elif base.name != snapshot.name:
                 print('{:s} INFO: Found common snapshot {:s} on {:s}, sending incremental stream...'
                         .format(logtime(), base.name.split('@')[1], dest), flush=True)
