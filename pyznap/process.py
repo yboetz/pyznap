@@ -33,7 +33,7 @@ class CompletedProcess(sp.CompletedProcess):
     def check_returncode(self):
         # check for known errors of form "cannot <action> <dataset>: <reason>"
         if self.returncode == 1:
-            pattern = r"^cannot ([^ ]+(?: [^ ]+)*?) ([^ :]+): (.+)$"
+            pattern = r"^cannot ([^ ]+(?: [^ ]+)*?) ([^ ]+): (.+)$"
             match = re.search(pattern, self.stderr)
             if match:
                 _, dataset, reason = match.groups()
