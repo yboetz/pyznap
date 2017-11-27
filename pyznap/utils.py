@@ -23,7 +23,7 @@ from paramiko.ssh_exception import (AuthenticationException, BadAuthenticationTy
                                     ProxyCommandFailure)
 
 import zfs
-from process import DatasetNotFoundError
+from process import DatasetBusyError, DatasetNotFoundError, DatasetExistsError
 
 
 def exists(executable=''):
@@ -203,27 +203,42 @@ def take_snap(config):
         if conf['yearly'] and (not snapshots['yearly'] or
                                snapshots['yearly'][0][1].year != now.year):
             print('{:s} INFO: Taking snapshot {:s}@{:s}'.format(logtime(), name, snapname + 'yearly'))
-            filesystem.snapshot(snapname=snapname + 'yearly', recursive=True)
+            try:
+                filesystem.snapshot(snapname=snapname + 'yearly', recursive=True)
+            except (DatasetBusyError, CalledProcessError) as err:
+                print('{:s} ERROR: {}'.format(logtime(), err))
 
         if conf['monthly'] and (not snapshots['monthly'] or
                                 snapshots['monthly'][0][1].month != now.month):
             print('{:s} INFO: Taking snapshot {:s}@{:s}'.format(logtime(), name, snapname + 'monthly'))
-            filesystem.snapshot(snapname=snapname + 'monthly', recursive=True)
+            try:
+                filesystem.snapshot(snapname=snapname + 'monthly', recursive=True)
+            except (DatasetBusyError, CalledProcessError) as err:
+                print('{:s} ERROR: {}'.format(logtime(), err))
 
         if conf['weekly'] and (not snapshots['weekly'] or
                                snapshots['weekly'][0][1].isocalendar()[1] != now.isocalendar()[1]):
             print('{:s} INFO: Taking snapshot {:s}@{:s}'.format(logtime(), name, snapname + 'weekly'))
-            filesystem.snapshot(snapname=snapname + 'weekly', recursive=True)
+            try:
+                filesystem.snapshot(snapname=snapname + 'weekly', recursive=True)
+            except (DatasetBusyError, CalledProcessError) as err:
+                print('{:s} ERROR: {}'.format(logtime(), err))
 
         if conf['daily'] and (not snapshots['daily'] or
                               snapshots['daily'][0][1].day != now.day):
             print('{:s} INFO: Taking snapshot {:s}@{:s}'.format(logtime(), name, snapname + 'daily'))
-            filesystem.snapshot(snapname=snapname + 'daily', recursive=True)
+            try:
+                filesystem.snapshot(snapname=snapname + 'daily', recursive=True)
+            except (DatasetBusyError, CalledProcessError) as err:
+                print('{:s} ERROR: {}'.format(logtime(), err))
 
         if conf['hourly'] and (not snapshots['hourly'] or
                                snapshots['hourly'][0][1].hour != now.hour):
             print('{:s} INFO: Taking snapshot {:s}@{:s}'.format(logtime(), name, snapname + 'hourly'))
-            filesystem.snapshot(snapname=snapname + 'hourly', recursive=True)
+            try:
+                filesystem.snapshot(snapname=snapname + 'hourly', recursive=True)
+            except (DatasetBusyError, CalledProcessError) as err:
+                print('{:s} ERROR: {}'.format(logtime(), err))
 
 
 def clean_snap(config):
@@ -278,23 +293,38 @@ def clean_snap(config):
 
         for snap in snapshots['yearly'][conf['yearly']:]:
             print('{:s} INFO: Deleting snapshot {:s}'.format(logtime(), snap.name))
-            snap.destroy(force=True)
+            try:
+                snap.destroy(force=True)
+            except (DatasetBusyError, CalledProcessError) as err:
+                print('{:s} ERROR: {}'.format(logtime(), err))
 
         for snap in snapshots['monthly'][conf['monthly']:]:
             print('{:s} INFO: Deleting snapshot {:s}'.format(logtime(), snap.name))
-            snap.destroy(force=True)
+            try:
+                snap.destroy(force=True)
+            except (DatasetBusyError, CalledProcessError) as err:
+                print('{:s} ERROR: {}'.format(logtime(), err))
 
         for snap in snapshots['weekly'][conf['weekly']:]:
             print('{:s} INFO: Deleting snapshot {:s}'.format(logtime(), snap.name))
-            snap.destroy(force=True)
+            try:
+                snap.destroy(force=True)
+            except (DatasetBusyError, CalledProcessError) as err:
+                print('{:s} ERROR: {}'.format(logtime(), err))
 
         for snap in snapshots['daily'][conf['daily']:]:
             print('{:s} INFO: Deleting snapshot {:s}'.format(logtime(), snap.name))
-            snap.destroy(force=True)
+            try:
+                snap.destroy(force=True)
+            except (DatasetBusyError, CalledProcessError) as err:
+                print('{:s} ERROR: {}'.format(logtime(), err))
 
         for snap in snapshots['hourly'][conf['hourly']:]:
             print('{:s} INFO: Deleting snapshot {:s}'.format(logtime(), snap.name))
-            snap.destroy(force=True)
+            try:
+                snap.destroy(force=True)
+            except (DatasetBusyError, CalledProcessError) as err:
+                print('{:s} ERROR: {}'.format(logtime(), err))
 
 
 def send_snap(config):
@@ -375,6 +405,9 @@ def send_snap(config):
                 print('{:s} INFO: {:s} is up to date...'.format(logtime(), dest))
                 continue
 
-            with snapshot.send(base=base, intermediates=True, replicate=True) as send:
-                with Popen(MBUFFER, stdin=send.stdout, stdout=PIPE) as mbuffer:
-                    zfs.receive(name=fsname, stdin=mbuffer.stdout, ssh=ssh, force=True, nomount=True)
+            try:
+                with snapshot.send(base=base, intermediates=True, replicate=True) as send:
+                    with Popen(MBUFFER, stdin=send.stdout, stdout=PIPE) as mbuffer:
+                        zfs.receive(name=fsname, stdin=mbuffer.stdout, ssh=ssh, force=True, nomount=True)
+            except (DatasetNotFoundError, DatasetExistsError, DatasetBusyError, CalledProcessError) as err:
+                print('{:s} ERROR: {}'.format(logtime(), err))
