@@ -48,19 +48,33 @@ A sample config which backs up a filesystem to a remote location looks like
 #### Command line options ####
 
 + --config
+
   Specify config file. Default is /etc/pyznap/pyznap.conf
+
 + snap
+
   Interface to the snapshot management tool. Has three options:
+
   + --take
-  Takes snapshots according to policy in the config file
+
+    Takes snapshots according to policy in the config file
+
   + --clean
-  Deletes old snapshots according to policy
+
+    Deletes old snapshots according to policy
+
   + --full
-  First takes snapshots, then deletes old ones. Default when no other option is given
+
+    First takes snapshots, then deletes old ones. Default when no other option is given
 
 + send
+
   Interface to the zfs send/receive tool. Has two usages:
+
   + No further option is given
-  Send snapshots to backup locations according to policy
+
+    Send snapshots to backup locations according to policy
+
   + -s source -d destination
-  Send source filesystem to destination filesystem
+
+    Send source filesystem to destination filesystem
