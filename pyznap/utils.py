@@ -167,7 +167,11 @@ def take_snap(config):
 
         if _type == 'ssh':
             name = name.split(':', maxsplit=2)[-1]
-            ssh = Remote(user, host, port, conf['key'])
+            try:
+                ssh = Remote(user, host, port, conf['key'])
+            except FileNotFoundError as err:
+                print('{:s} ERROR: {} is not a valid ssh key file...'.format(logtime(), err))
+                continue
             if not ssh.test():
                 continue
         else:
@@ -261,7 +265,11 @@ def clean_snap(config):
 
         if _type == 'ssh':
             name = name.split(':', maxsplit=2)[-1]
-            ssh = Remote(user, host, port, conf['key'])
+            try:
+                ssh = Remote(user, host, port, conf['key'])
+            except FileNotFoundError as err:
+                print('{:s} ERROR: {} is not a valid ssh key file...'.format(logtime(), err))
+                continue
             if not ssh.test():
                 continue
         else:
@@ -366,7 +374,11 @@ def send_snap(config):
 
             if _type == 'ssh':
                 dest_key = conf['dest_keys'].pop(0) if conf['dest_keys'] else None
-                ssh = Remote(user, host, port, dest_key)
+                try:
+                    ssh = Remote(user, host, port, dest_key)
+                except FileNotFoundError as err:
+                    print('{:s} ERROR: {} is not a valid ssh key file...'.format(logtime(), err))
+                    continue
                 dest = '{:s}@{:s}:{:s}'.format(user, host, fsname)
                 if not ssh.test():
                     continue
