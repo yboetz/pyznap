@@ -8,15 +8,16 @@ Created on Tue Nov 28 2017
 Tests for pyznap
 """
 
-import sys, os, pytest
 import subprocess as sp
+import sys
+import os
 from tempfile import NamedTemporaryFile
-from time import sleep, time
 from datetime import datetime
+import pytest
 
-
-sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../pyznap')
-import utils, zfs
+sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../src')
+import utils
+import zfs
 from process import DatasetNotFoundError
 
 
