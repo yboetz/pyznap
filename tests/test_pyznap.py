@@ -116,19 +116,85 @@ class TestSnapshot(object):
 
 
     def test_take_snapshot(self, zpools):
-        filesystem, _ = zpools
-        config = [{'name': filesystem.name, 'hourly': 1, 'daily': 1, 'weekly': 1, 'monthly': 1,
-                  'yearly': 1, 'snap': 'yes'}]
+        fs, _ = zpools
+        config = [{'name': fs.name, 'hourly': 1, 'daily': 1, 'weekly': 1, 'monthly': 1, 'yearly': 1,
+                  'snap': 'yes'}]
         utils.take_snap(config)
 
         snapshots = {'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
-        for snap in filesystem.snapshots():
+        for snap in fs.snapshots():
             snap_type = snap.name.split('_')[-1]
-
-            try:
-                snapshots[snap_type].append(snap)
-            except KeyError:
-                continue
+            snapshots[snap_type].append(snap)
 
         for snap_type, snaps in snapshots.items():
             assert len(snaps) == 1
+
+
+    @pytest.mark.dependency(depends=['test_take_snapshot'])
+    def test_clean_snapshot(self, zpools):
+        fs, _ = zpools
+        config = [{'name': fs.name, 'hourly': 0, 'daily': 0, 'weekly': 0, 'monthly': 0, 'yearly': 0,
+                  'clean': 'yes'}]
+        utils.clean_snap(config)
+
+        snapshots = {'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
+        for snap in fs.snapshots():
+            snap_type = snap.name.split('_')[-1]
+            snapshots[snap_type].append(snap)
+
+        for snap_type, snaps in snapshots.items():
+            assert len(snaps) == 0
+
+
+    @pytest.mark.dependency(depends=['test_clean_snapshot'])
+    def test_send_snapshot(self, zpools):
+        """Checks if send_snap totally replicates a filesystem"""
+        fs0, fs1 = zpools
+        config = [{'name': fs0.name, 'dest': [fs1.name]}]
+
+        # Full stream
+        fs0.snapshot('snap0')
+        utils.send_snap(config)
+        fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
+        fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
+        assert fs0_children == fs1_children
+
+        # Incremental stream
+        zfs.create('{:s}/sub1'.format(fs0.name))
+        fs0.snapshot('snap1', recursive=True)
+        utils.send_snap(config)
+        fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
+        fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
+        assert fs0_children == fs1_children
+
+        # Incremental stream
+        zfs.create('{:s}/sub2'.format(fs0.name))
+        fs0.snapshot('snap2', recursive=True)
+        utils.send_snap(config)
+        fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
+        fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
+        assert fs0_children == fs1_children
+
+        # Incremental stream
+        zfs.create('{:s}/sub3'.format(fs0.name))
+        fs0.snapshot('snap3', recursive=True)
+        utils.send_snap(config)
+        fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
+        fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
+        assert fs0_children == fs1_children
+
+        # Full stream
+        fs1.destroy(force=True)
+        utils.send_snap(config)
+        fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
+        fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
+        assert fs0_children == fs1_children
+
+        # Delete old snapshot
+        fs0.snapshots()[0].destroy(force=True)
+        fs0.snapshot('snap4', recursive=True)
+        utils.send_snap(config)
+        fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
+        fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
+        # This should not be equal. Atm replication deletes snapshots on dest which were deleted on source
+        assert (fs0_children == fs1_children)
