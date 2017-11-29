@@ -55,7 +55,9 @@ def zpools():
         try:
             fs0 = zfs.open(pool0)
             fs1 = zfs.open(pool1)
-        except (DatasetNotFoundError, Exception) as err:
+            assert fs0.name == pool0
+            assert fs1.name == pool1
+        except (DatasetNotFoundError, AssertionError, Exception) as err:
             print('{:s} ERROR: {}'.format(logtime(), err))
         else:
             yield fs0, fs1
@@ -69,9 +71,64 @@ def zpools():
 
 
 class TestSnapshot(object):
-    def test_snap0(self, zpools):
-        fs0, fs1 = zpools
-        assert fs0.name == pool0
-        assert fs1.name == pool1
-        print('{:s} INFO: {:s}; {:s}'.format(logtime(), fs0.name, fs1.name))
-    
+    def test_read_config(self):
+        with NamedTemporaryFile('w') as file:
+            name = file.name
+            file.write('[rpool/data]\n')
+            file.write('hourly = 24\n')
+            file.write('daily = 7\n')
+            file.write('weekly = 4\n')
+            file.write('monthly = 12\n')
+            file.write('yearly = 2\n')
+            file.write('snap = yes\n')
+            file.write('clean = no\n')
+            file.write('dest = backup/data, tank/data\n')
+            file.seek(0)
+
+            config = utils.read_config(name)[0]
+            assert config['name'] == 'rpool/data'
+            assert config['key'] == None
+            assert config['hourly'] == 24
+            assert config['daily'] == 7
+            assert config['weekly'] == 4
+            assert config['monthly'] == 12
+            assert config['yearly'] == 2
+            assert config['snap'] == True
+            assert config['clean'] == False
+            assert config['dest'] == ['backup/data', 'tank/data']
+            assert config['dest_keys'] == None
+
+
+    def test_parse_name(self):
+        _type, fsname, user, host, port = utils.parse_name('ssh:23:user@hostname:rpool/data')
+        assert _type == 'ssh'
+        assert fsname == 'rpool/data'
+        assert user == 'user'
+        assert host == 'hostname'
+        assert port == 23
+
+        _type, fsname, user, host, port = utils.parse_name('rpool/data')
+        assert _type == 'local'
+        assert fsname == 'rpool/data'
+        assert user == None
+        assert host == None
+        assert port == None
+
+
+    def test_take_snapshot(self, zpools):
+        filesystem, _ = zpools
+        config = [{'name': filesystem.name, 'hourly': 1, 'daily': 1, 'weekly': 1, 'monthly': 1,
+                  'yearly': 1, 'snap': 'yes'}]
+        utils.take_snap(config)
+
+        snapshots = {'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
+        for snap in filesystem.snapshots():
+            snap_type = snap.name.split('_')[-1]
+
+            try:
+                snapshots[snap_type].append(snap)
+            except KeyError:
+                continue
+
+        for snap_type, snaps in snapshots.items():
+            assert len(snaps) == 1
