@@ -9,14 +9,13 @@ ZFS functions
 """
 
 import os
-import shutil
 
 from datetime import datetime
 from configparser import ConfigParser, NoOptionError
 from subprocess import Popen, PIPE, CalledProcessError
+from socket import timeout, gaierror
 
 import paramiko as pm
-from socket import timeout, gaierror
 from paramiko.ssh_exception import (AuthenticationException, BadAuthenticationType,
                                     BadHostKeyException, ChannelException, NoValidConnectionsError,
                                     PasswordRequiredException, SSHException, PartialAuthentication,
