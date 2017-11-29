@@ -70,7 +70,7 @@ def zpools():
                 print('{:s} ERROR: {}'.format(logtime(), err))
 
 
-class TestSnapshot(object):
+class TestUtils(object):
     def test_read_config(self):
         with NamedTemporaryFile('w') as file:
             name = file.name
@@ -115,6 +115,7 @@ class TestSnapshot(object):
         assert port == None
 
 
+class TestSnapshot(object):
     def test_take_snapshot(self, zpools):
         fs, _ = zpools
         config = [{'name': fs.name, 'hourly': 1, 'daily': 1, 'weekly': 1, 'monthly': 1, 'yearly': 1,
@@ -146,7 +147,7 @@ class TestSnapshot(object):
             assert len(snaps) == 0
 
 
-    @pytest.mark.dependency(depends=['test_clean_snapshot'])
+class TestSending(object):
     def test_send_snapshot(self, zpools):
         """Checks if send_snap totally replicates a filesystem"""
         fs0, fs1 = zpools
@@ -183,7 +184,7 @@ class TestSnapshot(object):
         fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
         assert fs0_children == fs1_children
 
-        # Full stream
+        # Full stream again
         fs1.destroy(force=True)
         utils.send_snap(config)
         fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
@@ -196,5 +197,5 @@ class TestSnapshot(object):
         utils.send_snap(config)
         fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
         fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
-        # This should not be equal. Atm replication deletes snapshots on dest which were deleted on source
+        # This should not be equal. Atm replication (-R) deletes snapshots on dest which were deleted on source
         assert (fs0_children == fs1_children)
