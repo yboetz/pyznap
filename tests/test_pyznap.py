@@ -1,4 +1,4 @@
-#!/home/yboetz/.virtualenvs/pyznap/bin/python
+#!/home/yboetz/.virtualenvs/pyznap/bin/pytest -v
 # -*- coding: utf-8 -*-
 """
 Created on Tue Nov 28 2017
@@ -23,14 +23,15 @@ from process import DatasetNotFoundError
 
 logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
 
-zpool = '/sbin/zpool'
-pool0 = 'pyznap_test_0'
-pool1 = 'pyznap_test_1'
 
 @pytest.fixture(scope='module')
 def zpools():
     """Creates two temporary zpools to be called from test functions. Yields the two pool names
     and destroys them after testing."""
+
+    zpool = '/sbin/zpool'
+    pool0 = 'pyznap_test_0'
+    pool1 = 'pyznap_test_1'
 
     # Create temporary files on which the zpools are created
     with NamedTemporaryFile() as file0, NamedTemporaryFile() as file1:
@@ -83,7 +84,7 @@ class TestUtils(object):
             file.write('yearly = 2\n')
             file.write('snap = yes\n')
             file.write('clean = no\n')
-            file.write('dest = backup/data, tank/data\n')
+            file.write('dest = backup/data, tank/data, rpool/data\n')
             file.seek(0)
 
             config = utils.read_config(name)[0]
@@ -96,7 +97,7 @@ class TestUtils(object):
             assert config['yearly'] == 2
             assert config['snap'] == True
             assert config['clean'] == False
-            assert config['dest'] == ['backup/data', 'tank/data']
+            assert config['dest'] == ['backup/data', 'tank/data', 'rpool/data']
             assert config['dest_keys'] == None
 
 
@@ -145,11 +146,11 @@ class TestSnapshot(object):
             snapshots[snap_type].append(snap)
 
         for snap_type, snaps in snapshots.items():
-            assert len(snaps) == 0
+            assert len(snaps) == config[0][snap_type]
 
 
 class TestSending(object):
-    def test_send_snapshot(self, zpools):
+    def test_send_full(self, zpools):
         """Checks if send_snap totally replicates a filesystem"""
         fs0, fs1 = zpools
         config = [{'name': fs0.name, 'dest': [fs1.name]}]
@@ -161,7 +162,12 @@ class TestSending(object):
         fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
         assert fs0_children == fs1_children
 
-        # Incremental stream
+
+    @pytest.mark.dependency(depends=['test_send_full'])
+    def test_send_incremental(self, zpools):
+        fs0, fs1 = zpools
+        config = [{'name': fs0.name, 'dest': [fs1.name]}]
+
         zfs.create('{:s}/sub1'.format(fs0.name))
         fs0.snapshot('snap1', recursive=True)
         utils.send_snap(config)
@@ -169,7 +175,6 @@ class TestSending(object):
         fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
         assert fs0_children == fs1_children
 
-        # Incremental stream
         zfs.create('{:s}/sub2'.format(fs0.name))
         fs0.snapshot('snap2', recursive=True)
         utils.send_snap(config)
@@ -177,7 +182,6 @@ class TestSending(object):
         fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
         assert fs0_children == fs1_children
 
-        # Incremental stream
         zfs.create('{:s}/sub3'.format(fs0.name))
         fs0.snapshot('snap3', recursive=True)
         utils.send_snap(config)
@@ -185,13 +189,11 @@ class TestSending(object):
         fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
         assert fs0_children == fs1_children
 
-        # Full stream again
-        fs1.destroy(force=True)
-        utils.send_snap(config)
-        fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
-        fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
-        assert fs0_children == fs1_children
 
+    @pytest.mark.dependency(depends=['test_send_incremental'])
+    def test_send_delete_old(self, zpools):
+        fs0, fs1 = zpools
+        config = [{'name': fs0.name, 'dest': [fs1.name]}]
         # Delete old snapshot
         fs0.snapshots()[0].destroy(force=True)
         fs0.snapshot('snap4', recursive=True)
@@ -199,4 +201,18 @@ class TestSending(object):
         fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
         fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
         # This should not be equal. Atm replication (-R) deletes snapshots on dest which were deleted on source
+        assert (fs0_children == fs1_children)
+
+
+    @pytest.mark.dependency(depends=['test_send_delete_old'])
+    def test_send_delete_recent(self, zpools):
+        fs0, fs1 = zpools
+        config = [{'name': fs0.name, 'dest': [fs1.name]}]
+
+        # Delete old snapshot
+        fs1.snapshots()[-1].destroy(force=True)
+        fs1.snapshots()[-1].destroy(force=True)
+        utils.send_snap(config)
+        fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
+        fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
         assert (fs0_children == fs1_children)
