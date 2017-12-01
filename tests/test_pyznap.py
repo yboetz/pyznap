@@ -118,6 +118,7 @@ class TestUtils(object):
 
 
 class TestSnapshot(object):
+    @pytest.mark.dependency()
     def test_take_snapshot(self, zpools):
         fs, _ = zpools
         config = [{'name': fs.name, 'hourly': 1, 'daily': 1, 'weekly': 1, 'monthly': 1, 'yearly': 1,
@@ -150,6 +151,7 @@ class TestSnapshot(object):
 
 
 class TestSending(object):
+    @pytest.mark.dependency()
     def test_send_full(self, zpools):
         """Checks if send_snap totally replicates a filesystem"""
         fs0, fs1 = zpools
@@ -157,10 +159,10 @@ class TestSending(object):
 
         # Full stream
         fs0.snapshot('snap0')
-        utils.send_snap(config)
+        utils.send_config(config)
         fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
         fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
-        assert fs0_children == fs1_children
+        assert set(fs0_children) == set(fs1_children)
 
 
     @pytest.mark.dependency(depends=['test_send_full'])
@@ -170,49 +172,67 @@ class TestSending(object):
 
         zfs.create('{:s}/sub1'.format(fs0.name))
         fs0.snapshot('snap1', recursive=True)
-        utils.send_snap(config)
+        utils.send_config(config)
         fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
         fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
-        assert fs0_children == fs1_children
+        assert set(fs0_children) == set(fs1_children)
 
         zfs.create('{:s}/sub2'.format(fs0.name))
         fs0.snapshot('snap2', recursive=True)
-        utils.send_snap(config)
+        utils.send_config(config)
         fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
         fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
-        assert fs0_children == fs1_children
+        assert set(fs0_children) == set(fs1_children)
 
         zfs.create('{:s}/sub3'.format(fs0.name))
         fs0.snapshot('snap3', recursive=True)
-        utils.send_snap(config)
+        utils.send_config(config)
         fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
         fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
-        assert fs0_children == fs1_children
+        assert set(fs0_children) == set(fs1_children)
 
 
     @pytest.mark.dependency(depends=['test_send_incremental'])
+    def test_send_delete_snapshot(self, zpools):
+        fs0, fs1 = zpools
+        config = [{'name': fs0.name, 'dest': [fs1.name]}]
+
+        # Delete recent snapshots on dest
+        fs1.snapshots()[-1].destroy(force=True)
+        # fs1.snapshots()[-1].destroy(force=True)
+        utils.send_config(config)
+        fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
+        fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
+        assert set(fs0_children) == set(fs1_children)
+
+
+    @pytest.mark.dependency(depends=['test_send_delete_snapshot'])
+    def test_send_delete_sub(self, zpools):
+        fs0, fs1 = zpools
+        config = [{'name': fs0.name, 'dest': [fs1.name]}]
+
+        # Delete subfilesystem
+        sub3 = fs1.filesystems()[-1]
+        sub3.destroy(force=True)
+        # fs0.snapshot('snap4', recursive=True)
+        utils.send_config(config)
+        fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
+        fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
+        print(fs1_children)
+        assert set(fs0_children) == set(fs1_children)
+
+
+    @pytest.mark.dependency(depends=['test_send_delete_sub'])
     def test_send_delete_old(self, zpools):
         fs0, fs1 = zpools
         config = [{'name': fs0.name, 'dest': [fs1.name]}]
-        # Delete old snapshot
+
+        # Delete old snapshot on source
         fs0.snapshots()[0].destroy(force=True)
-        fs0.snapshot('snap4', recursive=True)
-        utils.send_snap(config)
+        utils.send_config(config)
         fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
         fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
-        # This should not be equal. Atm replication (-R) deletes snapshots on dest which were deleted on source
-        assert (fs0_children == fs1_children)
-
-
-    @pytest.mark.dependency(depends=['test_send_delete_old'])
-    def test_send_delete_recent(self, zpools):
-        fs0, fs1 = zpools
-        config = [{'name': fs0.name, 'dest': [fs1.name]}]
-
-        # Delete old snapshot
-        fs1.snapshots()[-1].destroy(force=True)
-        fs1.snapshots()[-1].destroy(force=True)
-        utils.send_snap(config)
-        fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
-        fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
-        assert (fs0_children == fs1_children)
+        assert not set(fs0_children) == set(fs1_children)
+        # Assert that snap0 was not deleted from fs1
+        for child in set(fs1_children) - set(fs0_children):
+            assert child.endswith('snap0')
