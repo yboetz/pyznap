@@ -71,13 +71,13 @@ if __name__ == "__main__":
     elif args.command == 'send':
         if args.source and args.dest:
             key = [args.key] if args.key else None
-            send_snap([{'name': args.source, 'dest': [args.dest], 'dest_keys': key}])
+            send_config([{'name': args.source, 'dest': [args.dest], 'dest_keys': key}])
         elif args.source and not args.dest:
             print('{:s} ERROR: Missing dest...'.format(logtime()))
         elif args.dest and not args.source:
             print('{:s} ERROR: Missing source...'.format(logtime()))
         else:
-            send_snap(config)
+            send_config(config)
 
     print('{:s} INFO: Finished successfully...\n'.format(logtime()))
     sys.exit(0)

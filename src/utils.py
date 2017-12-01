@@ -334,7 +334,68 @@ def clean_snap(config):
                 print('{:s} ERROR: {}'.format(logtime(), err))
 
 
-def send_snap(config):
+def send_snap(source_fs, dest_name, ssh=None):
+    """Send snapshots from source to dest"""
+
+    logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
+
+    if ssh:
+        dest_name_log = '{:s}@{:s}:{:s}'.format(ssh.user, ssh.host, dest_name)
+    else:
+        dest_name_log = dest_name
+
+    print('{:s} INFO: Sending {:s} to {:s}...'.format(logtime(), source_fs.name, dest_name_log))
+
+    # Get snapshots on source
+    snapshots = source_fs.snapshots()[::-1]
+    snapnames = [snap.name.split('@')[1] for snap in snapshots]
+    try:
+        snapshot = snapshots[0]
+    except IndexError:
+        print('{:s} ERROR: No snapshots on {:s}, aborting...'
+              .format(logtime(), source_fs.name))
+        return False
+
+    try:
+        dest_fs = zfs.open(dest_name)
+    except DatasetNotFoundError:
+        dest_snapnames = []
+        base = None
+    except DatasetBusyError as err:
+        print('{:s} ERROR: Dataset {:s} is busy, aborting...'
+              .format(logtime(), dest_name_log))
+        return False
+    else:
+        dest_snapnames = [snap.name.split('@')[1] for snap in dest_fs.snapshots()]
+        # Find common snapshots between source & dest, then use most recent as base
+        common = set(snapnames) & set(dest_snapnames)
+        base = next(filter(lambda x: x.name.split('@')[1] in common, snapshots), None)
+
+    if not base and dest_snapnames:
+        print('{:s} ERROR: No common snapshots on {:s}, but snapshots exist. Not sending...'
+              .format(logtime(), dest_name_log), flush=True)
+        return False
+    elif not base and not dest_snapnames:
+        print('{:s} INFO: No common snapshots on {:s}, sending full stream...'
+              .format(logtime(), dest_name_log), flush=True)
+    elif base.name != snapshot.name:
+        print('{:s} INFO: Found common snapshot {:s} on {:s}, sending incremental stream...'
+              .format(logtime(), base.name.split('@')[1], dest_name_log), flush=True)
+    else:
+        print('{:s} INFO: {:s} is up to date...'.format(logtime(), dest_name_log))
+        return True
+
+    try:
+        with snapshot.send(base=base, intermediates=True) as send:
+            with Popen(MBUFFER, stdin=send.stdout, stdout=PIPE) as mbuffer:
+                zfs.receive(name=dest_name, stdin=mbuffer.stdout, ssh=ssh, force=True, nomount=True)
+    except (DatasetNotFoundError, DatasetExistsError, DatasetBusyError, CalledProcessError) as err:
+        print('{:s} ERROR: {}'.format(logtime(), err))
+
+    return True
+
+
+def send_config(config):
     """Syncs filesystems according to strategy given in config"""
 
     logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
@@ -349,23 +410,16 @@ def send_snap(config):
             continue
 
         try:
-            filesystem = zfs.open(conf['name'])
+            source_fs = zfs.open(conf['name'])
+            # children includes the base filesystem (source_fs)
+            source_children = zfs.find(path=source_fs.name, types=['filesystem'])
         except (ValueError, DatasetNotFoundError, CalledProcessError) as err:
             print('{:s} ERROR: {}'.format(logtime(), err))
             continue
 
-        snapshots = filesystem.snapshots()[::-1]
-        snapnames = [snap.name.split('@')[1] for snap in snapshots]
-        try:
-            snapshot = snapshots[0]
-        except IndexError:
-            print('{:s} ERROR: No snapshots on {:s}, aborting...'
-                  .format(logtime(), filesystem.name))
-            continue
-
         for backup_dest in conf['dest']:
             try:
-                _type, fsname, user, host, port = parse_name(backup_dest)
+                _type, dest_name, user, host, port = parse_name(backup_dest)
             except ValueError as err:
                 print('{:s} ERROR: Could not parse {:s}: {}...'
                       .format(logtime(), backup_dest, err))
@@ -378,47 +432,24 @@ def send_snap(config):
                 except FileNotFoundError as err:
                     print('{:s} ERROR: {} is not a valid ssh key file...'.format(logtime(), err))
                     continue
-                dest = '{:s}@{:s}:{:s}'.format(user, host, fsname)
                 if not ssh.test():
                     continue
             else:
                 ssh = None
-                dest = fsname
 
-            print('{:s} INFO: Sending {:s} to {:s}...'
-                  .format(logtime(), filesystem.name, dest))
-
+            # Check if base destination filesystem exists
             try:
-                dest_fs = zfs.open(fsname, ssh=ssh)
+                zfs.open(dest_name, ssh=ssh)
             except DatasetNotFoundError:
-                print('{:s} ERROR: Destination {:s} does not exist...'.format(logtime(), dest))
+                print('{:s} ERROR: Destination {:s} does not exist...'.format(logtime(), dest_name))
                 continue
             except (ValueError, CalledProcessError) as err:
                 print('{:s} ERROR: {}'.format(logtime(), err))
                 continue
 
-            dest_snaps = [snap.name.split('@')[1] for snap in dest_fs.snapshots()]
-            # Find common snapshots between local & dest, then use most recent as base
-            common = set(snapnames) & set(dest_snaps)
-            base = next(filter(lambda x: x.name.split('@')[1] in common, snapshots), None)
-
-            if not base and dest_snaps:
-                print('{:s} ERROR: No common snapshots on {:s}, but snapshots exist. Not sending...'
-                      .format(logtime(), dest), flush=True)
-                continue
-            elif not base and not dest_snaps:
-                print('{:s} INFO: No common snapshots on {:s}, sending full stream...'
-                      .format(logtime(), dest), flush=True)
-            elif base.name != snapshot.name:
-                print('{:s} INFO: Found common snapshot {:s} on {:s}, sending incremental stream...'
-                        .format(logtime(), base.name.split('@')[1], dest), flush=True)
-            else:
-                print('{:s} INFO: {:s} is up to date...'.format(logtime(), dest))
-                continue
-
-            try:
-                with snapshot.send(base=base, intermediates=True, replicate=True) as send:
-                    with Popen(MBUFFER, stdin=send.stdout, stdout=PIPE) as mbuffer:
-                        zfs.receive(name=fsname, stdin=mbuffer.stdout, ssh=ssh, force=True, nomount=True)
-            except (DatasetNotFoundError, DatasetExistsError, DatasetBusyError, CalledProcessError) as err:
-                print('{:s} ERROR: {}'.format(logtime(), err))
+            # Match children on source to children on dest
+            dest_children_name = [child.name.replace(source_fs.name, dest_name) for
+                                  child in source_children]
+            # Send all children to corresponding children on dest
+            for source, dest in zip(source_children, dest_children_name):
+                send_snap(source, dest, ssh=None)
