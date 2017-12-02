@@ -146,6 +146,28 @@ def receive(name, stdin, ssh=None, append_name=False, append_path=False,
 
     return sp.Popen(cmd, stdin=stdin).communicate()
 
+
+def stream_size(snapshot, base=None):
+    cmd = ['zfs', 'send', '-nv']
+
+    if base:
+        cmd += ['-I', base.name]
+    cmd += [snapshot.name]
+
+    try:
+        out = sp.check_output(cmd)
+    except (process.DatasetNotFoundError, process.DatasetBusyError,
+            sp.CalledProcessError):
+        return '0'
+
+    try:
+        out = out[-1][0]
+    except IndexError:
+        return '0'
+
+    return out.split(' ')[-1]
+
+
 class ZFSDataset(object):
     def __init__(self, name, ssh=None):
         self.name = name
