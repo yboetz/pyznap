@@ -334,8 +334,26 @@ def clean_snap(config):
                 print('{:s} ERROR: {}'.format(logtime(), err))
 
 
+def send_recv(snapshot, dest_name, base=None, ssh=None):
+    """Sends snapshot to dest_name, incremental if base is given."""
+
+    logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
+
+    try:
+        with snapshot.send(base=base, intermediates=True) as send:
+            with Popen(MBUFFER, stdin=send.stdout, stdout=PIPE) as mbuffer:
+                zfs.receive(name=dest_name, stdin=mbuffer.stdout, ssh=ssh, force=True, nomount=True)
+    except (DatasetNotFoundError, DatasetExistsError, DatasetBusyError, CalledProcessError) as err:
+        print('{:s} ERROR: {}'.format(logtime(), err))
+        return False
+    else:
+        return True
+
+
 def send_snap(source_fs, dest_name, ssh=None):
-    """Send snapshots from source to dest"""
+    """Checks for common snapshots between source and dest.
+    If none are found, send the oldest snapshot, then update with the most recent one.
+    If there are common snaps, update dest with the most recent one."""
 
     logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
 
@@ -350,7 +368,8 @@ def send_snap(source_fs, dest_name, ssh=None):
     snapshots = source_fs.snapshots()[::-1]
     snapnames = [snap.name.split('@')[1] for snap in snapshots]
     try:
-        snapshot = snapshots[0]
+        snapshot = snapshots[0]     # Most recent snapshot
+        base = snapshots[-1]        # Oldest snapshot
     except IndexError:
         print('{:s} ERROR: No snapshots on {:s}, aborting...'
               .format(logtime(), source_fs.name))
@@ -360,43 +379,37 @@ def send_snap(source_fs, dest_name, ssh=None):
         dest_fs = zfs.open(dest_name)
     except DatasetNotFoundError:
         dest_snapnames = []
-        base = None
-    except DatasetBusyError as err:
-        print('{:s} ERROR: Dataset {:s} is busy, aborting...'
-              .format(logtime(), dest_name_log))
-        return False
+        common = set()
     else:
         dest_snapnames = [snap.name.split('@')[1] for snap in dest_fs.snapshots()]
-        # Find common snapshots between source & dest, then use most recent as base
+        # Find common snapshots between source & dest
         common = set(snapnames) & set(dest_snapnames)
+
+    if not common:
+        if dest_snapnames:
+            print('{:s} ERROR: No common snapshots on {:s}, but snapshots exist. Not sending...'
+                  .format(logtime(), dest_name_log), flush=True)
+            return False
+        else:
+            print('{:s} INFO: Sending oldest snapshot {:s}...'
+                  .format(logtime(), base.name), flush=True)
+            send_recv(base, dest_name, base=None, ssh=ssh)
+    else:
+        # If there are common snapshots, get the most recent one
         base = next(filter(lambda x: x.name.split('@')[1] in common, snapshots), None)
 
-    if not base and dest_snapnames:
-        print('{:s} ERROR: No common snapshots on {:s}, but snapshots exist. Not sending...'
-              .format(logtime(), dest_name_log), flush=True)
-        return False
-    elif not base and not dest_snapnames:
-        print('{:s} INFO: No common snapshots on {:s}, sending full stream...'
-              .format(logtime(), dest_name_log), flush=True)
-    elif base.name != snapshot.name:
-        print('{:s} INFO: Found common snapshot {:s} on {:s}, sending incremental stream...'
-              .format(logtime(), base.name.split('@')[1], dest_name_log), flush=True)
-    else:
-        print('{:s} INFO: {:s} is up to date...'.format(logtime(), dest_name_log))
-        return True
+    if base.name != snapshot.name:
+        print('{:s} INFO: Updating with recent snapshot {:s}...'
+              .format(logtime(), snapshot.name), flush=True)
+        send_recv(snapshot, dest_name, base=base, ssh=ssh)
 
-    try:
-        with snapshot.send(base=base, intermediates=True) as send:
-            with Popen(MBUFFER, stdin=send.stdout, stdout=PIPE) as mbuffer:
-                zfs.receive(name=dest_name, stdin=mbuffer.stdout, ssh=ssh, force=True, nomount=True)
-    except (DatasetNotFoundError, DatasetExistsError, DatasetBusyError, CalledProcessError) as err:
-        print('{:s} ERROR: {}'.format(logtime(), err))
-
+    print('{:s} INFO: {:s} is up to date...'.format(logtime(), dest_name_log))
     return True
 
 
 def send_config(config):
-    """Syncs filesystems according to strategy given in config"""
+    """Tries to sync all entries in the config to their dest. Finds all children of the filesystem
+    and calls send_snap on each of them."""
 
     logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
     print('{:s} INFO: Sending snapshots...'.format(logtime()))
@@ -434,22 +447,25 @@ def send_config(config):
                     continue
                 if not ssh.test():
                     continue
+                dest_name_log = '{:s}@{:s}:{:s}'.format(ssh.user, ssh.host, dest_name)
             else:
                 ssh = None
+                dest_name_log = dest_name
 
             # Check if base destination filesystem exists
             try:
                 zfs.open(dest_name, ssh=ssh)
             except DatasetNotFoundError:
-                print('{:s} ERROR: Destination {:s} does not exist...'.format(logtime(), dest_name))
+                print('{:s} ERROR: Destination {:s} does not exist...'
+                      .format(logtime(), dest_name_log))
                 continue
             except (ValueError, CalledProcessError) as err:
                 print('{:s} ERROR: {}'.format(logtime(), err))
                 continue
 
             # Match children on source to children on dest
-            dest_children_name = [child.name.replace(source_fs.name, dest_name) for
-                                  child in source_children]
+            dest_children_names = [child.name.replace(source_fs.name, dest_name) for
+                                   child in source_children]
             # Send all children to corresponding children on dest
-            for source, dest in zip(source_children, dest_children_name):
+            for source, dest in zip(source_children, dest_children_names):
                 send_snap(source, dest, ssh=None)
