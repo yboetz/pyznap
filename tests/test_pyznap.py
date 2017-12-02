@@ -1,4 +1,4 @@
-#!/home/yboetz/.virtualenvs/pyznap/bin/pytest -v
+#!/home/yboetz/.virtualenvs/pyznap/bin/pytest -vs
 # -*- coding: utf-8 -*-
 """
 Created on Tue Nov 28 2017
@@ -157,12 +157,28 @@ class TestSending(object):
         fs0, fs1 = zpools
         config = [{'name': fs0.name, 'dest': [fs1.name]}]
 
-        # Full stream
         fs0.snapshot('snap0')
+        zfs.create('{:s}/sub1'.format(fs0.name))
+        fs0.snapshot('snap1', recursive=True)
+        zfs.create('{:s}/sub2'.format(fs0.name))
+        fs0.snapshot('snap2', recursive=True)
+        zfs.create('{:s}/sub3'.format(fs0.name))
+        fs0.snapshot('snap3', recursive=True)
+        fs0.snapshot('snap4', recursive=True)
+        fs0.snapshot('snap5', recursive=True)
+        zfs.create('{:s}/sub3/abc'.format(fs0.name))
+        fs0.snapshot('snap6', recursive=True)
+        zfs.create('{:s}/sub3/efg'.format(fs0.name))
+        fs0.snapshot('snap7', recursive=True)
+        fs0.snapshot('snap8', recursive=True)
         utils.send_config(config)
+
         fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
         fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
         assert set(fs0_children) == set(fs1_children)
+
+        fs0.destroy(force=True)
+        fs1.destroy(force=True)
 
 
     @pytest.mark.dependency(depends=['test_send_full'])
@@ -170,6 +186,7 @@ class TestSending(object):
         fs0, fs1 = zpools
         config = [{'name': fs0.name, 'dest': [fs1.name]}]
 
+        fs0.snapshot('snap0', recursive=True)
         zfs.create('{:s}/sub1'.format(fs0.name))
         fs0.snapshot('snap1', recursive=True)
         utils.send_config(config)
@@ -211,10 +228,12 @@ class TestSending(object):
         fs0, fs1 = zpools
         config = [{'name': fs0.name, 'dest': [fs1.name]}]
 
-        # Delete subfilesystem
+        # Delete subfilesystems
         sub3 = fs1.filesystems()[-1]
         sub3.destroy(force=True)
         fs0.snapshot('snap4', recursive=True)
+        sub2 = fs1.filesystems()[-1]
+        sub2.destroy(force=True)
         utils.send_config(config)
         fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
         fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
@@ -228,33 +247,11 @@ class TestSending(object):
 
         # Delete old snapshot on source
         fs0.snapshots()[0].destroy(force=True)
+        fs0.snapshot('snap5', recursive=True)
         utils.send_config(config)
         fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
         fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
-        assert not set(fs0_children) == set(fs1_children)
+        assert not (set(fs0_children) == set(fs1_children))
         # Assert that snap0 was not deleted from fs1
         for child in set(fs1_children) - set(fs0_children):
             assert child.endswith('snap0')
-
-
-    @pytest.mark.dependency(depends=['test_send_delete_old'])
-    def test_send_full_incremental(self, zpools):
-        fs0, fs1 = zpools
-        config = [{'name': fs0.name, 'dest': [fs1.name]}]
-
-        fs0.destroy(force=True)
-        fs1.destroy(force=True)
-        fs0.snapshot('snap0')
-        zfs.create('{:s}/sub1'.format(fs0.name))
-        fs0.snapshot('snap1', recursive=True)
-        zfs.create('{:s}/sub2'.format(fs0.name))
-        fs0.snapshot('snap2', recursive=True)
-        zfs.create('{:s}/sub3'.format(fs0.name))
-        fs0.snapshot('snap3', recursive=True)
-        fs0.snapshot('snap4', recursive=True)
-        fs0.snapshot('snap5', recursive=True)
-        utils.send_config(config)
-
-        fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
-        fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
-        assert set(fs0_children) == set(fs1_children)
