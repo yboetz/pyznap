@@ -376,7 +376,7 @@ def send_snap(source_fs, dest_name, ssh=None):
         return False
 
     try:
-        dest_fs = zfs.open(dest_name)
+        dest_fs = zfs.open(dest_name, ssh=ssh)
     except DatasetNotFoundError:
         dest_snapnames = []
         common = set()
@@ -468,4 +468,4 @@ def send_config(config):
                                    child in source_children]
             # Send all children to corresponding children on dest
             for source, dest in zip(source_children, dest_children_names):
-                send_snap(source, dest, ssh=None)
+                send_snap(source, dest, ssh=ssh)
