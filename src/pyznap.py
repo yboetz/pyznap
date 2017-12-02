@@ -12,7 +12,7 @@ import sys
 from argparse import ArgumentParser
 from datetime import datetime
 from configparser import MissingSectionHeaderError
-from utils import take_snap, clean_snap, read_config, send_snap
+from utils import take_snap, clean_snap, read_config, send_snap, send_config
 
 __version__ = '0.1.0'
 
