@@ -1,2 +1,4 @@
 configparser==3.5.0
-paramiko==2.2.1
+paramiko==2.4.0
+pytest==3.3.0
+pytest-dependency==0.2
