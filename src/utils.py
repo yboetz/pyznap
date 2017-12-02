@@ -371,7 +371,7 @@ def send_snap(source_fs, dest_name, ssh=None):
         snapshot = snapshots[0]     # Most recent snapshot
         base = snapshots[-1]        # Oldest snapshot
     except IndexError:
-        print('{:s} ERROR: No snapshots on {:s}, aborting...'
+        print('{:s} INFO: No snapshots on {:s}, cannot send...'
               .format(logtime(), source_fs.name))
         return False
 
