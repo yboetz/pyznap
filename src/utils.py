@@ -391,16 +391,16 @@ def send_snap(source_fs, dest_name, ssh=None):
                   .format(logtime(), dest_name_log), flush=True)
             return False
         else:
-            print('{:s} INFO: Sending oldest snapshot {:s}...'
-                  .format(logtime(), base.name), flush=True)
+            print('{:s} INFO: Sending oldest snapshot {:s} (~{:s})...'
+                  .format(logtime(), base.name, zfs.stream_size(base)), flush=True)
             send_recv(base, dest_name, base=None, ssh=ssh)
     else:
         # If there are common snapshots, get the most recent one
         base = next(filter(lambda x: x.name.split('@')[1] in common, snapshots), None)
 
     if base.name != snapshot.name:
-        print('{:s} INFO: Updating with recent snapshot {:s}...'
-              .format(logtime(), snapshot.name), flush=True)
+        print('{:s} INFO: Updating with recent snapshot {:s} (~{:s})...'
+              .format(logtime(), snapshot.name, zfs.stream_size(snapshot, base)), flush=True)
         send_recv(snapshot, dest_name, base=base, ssh=ssh)
 
     print('{:s} INFO: {:s} is up to date...'.format(logtime(), dest_name_log))
