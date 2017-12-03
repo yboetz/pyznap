@@ -95,14 +95,14 @@ class Remote:
 
 
 def read_config(path):
-    """Reads a config file and outputs a list of dicts with the given
-    snapshot strategy. If ssh keyfiles do not exist it will take standard
-    location in .ssh folder"""
+    """Reads a config file and outputs a list of dicts with the given snapshot strategy. If ssh
+    keyfiles do not exist it will take standard location in .ssh folder"""
 
     if not os.path.isfile(path):
         raise FileNotFoundError('File does not exist.')
 
-    options = ['key', 'hourly', 'daily', 'weekly', 'monthly', 'yearly', 'snap', 'clean', 'dest', 'dest_keys']
+    options = ['key', 'hourly', 'daily', 'weekly', 'monthly', 'yearly', 'snap', 'clean', 'dest',
+               'dest_keys']
 
     config = ConfigParser()
     config.read(path)
@@ -134,10 +134,10 @@ def read_config(path):
 
 
 def parse_name(value):
-    """Split a name/dest config entry in its parts"""
+    """Splits a string of the form 'ssh:port:user@host:rpool/data' into its parts"""
     if value.startswith('ssh'):
-        _type, options, host, fsname = value.split(':', maxsplit=3)
-        port = int(options) if options else 22
+        _type, port, host, fsname = value.split(':', maxsplit=3)
+        port = int(port) if port else 22
         user, host = host.split('@', maxsplit=1)
     else:
         _type, user, host, port = 'local', None, None, None
@@ -178,7 +178,6 @@ def take_snap(config):
 
         print('{:s} INFO: Taking snapshots on {:s}...'.format(logtime(), name))
 
-
         try:
             filesystem = zfs.open(fsname, ssh=ssh)
         except (ValueError, DatasetNotFoundError, CalledProcessError) as err:
@@ -187,8 +186,8 @@ def take_snap(config):
 
         snapshots = {'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
         for snap in filesystem.snapshots():
-            # Ignore snapshots not taken with pyznap
-            if not snap.name.split('@')[1].startswith('pyznap'):
+            # Ignore snapshots not taken with pyznap or sanoid
+            if not snap.name.split('@')[1].startswith(('pyznap', 'autosnap')):
                 continue
             snap_time = datetime.fromtimestamp(int(snap.getprop('creation')[0]))
             snap_type = snap.name.split('_')[-1]
@@ -198,6 +197,7 @@ def take_snap(config):
             except KeyError:
                 continue
 
+        # Sort by time taken
         for snap_type, snaps in snapshots.items():
             snapshots[snap_type] = sorted(snaps, key=lambda x: x[1], reverse=True)
 
@@ -275,7 +275,6 @@ def clean_snap(config):
             ssh = None
 
         print('{:s} INFO: Cleaning snapshots on {:s}...'.format(logtime(), name))
-
 
         try:
             filesystem = zfs.open(fsname, ssh=ssh)
