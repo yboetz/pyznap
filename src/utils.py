@@ -130,6 +130,17 @@ def read_config(path):
                 elif option in ['dest_keys']:
                     dic[option] = [i.strip() if os.path.isfile(i.strip()) else None
                                    for i in value.split(',')]
+    # Pass through values recursively
+    for parent in res:
+        for child in res:
+            if parent == child:
+                continue
+            if child['name'].startswith(parent['name']):
+                for option in ['key', 'hourly', 'daily', 'weekly', 'monthly', 'yearly']:
+                    child[option] = child[option] if child[option] else parent[option]
+                child['snap'] = False
+                # child['clean'] = False # Change when clean_snap is recursive
+
     return res
 
 
@@ -424,7 +435,7 @@ def send_config(config):
         try:
             source_fs = zfs.open(conf['name'])
             # children includes the base filesystem (source_fs)
-            source_children = zfs.find(path=source_fs.name, types=['filesystem'])
+            source_children = zfs.find(path=source_fs.name, types=['filesystem'], ssh=None)
         except (ValueError, DatasetNotFoundError, CalledProcessError) as err:
             print('{:s} ERROR: {}'.format(logtime(), err))
             continue
