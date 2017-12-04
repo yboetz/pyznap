@@ -1,4 +1,4 @@
-#!/home/yboetz/.virtualenvs/pyznap/bin/pytest -vs
+#!/home/yboetz/.virtualenvs/pyznap/bin/pytest -v
 # -*- coding: utf-8 -*-
 """
 Created on Tue Nov 28 2017
@@ -77,6 +77,13 @@ class TestUtils(object):
         with NamedTemporaryFile('w') as file:
             name = file.name
             file.write('[rpool/data]\n')
+            file.write('hourly = 12\n')
+            file.write('monthly = 6\n')
+            file.write('snap = yes\n')
+            file.write('clean = yes\n')
+            file.write('dest = backup/data, tank/data, rpool/data\n\n')
+
+            file.write('[rpool]\n')
             file.write('hourly = 24\n')
             file.write('daily = 7\n')
             file.write('weekly = 4\n')
@@ -84,21 +91,36 @@ class TestUtils(object):
             file.write('yearly = 2\n')
             file.write('snap = yes\n')
             file.write('clean = no\n')
-            file.write('dest = backup/data, tank/data, rpool/data\n')
+            file.write('dest = backup, tank\n')
             file.seek(0)
 
-            config = utils.read_config(name)[0]
-            assert config['name'] == 'rpool/data'
-            assert config['key'] == None
-            assert config['hourly'] == 24
-            assert config['daily'] == 7
-            assert config['weekly'] == 4
-            assert config['monthly'] == 12
-            assert config['yearly'] == 2
-            assert config['snap'] == True
-            assert config['clean'] == False
-            assert config['dest'] == ['backup/data', 'tank/data', 'rpool/data']
-            assert config['dest_keys'] == None
+            config = utils.read_config(name)
+            conf0 = config[0]
+            assert conf0['name'] == 'rpool/data'
+            assert conf0['key'] == None
+            assert conf0['hourly'] == 12
+            assert conf0['daily'] == 7
+            assert conf0['weekly'] == 4
+            assert conf0['monthly'] == 6
+            assert conf0['yearly'] == 2
+            assert conf0['snap'] == False
+            assert conf0['clean'] == True
+            assert conf0['dest'] == ['backup/data', 'tank/data', 'rpool/data']
+            assert conf0['dest_keys'] == None
+
+            conf1 = config[1]
+            assert conf1['name'] == 'rpool'
+            assert conf1['key'] == None
+            assert conf1['hourly'] == 24
+            assert conf1['daily'] == 7
+            assert conf1['weekly'] == 4
+            assert conf1['monthly'] == 12
+            assert conf1['yearly'] == 2
+            assert conf1['snap'] == True
+            assert conf1['clean'] == False
+            assert conf1['dest'] == ['backup', 'tank']
+            assert conf1['dest_keys'] == None
+
 
 
     def test_parse_name(self):
