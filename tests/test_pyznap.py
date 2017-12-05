@@ -80,7 +80,6 @@ class TestUtils(object):
             file.write('hourly = 12\n')
             file.write('monthly = 6\n')
             file.write('snap = yes\n')
-            file.write('clean = yes\n')
             file.write('dest = backup/data, tank/data, rpool/data\n\n')
 
             file.write('[rpool]\n')
@@ -104,7 +103,7 @@ class TestUtils(object):
             assert conf0['monthly'] == 6
             assert conf0['yearly'] == 2
             assert conf0['snap'] == False
-            assert conf0['clean'] == True
+            assert conf0['clean'] == False
             assert conf0['dest'] == ['backup/data', 'tank/data', 'rpool/data']
             assert conf0['dest_keys'] == None
 
@@ -120,7 +119,6 @@ class TestUtils(object):
             assert conf1['clean'] == False
             assert conf1['dest'] == ['backup', 'tank']
             assert conf1['dest_keys'] == None
-
 
 
     def test_parse_name(self):
@@ -144,7 +142,7 @@ class TestSnapshot(object):
     def test_take_snapshot(self, zpools):
         fs, _ = zpools
         config = [{'name': fs.name, 'hourly': 1, 'daily': 1, 'weekly': 1, 'monthly': 1, 'yearly': 1,
-                  'snap': 'yes'}]
+                  'snap': True}]
         utils.take_snap(config)
 
         snapshots = {'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
@@ -160,8 +158,8 @@ class TestSnapshot(object):
     def test_clean_snapshot(self, zpools):
         fs, _ = zpools
         config = [{'name': fs.name, 'hourly': 0, 'daily': 0, 'weekly': 0, 'monthly': 0, 'yearly': 0,
-                  'clean': 'yes'}]
-        utils.clean_snap(config)
+                  'clean': True}]
+        utils.clean_config(config)
 
         snapshots = {'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
         for snap in fs.snapshots():
@@ -172,11 +170,67 @@ class TestSnapshot(object):
             assert len(snaps) == config[0][snap_type]
 
 
+    @pytest.mark.dependency(depends=['test_clean_snapshot'])
+    def test_clean_recursive(self, zpools):
+        fs, _ = zpools
+        fs.destroy(force=True)
+        zfs.create('{:s}/sub1'.format(fs.name))
+        zfs.create('{:s}/sub2'.format(fs.name))
+        zfs.create('{:s}/sub3'.format(fs.name))
+        sub1, sub2, sub3 = fs.filesystems()
+        config = [{'name': fs.name, 'hourly': 1, 'daily': 1, 'weekly': 1, 'monthly': 1, 'yearly': 1,
+                  'snap': True}]
+        utils.take_snap(config)
+
+        config = [{'name': fs.name, 'hourly': 0, 'daily': 1, 'weekly': 0, 'monthly': 0, 'yearly': 0,
+                  'clean': True},
+                  {'name': '{:s}/sub2'.format(fs.name), 'hourly': 1, 'daily': 0, 'weekly': 1,
+                  'monthly': 0, 'yearly': 1, 'clean': True},
+                  {'name': '{:s}/sub3'.format(fs.name), 'hourly': 0, 'daily': 1, 'weekly': 0,
+                  'monthly': 1, 'yearly': 0, 'clean': False}]
+        utils.clean_config(config)
+
+        # Check parent filesystem
+        snapshots = {'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
+        for snap in fs.snapshots():
+            snap_type = snap.name.split('_')[-1]
+            snapshots[snap_type].append(snap)
+
+        for snap_type, snaps in snapshots.items():
+            assert len(snaps) == config[0][snap_type]
+        # Check sub1
+        snapshots = {'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
+        for snap in sub1.snapshots():
+            snap_type = snap.name.split('_')[-1]
+            snapshots[snap_type].append(snap)
+
+        for snap_type, snaps in snapshots.items():
+            assert len(snaps) == config[0][snap_type]
+        # Check sub2
+        snapshots = {'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
+        for snap in sub2.snapshots():
+            snap_type = snap.name.split('_')[-1]
+            snapshots[snap_type].append(snap)
+
+        for snap_type, snaps in snapshots.items():
+            assert len(snaps) == config[1][snap_type]
+        # Check sub3
+        snapshots = {'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
+        for snap in sub3.snapshots():
+            snap_type = snap.name.split('_')[-1]
+            snapshots[snap_type].append(snap)
+
+        for snap_type, snaps in snapshots.items():
+            assert len(snaps) == 1
+
+
 class TestSending(object):
     @pytest.mark.dependency()
     def test_send_full(self, zpools):
         """Checks if send_snap totally replicates a filesystem"""
         fs0, fs1 = zpools
+        fs0.destroy(force=True)
+        fs1.destroy(force=True)
         config = [{'name': fs0.name, 'dest': [fs1.name]}]
 
         fs0.snapshot('snap0')
