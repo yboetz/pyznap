@@ -104,18 +104,18 @@ def read_config(path):
     options = ['key', 'hourly', 'daily', 'weekly', 'monthly', 'yearly', 'snap', 'clean', 'dest',
                'dest_keys']
 
-    config = ConfigParser()
-    config.read(path)
+    parser = ConfigParser()
+    parser.read(path)
 
-    res = []
-    for section in config.sections():
+    config = []
+    for section in parser.sections():
         dic = {}
-        res.append(dic)
+        config.append(dic)
         dic['name'] = section
 
         for option in options:
             try:
-                value = config.get(section, option)
+                value = parser.get(section, option)
             except NoOptionError:
                 dic[option] = None
             else:
@@ -131,17 +131,16 @@ def read_config(path):
                     dic[option] = [i.strip() if os.path.isfile(i.strip()) else None
                                    for i in value.split(',')]
     # Pass through values recursively
-    for parent in res:
-        for child in res:
+    for parent in config:
+        for child in config:
             if parent == child:
                 continue
             if child['name'].startswith(parent['name']):
-                for option in ['key', 'hourly', 'daily', 'weekly', 'monthly', 'yearly']:
+                for option in ['key', 'hourly', 'daily', 'weekly', 'monthly', 'yearly', 'clean']:
                     child[option] = child[option] if child[option] else parent[option]
                 child['snap'] = False
-                # child['clean'] = False # Change when clean_snap is recursive
 
-    return res
+    return config
 
 
 def parse_name(value):
@@ -255,7 +254,7 @@ def take_snap(config):
                 print('{:s} ERROR: {}'.format(logtime(), err))
 
 
-def clean_snap(config):
+def clean_config(config):
     """Deletes old snapshots according to strategy given in config"""
 
     logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
@@ -270,7 +269,7 @@ def clean_snap(config):
             _type, fsname, user, host, port = parse_name(name)
         except ValueError as err:
             print('{:s} ERROR: Could not parse {:s}: {}...'
-                    .format(logtime(), name, err))
+                  .format(logtime(), name, err))
             continue
 
         if _type == 'ssh':
@@ -285,63 +284,91 @@ def clean_snap(config):
         else:
             ssh = None
 
-        print('{:s} INFO: Cleaning snapshots on {:s}...'.format(logtime(), name))
-
         try:
             filesystem = zfs.open(fsname, ssh=ssh)
+            # Children excludes the base filesystem (filesystem)
+            children = zfs.find(path=fsname, types=['filesystem'], ssh=ssh)[1:]
         except (ValueError, DatasetNotFoundError, CalledProcessError) as err:
             print('{:s} ERROR: {}'.format(logtime(), err))
             continue
 
-        snapshots = {'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
-        for snap in filesystem.snapshots():
-            # Ignore snapshots not taken with pyznap or sanoid
-            if not snap.name.split('@')[1].startswith(('pyznap', 'autosnap')):
+        # Clean snapshots of parent filesystem
+        clean_snap(filesystem, conf)
+        # Clean snapshots of all children that don't have a seperate config entry
+        for child in children:
+            if ssh:
+                child_name = 'ssh:{:d}:{:s}@{:s}:{:s}'.format(port, user, host, child.name)
+            else:
+                child_name = child.name
+            # Skip if entry already in config
+            if child_name in [entry['name'] for entry in config]:
                 continue
-            snap_type = snap.name.split('_')[-1]
+            else:
+                clean_snap(child, conf)
 
-            try:
-                snapshots[snap_type].append(snap)
-            except KeyError:
-                continue
 
-        for snaps in snapshots.values():
-            snaps.reverse()
+def clean_snap(filesystem, conf):
+    """Deletes snapshots of a single filesystem according to conf"""
 
-        for snap in snapshots['yearly'][conf['yearly']:]:
-            print('{:s} INFO: Deleting snapshot {:s}'.format(logtime(), snap.name))
-            try:
-                snap.destroy(force=True)
-            except (DatasetBusyError, CalledProcessError) as err:
-                print('{:s} ERROR: {}'.format(logtime(), err))
+    logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
 
-        for snap in snapshots['monthly'][conf['monthly']:]:
-            print('{:s} INFO: Deleting snapshot {:s}'.format(logtime(), snap.name))
-            try:
-                snap.destroy(force=True)
-            except (DatasetBusyError, CalledProcessError) as err:
-                print('{:s} ERROR: {}'.format(logtime(), err))
+    ssh = filesystem.ssh
+    if ssh:
+        name_log = '{:s}@{:s}:{:s}'.format(ssh.user, ssh.host, filesystem.name)
+    else:
+        name_log = filesystem.name
 
-        for snap in snapshots['weekly'][conf['weekly']:]:
-            print('{:s} INFO: Deleting snapshot {:s}'.format(logtime(), snap.name))
-            try:
-                snap.destroy(force=True)
-            except (DatasetBusyError, CalledProcessError) as err:
-                print('{:s} ERROR: {}'.format(logtime(), err))
+    print('{:s} INFO: Cleaning snapshots on {:s}...'.format(logtime(), name_log))
 
-        for snap in snapshots['daily'][conf['daily']:]:
-            print('{:s} INFO: Deleting snapshot {:s}'.format(logtime(), snap.name))
-            try:
-                snap.destroy(force=True)
-            except (DatasetBusyError, CalledProcessError) as err:
-                print('{:s} ERROR: {}'.format(logtime(), err))
+    snapshots = {'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
+    for snap in filesystem.snapshots():
+        # Ignore snapshots not taken with pyznap or sanoid
+        if not snap.name.split('@')[1].startswith(('pyznap', 'autosnap')):
+            continue
+        snap_type = snap.name.split('_')[-1]
 
-        for snap in snapshots['hourly'][conf['hourly']:]:
-            print('{:s} INFO: Deleting snapshot {:s}'.format(logtime(), snap.name))
-            try:
-                snap.destroy(force=True)
-            except (DatasetBusyError, CalledProcessError) as err:
-                print('{:s} ERROR: {}'.format(logtime(), err))
+        try:
+            snapshots[snap_type].append(snap)
+        except KeyError:
+            continue
+
+    for snaps in snapshots.values():
+        snaps.reverse()
+
+    for snap in snapshots['yearly'][conf['yearly']:]:
+        print('{:s} INFO: Deleting snapshot {:s}'.format(logtime(), snap.name))
+        try:
+            snap.destroy()
+        except (DatasetBusyError, CalledProcessError) as err:
+            print('{:s} ERROR: {}'.format(logtime(), err))
+
+    for snap in snapshots['monthly'][conf['monthly']:]:
+        print('{:s} INFO: Deleting snapshot {:s}'.format(logtime(), snap.name))
+        try:
+            snap.destroy()
+        except (DatasetBusyError, CalledProcessError) as err:
+            print('{:s} ERROR: {}'.format(logtime(), err))
+
+    for snap in snapshots['weekly'][conf['weekly']:]:
+        print('{:s} INFO: Deleting snapshot {:s}'.format(logtime(), snap.name))
+        try:
+            snap.destroy()
+        except (DatasetBusyError, CalledProcessError) as err:
+            print('{:s} ERROR: {}'.format(logtime(), err))
+
+    for snap in snapshots['daily'][conf['daily']:]:
+        print('{:s} INFO: Deleting snapshot {:s}'.format(logtime(), snap.name))
+        try:
+            snap.destroy()
+        except (DatasetBusyError, CalledProcessError) as err:
+            print('{:s} ERROR: {}'.format(logtime(), err))
+
+    for snap in snapshots['hourly'][conf['hourly']:]:
+        print('{:s} INFO: Deleting snapshot {:s}'.format(logtime(), snap.name))
+        try:
+            snap.destroy()
+        except (DatasetBusyError, CalledProcessError) as err:
+            print('{:s} ERROR: {}'.format(logtime(), err))
 
 
 def send_recv(snapshot, dest_name, base=None, ssh=None):
@@ -428,14 +455,15 @@ def send_config(config):
         if not conf.get('dest', None):
             continue
 
-        if conf['name'].startswith('ssh'):
+        source_fs_name = conf['name']
+        if source_fs_name.startswith('ssh'):
             print('{:s} ERROR: Cannot send from remote location...'.format(logtime()))
             continue
 
         try:
-            source_fs = zfs.open(conf['name'])
+            # source_fs = zfs.open(source_fs_name, ssh=None)
             # children includes the base filesystem (source_fs)
-            source_children = zfs.find(path=source_fs.name, types=['filesystem'], ssh=None)
+            source_children = zfs.find(path=source_fs_name, types=['filesystem'], ssh=None)
         except (ValueError, DatasetNotFoundError, CalledProcessError) as err:
             print('{:s} ERROR: {}'.format(logtime(), err))
             continue
@@ -474,7 +502,7 @@ def send_config(config):
                 continue
 
             # Match children on source to children on dest
-            dest_children_names = [child.name.replace(source_fs.name, dest_name) for
+            dest_children_names = [child.name.replace(source_fs_name, dest_name) for
                                    child in source_children]
             # Send all children to corresponding children on dest
             for source, dest in zip(source_children, dest_children_names):

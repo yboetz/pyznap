@@ -12,7 +12,7 @@ import sys
 from argparse import ArgumentParser
 from datetime import datetime
 from configparser import MissingSectionHeaderError
-from utils import take_snap, clean_snap, read_config, send_snap, send_config
+from utils import read_config, take_snap, clean_config, send_config
 
 __version__ = '0.1.0'
 
@@ -66,7 +66,7 @@ if __name__ == "__main__":
             take_snap(config)
 
         if args.clean or args.full:
-            clean_snap(config)
+            clean_config(config)
 
     elif args.command == 'send':
         if args.source and args.dest:
