@@ -301,6 +301,16 @@ class TestSending(object):
         fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
         assert set(fs0_children) == set(fs1_children)
 
+        # Delete recent snapshot on source
+        fs0.snapshot('snap4', recursive=True)
+        send_config(config)
+        fs0.snapshots()[-1].destroy(force=True)
+        fs0.snapshot('snap5', recursive=True)
+        send_config(config)
+        fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
+        fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
+        assert set(fs0_children) == set(fs1_children)
+
 
     @pytest.mark.dependency(depends=['test_send_delete_snapshot'])
     def test_send_delete_sub(self, zpools):
@@ -310,7 +320,7 @@ class TestSending(object):
         # Delete subfilesystems
         sub3 = fs1.filesystems()[-1]
         sub3.destroy(force=True)
-        fs0.snapshot('snap4', recursive=True)
+        fs0.snapshot('snap6', recursive=True)
         sub2 = fs1.filesystems()[-1]
         sub2.destroy(force=True)
         send_config(config)
@@ -326,7 +336,7 @@ class TestSending(object):
 
         # Delete old snapshot on source
         fs0.snapshots()[0].destroy(force=True)
-        fs0.snapshot('snap5', recursive=True)
+        fs0.snapshot('snap7', recursive=True)
         send_config(config)
         fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
         fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
