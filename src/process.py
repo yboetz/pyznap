@@ -1,3 +1,11 @@
+"""
+Created on Sat Aug 12 2017
+
+@author: yboetz
+
+Catch ZFS subprocess errors, forked from https://bitbucket.org/stevedrake/weir/
+"""
+
 import re
 import errno as _errno
 import subprocess as sp

@@ -12,7 +12,11 @@ import sys
 from argparse import ArgumentParser
 from datetime import datetime
 from configparser import MissingSectionHeaderError
-from utils import read_config, take_snap, clean_config, send_config
+from utils import read_config
+from clean import clean_config
+from take import take_config
+from send import send_config
+
 
 __version__ = '0.1.0'
 
@@ -63,7 +67,7 @@ if __name__ == "__main__":
             args.full = True
 
         if args.take or args.full:
-            take_snap(config)
+            take_config(config)
 
         if args.clean or args.full:
             clean_config(config)

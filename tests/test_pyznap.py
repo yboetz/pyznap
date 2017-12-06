@@ -16,8 +16,11 @@ from datetime import datetime
 import pytest
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../src')
-import utils
-import zfs
+import pyzfs as zfs
+from utils import read_config, parse_name
+from clean import clean_config
+from take import take_config
+from send import send_config
 from process import DatasetNotFoundError
 
 
@@ -94,7 +97,7 @@ class TestUtils(object):
             file.write('dest = backup, tank\n')
             file.seek(0)
 
-            config = utils.read_config(name)
+            config = read_config(name)
             conf0 = config[0]
             assert conf0['name'] == 'rpool/data'
             assert conf0['key'] == None
@@ -123,14 +126,14 @@ class TestUtils(object):
 
 
     def test_parse_name(self):
-        _type, fsname, user, host, port = utils.parse_name('ssh:23:user@hostname:rpool/data')
+        _type, fsname, user, host, port = parse_name('ssh:23:user@hostname:rpool/data')
         assert _type == 'ssh'
         assert fsname == 'rpool/data'
         assert user == 'user'
         assert host == 'hostname'
         assert port == 23
 
-        _type, fsname, user, host, port = utils.parse_name('rpool/data')
+        _type, fsname, user, host, port = parse_name('rpool/data')
         assert _type == 'local'
         assert fsname == 'rpool/data'
         assert user == None
@@ -144,7 +147,7 @@ class TestSnapshot(object):
         fs, _ = zpools
         config = [{'name': fs.name, 'hourly': 1, 'daily': 1, 'weekly': 1, 'monthly': 1, 'yearly': 1,
                   'snap': True}]
-        utils.take_snap(config)
+        take_config(config)
 
         snapshots = {'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
         for snap in fs.snapshots():
@@ -160,7 +163,7 @@ class TestSnapshot(object):
         fs, _ = zpools
         config = [{'name': fs.name, 'hourly': 0, 'daily': 0, 'weekly': 0, 'monthly': 0, 'yearly': 0,
                   'clean': True}]
-        utils.clean_config(config)
+        clean_config(config)
 
         snapshots = {'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
         for snap in fs.snapshots():
@@ -181,7 +184,7 @@ class TestSnapshot(object):
         sub1, sub2, sub3 = fs.filesystems()
         config = [{'name': fs.name, 'hourly': 1, 'daily': 1, 'weekly': 1, 'monthly': 1, 'yearly': 1,
                   'snap': True}]
-        utils.take_snap(config)
+        take_config(config)
 
         config = [{'name': fs.name, 'hourly': 0, 'daily': 1, 'weekly': 0, 'monthly': 0, 'yearly': 0,
                   'clean': True},
@@ -189,7 +192,7 @@ class TestSnapshot(object):
                   'monthly': 0, 'yearly': 1, 'clean': True},
                   {'name': '{:s}/sub3'.format(fs.name), 'hourly': 0, 'daily': 1, 'weekly': 0,
                   'monthly': 1, 'yearly': 0, 'clean': False}]
-        utils.clean_config(config)
+        clean_config(config)
 
         # Check parent filesystem
         snapshots = {'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
@@ -248,7 +251,7 @@ class TestSending(object):
         zfs.create('{:s}/sub3/efg'.format(fs0.name))
         fs0.snapshot('snap7', recursive=True)
         fs0.snapshot('snap8', recursive=True)
-        utils.send_config(config)
+        send_config(config)
 
         fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
         fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
@@ -266,21 +269,21 @@ class TestSending(object):
         fs0.snapshot('snap0', recursive=True)
         zfs.create('{:s}/sub1'.format(fs0.name))
         fs0.snapshot('snap1', recursive=True)
-        utils.send_config(config)
+        send_config(config)
         fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
         fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
         assert set(fs0_children) == set(fs1_children)
 
         zfs.create('{:s}/sub2'.format(fs0.name))
         fs0.snapshot('snap2', recursive=True)
-        utils.send_config(config)
+        send_config(config)
         fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
         fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
         assert set(fs0_children) == set(fs1_children)
 
         zfs.create('{:s}/sub3'.format(fs0.name))
         fs0.snapshot('snap3', recursive=True)
-        utils.send_config(config)
+        send_config(config)
         fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
         fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
         assert set(fs0_children) == set(fs1_children)
@@ -294,7 +297,7 @@ class TestSending(object):
         # Delete recent snapshots on dest
         fs1.snapshots()[-1].destroy(force=True)
         fs1.snapshots()[-1].destroy(force=True)
-        utils.send_config(config)
+        send_config(config)
         fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
         fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
         assert set(fs0_children) == set(fs1_children)
@@ -311,7 +314,7 @@ class TestSending(object):
         fs0.snapshot('snap4', recursive=True)
         sub2 = fs1.filesystems()[-1]
         sub2.destroy(force=True)
-        utils.send_config(config)
+        send_config(config)
         fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
         fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
         assert set(fs0_children) == set(fs1_children)
@@ -325,7 +328,7 @@ class TestSending(object):
         # Delete old snapshot on source
         fs0.snapshots()[0].destroy(force=True)
         fs0.snapshot('snap5', recursive=True)
-        utils.send_config(config)
+        send_config(config)
         fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
         fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
         assert not (set(fs0_children) == set(fs1_children))

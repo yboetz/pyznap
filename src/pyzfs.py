@@ -1,5 +1,9 @@
 """
-ZFS bindings, forked from weir
+Created on Sat Aug 12 2017
+
+@author: yboetz
+
+Python ZFS bindings, forked from https://bitbucket.org/stevedrake/weir/
 """
 
 import subprocess as sp
