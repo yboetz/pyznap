@@ -78,8 +78,9 @@ class TestUtils(object):
             name = file.name
             file.write('[rpool/data]\n')
             file.write('hourly = 12\n')
-            file.write('monthly = 6\n')
+            file.write('monthly = 0\n')
             file.write('snap = yes\n')
+            file.write('clean = no\n')
             file.write('dest = backup/data, tank/data, rpool/data\n\n')
 
             file.write('[rpool]\n')
@@ -89,7 +90,7 @@ class TestUtils(object):
             file.write('monthly = 12\n')
             file.write('yearly = 2\n')
             file.write('snap = yes\n')
-            file.write('clean = no\n')
+            file.write('clean = yes\n')
             file.write('dest = backup, tank\n')
             file.seek(0)
 
@@ -100,7 +101,7 @@ class TestUtils(object):
             assert conf0['hourly'] == 12
             assert conf0['daily'] == 7
             assert conf0['weekly'] == 4
-            assert conf0['monthly'] == 6
+            assert conf0['monthly'] == 0
             assert conf0['yearly'] == 2
             assert conf0['snap'] == False
             assert conf0['clean'] == False
@@ -116,7 +117,7 @@ class TestUtils(object):
             assert conf1['monthly'] == 12
             assert conf1['yearly'] == 2
             assert conf1['snap'] == True
-            assert conf1['clean'] == False
+            assert conf1['clean'] == True
             assert conf1['dest'] == ['backup', 'tank']
             assert conf1['dest_keys'] == None
 
