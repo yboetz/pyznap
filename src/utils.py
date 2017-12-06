@@ -287,7 +287,7 @@ def clean_config(config):
         try:
             filesystem = zfs.open(fsname, ssh=ssh)
             # Children excludes the base filesystem (filesystem)
-            children = zfs.find(path=fsname, types=['filesystem'], ssh=ssh)[1:]
+            children = zfs.find(path=fsname, types=['filesystem', 'volume'], ssh=ssh)[1:]
         except (ValueError, DatasetNotFoundError, CalledProcessError) as err:
             print('{:s} ERROR: {}'.format(logtime(), err))
             continue
@@ -463,7 +463,7 @@ def send_config(config):
         try:
             # source_fs = zfs.open(source_fs_name, ssh=None)
             # children includes the base filesystem (source_fs)
-            source_children = zfs.find(path=source_fs_name, types=['filesystem'], ssh=None)
+            source_children = zfs.find(path=source_fs_name, types=['filesystem', 'volume'], ssh=None)
         except (ValueError, DatasetNotFoundError, CalledProcessError) as err:
             print('{:s} ERROR: {}'.format(logtime(), err))
             continue
