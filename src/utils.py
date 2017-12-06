@@ -285,17 +285,17 @@ def clean_config(config):
             ssh = None
 
         try:
-            filesystem = zfs.open(fsname, ssh=ssh)
-            # Children excludes the base filesystem (filesystem)
-            children = zfs.find(path=fsname, types=['filesystem', 'volume'], ssh=ssh)[1:]
+            # filesystem = zfs.open(fsname, ssh=ssh)
+            # Children includes the base filesystem (filesystem)
+            children = zfs.find(path=fsname, types=['filesystem', 'volume'], ssh=ssh)
         except (ValueError, DatasetNotFoundError, CalledProcessError) as err:
             print('{:s} ERROR: {}'.format(logtime(), err))
             continue
 
         # Clean snapshots of parent filesystem
-        clean_snap(filesystem, conf)
+        clean_snap(children[0], conf)
         # Clean snapshots of all children that don't have a seperate config entry
-        for child in children:
+        for child in children[1:]:
             if ssh:
                 child_name = 'ssh:{:d}:{:s}@{:s}:{:s}'.format(port, user, host, child.name)
             else:
