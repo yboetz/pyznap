@@ -124,7 +124,7 @@ def read_config(path):
                 elif option in ['hourly', 'daily', 'weekly', 'monthly', 'yearly']:
                     dic[option] = int(value)
                 elif option in ['snap', 'clean']:
-                    dic[option] = True if value == 'yes' else False
+                    dic[option] = {'yes': True, 'no': False}.get(value.lower(), None)
                 elif option in ['dest']:
                     dic[option] = [i.strip() for i in value.split(',')]
                 elif option in ['dest_keys']:
@@ -137,7 +137,7 @@ def read_config(path):
                 continue
             if child['name'].startswith(parent['name']):
                 for option in ['key', 'hourly', 'daily', 'weekly', 'monthly', 'yearly', 'clean']:
-                    child[option] = child[option] if child[option] else parent[option]
+                    child[option] = child[option] if child[option] is not None else parent[option]
                 child['snap'] = False
 
     return config
