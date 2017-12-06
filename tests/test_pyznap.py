@@ -98,7 +98,8 @@ class TestUtils(object):
             file.seek(0)
 
             config = read_config(name)
-            conf0 = config[0]
+            conf0, conf1 = config
+
             assert conf0['name'] == 'rpool/data'
             assert conf0['key'] == None
             assert conf0['hourly'] == 12
@@ -111,7 +112,6 @@ class TestUtils(object):
             assert conf0['dest'] == ['backup/data', 'tank/data', 'rpool/data']
             assert conf0['dest_keys'] == None
 
-            conf1 = config[1]
             assert conf1['name'] == 'rpool'
             assert conf1['key'] == None
             assert conf1['hourly'] == 24
@@ -257,13 +257,12 @@ class TestSending(object):
         fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
         assert set(fs0_children) == set(fs1_children)
 
-        fs0.destroy(force=True)
-        fs1.destroy(force=True)
-
 
     @pytest.mark.dependency(depends=['test_send_full'])
     def test_send_incremental(self, zpools):
         fs0, fs1 = zpools
+        fs0.destroy(force=True)
+        fs1.destroy(force=True)
         config = [{'name': fs0.name, 'dest': [fs1.name]}]
 
         fs0.snapshot('snap0', recursive=True)
