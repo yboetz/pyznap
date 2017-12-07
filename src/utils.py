@@ -127,6 +127,8 @@ def read_config(path):
                 for option in ['key', 'hourly', 'daily', 'weekly', 'monthly', 'yearly', 'clean']:
                     child[option] = child[option] if child[option] is not None else parent[option]
                 child['snap'] = False
+    # Sort by pathname
+    config = sorted(config, key=lambda entry: entry['name'].split('/'))
 
     return config
 
