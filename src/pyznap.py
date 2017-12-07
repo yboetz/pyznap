@@ -26,7 +26,7 @@ if __name__ == "__main__":
 
     parser = ArgumentParser(prog='pyznap', description='ZFS snapshot tool written in python')
     parser.add_argument('--config', action="store",
-                         dest="config", help='path to config file')
+                        dest="config", help='path to config file')
     parser.add_argument('--version', action="store_true", help='prints version and exits')
     subparsers = parser.add_subparsers(dest='command')
 
