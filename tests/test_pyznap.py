@@ -148,6 +148,7 @@ class TestSnapshot(object):
         config = [{'name': fs.name, 'hourly': 1, 'daily': 1, 'weekly': 1, 'monthly': 1, 'yearly': 1,
                   'snap': True}]
         take_config(config)
+        take_config(config)
 
         snapshots = {'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
         for snap in fs.snapshots():
