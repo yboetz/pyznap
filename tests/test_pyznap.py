@@ -33,8 +33,8 @@ def zpools():
     and destroys them after testing."""
 
     zpool = '/sbin/zpool'
-    pool0 = 'pyznap_test_0'
-    pool1 = 'pyznap_test_1'
+    pool0 = 'pyznap_test_source'
+    pool1 = 'pyznap_test_dest'
 
     # Create temporary files on which the zpools are created
     with NamedTemporaryFile() as file0, NamedTemporaryFile() as file1:
