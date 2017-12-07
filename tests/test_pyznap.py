@@ -79,13 +79,6 @@ class TestUtils(object):
     def test_read_config(self):
         with NamedTemporaryFile('w') as file:
             name = file.name
-            file.write('[rpool/data]\n')
-            file.write('hourly = 12\n')
-            file.write('monthly = 0\n')
-            file.write('snap = yes\n')
-            file.write('clean = no\n')
-            file.write('dest = backup/data, tank/data, rpool/data\n\n')
-
             file.write('[rpool]\n')
             file.write('hourly = 24\n')
             file.write('daily = 7\n')
@@ -94,34 +87,41 @@ class TestUtils(object):
             file.write('yearly = 2\n')
             file.write('snap = yes\n')
             file.write('clean = yes\n')
-            file.write('dest = backup, tank\n')
+            file.write('dest = backup, tank\n\n')
+
+            file.write('[rpool/data]\n')
+            file.write('hourly = 12\n')
+            file.write('monthly = 0\n')
+            file.write('snap = yes\n')
+            file.write('clean = no\n')
+            file.write('dest = backup/data, tank/data, rpool/data\n')
             file.seek(0)
 
             config = read_config(name)
             conf0, conf1 = config
 
-            assert conf0['name'] == 'rpool/data'
+            assert conf0['name'] == 'rpool'
             assert conf0['key'] == None
-            assert conf0['hourly'] == 12
+            assert conf0['hourly'] == 24
             assert conf0['daily'] == 7
             assert conf0['weekly'] == 4
-            assert conf0['monthly'] == 0
+            assert conf0['monthly'] == 12
             assert conf0['yearly'] == 2
-            assert conf0['snap'] == False
-            assert conf0['clean'] == False
-            assert conf0['dest'] == ['backup/data', 'tank/data', 'rpool/data']
+            assert conf0['snap'] == True
+            assert conf0['clean'] == True
+            assert conf0['dest'] == ['backup', 'tank']
             assert conf0['dest_keys'] == None
 
-            assert conf1['name'] == 'rpool'
+            assert conf1['name'] == 'rpool/data'
             assert conf1['key'] == None
-            assert conf1['hourly'] == 24
+            assert conf1['hourly'] == 12
             assert conf1['daily'] == 7
             assert conf1['weekly'] == 4
-            assert conf1['monthly'] == 12
+            assert conf1['monthly'] == 0
             assert conf1['yearly'] == 2
-            assert conf1['snap'] == True
-            assert conf1['clean'] == True
-            assert conf1['dest'] == ['backup', 'tank']
+            assert conf1['snap'] == False
+            assert conf1['clean'] == False
+            assert conf1['dest'] == ['backup/data', 'tank/data', 'rpool/data']
             assert conf1['dest_keys'] == None
 
 
@@ -179,9 +179,16 @@ class TestSnapshot(object):
         fs, _ = zpools
         fs.destroy(force=True)
         zfs.create('{:s}/sub1'.format(fs.name))
+        zfs.create('{:s}/sub1/abc'.format(fs.name))
         zfs.create('{:s}/sub2'.format(fs.name))
+        zfs.create('{:s}/sub2/efg'.format(fs.name))
+        zfs.create('{:s}/sub2/efg/hij'.format(fs.name))
         zfs.create('{:s}/sub3'.format(fs.name))
         sub1, sub2, sub3 = fs.filesystems()
+        abc = sub1.filesystems()[0]
+        efg = sub2.filesystems()[0]
+        hij = efg.filesystems()[0]
+
         config = [{'name': fs.name, 'hourly': 1, 'daily': 1, 'weekly': 1, 'monthly': 1, 'yearly': 1,
                   'snap': True}]
         take_config(config)
@@ -191,7 +198,9 @@ class TestSnapshot(object):
                   {'name': '{:s}/sub2'.format(fs.name), 'hourly': 1, 'daily': 0, 'weekly': 1,
                   'monthly': 0, 'yearly': 1, 'clean': True},
                   {'name': '{:s}/sub3'.format(fs.name), 'hourly': 0, 'daily': 1, 'weekly': 0,
-                  'monthly': 1, 'yearly': 0, 'clean': False}]
+                  'monthly': 1, 'yearly': 0, 'clean': False},
+                  {'name': '{:s}/sub2/efg/hij'.format(fs.name), 'hourly': 0, 'daily': 0, 'weekly': 0,
+                  'monthly': 0, 'yearly': 0, 'clean': True}]
         clean_config(config)
 
         # Check parent filesystem
@@ -210,6 +219,14 @@ class TestSnapshot(object):
 
         for snap_type, snaps in snapshots.items():
             assert len(snaps) == config[0][snap_type]
+        # Check sub1/abc
+        snapshots = {'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
+        for snap in abc.snapshots():
+            snap_type = snap.name.split('_')[-1]
+            snapshots[snap_type].append(snap)
+
+        for snap_type, snaps in snapshots.items():
+            assert len(snaps) == config[0][snap_type]
         # Check sub2
         snapshots = {'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
         for snap in sub2.snapshots():
@@ -218,6 +235,22 @@ class TestSnapshot(object):
 
         for snap_type, snaps in snapshots.items():
             assert len(snaps) == config[1][snap_type]
+        # Check sub2/efg
+        snapshots = {'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
+        for snap in efg.snapshots():
+            snap_type = snap.name.split('_')[-1]
+            snapshots[snap_type].append(snap)
+
+        for snap_type, snaps in snapshots.items():
+            assert len(snaps) == config[1][snap_type]
+        # Check sub2/efg/hij
+        snapshots = {'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
+        for snap in hij.snapshots():
+            snap_type = snap.name.split('_')[-1]
+            snapshots[snap_type].append(snap)
+
+        for snap_type, snaps in snapshots.items():
+            assert len(snaps) == config[3][snap_type]
         # Check sub3
         snapshots = {'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
         for snap in sub3.snapshots():
