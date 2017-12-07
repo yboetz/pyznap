@@ -38,6 +38,7 @@ def clean_snap(filesystem, conf):
         except KeyError:
             continue
 
+    # Reverse sort by time taken
     for snaps in snapshots.values():
         snaps.reverse()
 
@@ -96,7 +97,6 @@ def clean_config(config):
             continue
 
         if _type == 'ssh':
-            name = name.split(':', maxsplit=2)[-1]
             try:
                 ssh = Remote(user, host, port, conf['key'])
             except FileNotFoundError as err:
