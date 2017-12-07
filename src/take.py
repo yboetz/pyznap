@@ -48,7 +48,7 @@ def take_snap(filesystem, conf):
 
     if conf['yearly'] and (not snapshots['yearly'] or
                            snapshots['yearly'][0][1].year != now.year):
-        print('{:s} INFO: Taking snapshot {:s}@{:s}'.format(logtime(), name_log, snapname + 'yearly'))
+        print('{:s} INFO: Taking snapshot {:s}@{:s}...'.format(logtime(), name_log, snapname + 'yearly'))
         try:
             filesystem.snapshot(snapname=snapname + 'yearly', recursive=True)
         except (DatasetBusyError, CalledProcessError) as err:
@@ -56,7 +56,7 @@ def take_snap(filesystem, conf):
 
     if conf['monthly'] and (not snapshots['monthly'] or
                             snapshots['monthly'][0][1].month != now.month):
-        print('{:s} INFO: Taking snapshot {:s}@{:s}'.format(logtime(), name_log, snapname + 'monthly'))
+        print('{:s} INFO: Taking snapshot {:s}@{:s}...'.format(logtime(), name_log, snapname + 'monthly'))
         try:
             filesystem.snapshot(snapname=snapname + 'monthly', recursive=True)
         except (DatasetBusyError, CalledProcessError) as err:
@@ -64,7 +64,7 @@ def take_snap(filesystem, conf):
 
     if conf['weekly'] and (not snapshots['weekly'] or
                            snapshots['weekly'][0][1].isocalendar()[1] != now.isocalendar()[1]):
-        print('{:s} INFO: Taking snapshot {:s}@{:s}'.format(logtime(), name_log, snapname + 'weekly'))
+        print('{:s} INFO: Taking snapshot {:s}@{:s}...'.format(logtime(), name_log, snapname + 'weekly'))
         try:
             filesystem.snapshot(snapname=snapname + 'weekly', recursive=True)
         except (DatasetBusyError, CalledProcessError) as err:
@@ -72,7 +72,7 @@ def take_snap(filesystem, conf):
 
     if conf['daily'] and (not snapshots['daily'] or
                           snapshots['daily'][0][1].day != now.day):
-        print('{:s} INFO: Taking snapshot {:s}@{:s}'.format(logtime(), name_log, snapname + 'daily'))
+        print('{:s} INFO: Taking snapshot {:s}@{:s}...'.format(logtime(), name_log, snapname + 'daily'))
         try:
             filesystem.snapshot(snapname=snapname + 'daily', recursive=True)
         except (DatasetBusyError, CalledProcessError) as err:
@@ -80,7 +80,7 @@ def take_snap(filesystem, conf):
 
     if conf['hourly'] and (not snapshots['hourly'] or
                            snapshots['hourly'][0][1].hour != now.hour):
-        print('{:s} INFO: Taking snapshot {:s}@{:s}'.format(logtime(), name_log, snapname + 'hourly'))
+        print('{:s} INFO: Taking snapshot {:s}@{:s}...'.format(logtime(), name_log, snapname + 'hourly'))
         try:
             filesystem.snapshot(snapname=snapname + 'hourly', recursive=True)
         except (DatasetBusyError, CalledProcessError) as err:

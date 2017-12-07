@@ -43,35 +43,35 @@ def clean_snap(filesystem, conf):
         snaps.reverse()
 
     for snap in snapshots['yearly'][conf['yearly']:]:
-        print('{:s} INFO: Deleting snapshot {:s}'.format(logtime(), snap.name))
+        print('{:s} INFO: Deleting snapshot {:s}...'.format(logtime(), snap.name))
         try:
             snap.destroy()
         except (DatasetBusyError, CalledProcessError) as err:
             print('{:s} ERROR: {}'.format(logtime(), err))
 
     for snap in snapshots['monthly'][conf['monthly']:]:
-        print('{:s} INFO: Deleting snapshot {:s}'.format(logtime(), snap.name))
+        print('{:s} INFO: Deleting snapshot {:s}...'.format(logtime(), snap.name))
         try:
             snap.destroy()
         except (DatasetBusyError, CalledProcessError) as err:
             print('{:s} ERROR: {}'.format(logtime(), err))
 
     for snap in snapshots['weekly'][conf['weekly']:]:
-        print('{:s} INFO: Deleting snapshot {:s}'.format(logtime(), snap.name))
+        print('{:s} INFO: Deleting snapshot {:s}...'.format(logtime(), snap.name))
         try:
             snap.destroy()
         except (DatasetBusyError, CalledProcessError) as err:
             print('{:s} ERROR: {}'.format(logtime(), err))
 
     for snap in snapshots['daily'][conf['daily']:]:
-        print('{:s} INFO: Deleting snapshot {:s}'.format(logtime(), snap.name))
+        print('{:s} INFO: Deleting snapshot {:s}...'.format(logtime(), snap.name))
         try:
             snap.destroy()
         except (DatasetBusyError, CalledProcessError) as err:
             print('{:s} ERROR: {}'.format(logtime(), err))
 
     for snap in snapshots['hourly'][conf['hourly']:]:
-        print('{:s} INFO: Deleting snapshot {:s}'.format(logtime(), snap.name))
+        print('{:s} INFO: Deleting snapshot {:s}...'.format(logtime(), snap.name))
         try:
             snap.destroy()
         except (DatasetBusyError, CalledProcessError) as err:
