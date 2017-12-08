@@ -25,7 +25,7 @@ def take_snap(filesystem, conf):
     else:
         name_log = filesystem.name
 
-    print('{:s} INFO: Taking snapshots on {:s}...'.format(logtime(), name_log))
+    # print('{:s} INFO: Taking snapshots on {:s}...'.format(logtime(), name_log))
 
     snapshots = {'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
     for snap in filesystem.snapshots():
