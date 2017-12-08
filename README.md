@@ -6,6 +6,16 @@ pyznap.conf file and then use cron to let it run once per hour. pyznap includes 
 python, forked and modified from https://bitbucket.org/stevedrake/weir/.
 
 
+### Requirements ###
+
+pyznap is written in python 3.6 and requires the following packages:
+
+    configparser
+    paramiko
+    pytest
+    pytest-dependency
+
+
 #### How do I set it up? ####
 
 Copy the config file to /etc/pyznap/pyznap.conf and specify the policy for your filesystems. A
