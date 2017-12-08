@@ -1,7 +1,7 @@
 """
 Created on Sat Aug 12 2017
 
-@author: yboetz
+@author: stevedrake, yboetz
 
 Python ZFS bindings, forked from https://bitbucket.org/stevedrake/weir/
 """
