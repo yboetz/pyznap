@@ -79,6 +79,13 @@ class TestUtils(object):
     def test_read_config(self):
         with NamedTemporaryFile('w') as file:
             name = file.name
+            file.write('[rpool/data]\n')
+            file.write('hourly = 12\n')
+            file.write('monthly = 0\n')
+            file.write('snap = yes\n')
+            file.write('clean = no\n')
+            file.write('dest = backup/data, tank/data, rpool/data\n\n')
+
             file.write('[rpool]\n')
             file.write('hourly = 24\n')
             file.write('daily = 7\n')
@@ -87,14 +94,7 @@ class TestUtils(object):
             file.write('yearly = 2\n')
             file.write('snap = yes\n')
             file.write('clean = yes\n')
-            file.write('dest = backup, tank\n\n')
-
-            file.write('[rpool/data]\n')
-            file.write('hourly = 12\n')
-            file.write('monthly = 0\n')
-            file.write('snap = yes\n')
-            file.write('clean = no\n')
-            file.write('dest = backup/data, tank/data, rpool/data\n')
+            file.write('dest = backup, tank\n')
             file.seek(0)
 
             config = read_config(name)
