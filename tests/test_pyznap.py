@@ -176,6 +176,38 @@ class TestSnapshot(object):
 
 
     @pytest.mark.dependency(depends=['test_clean_snapshot'])
+    def test_take_snapshot_recursive(self, zpools):
+        fs, _ = zpools
+        fs.destroy(force=True)
+        config = [{'name': fs.name, 'hourly': 1, 'daily': 1, 'weekly': 1, 'monthly': 1, 'yearly': 1,
+                  'snap': True}]
+        take_config(config)
+        fs.snapshots()[-1].destroy(force=True)
+        fs.snapshots()[-1].destroy(force=True)
+
+        sub1 = zfs.create('{:s}/sub1'.format(fs.name))
+        take_config(config)
+
+        # Check fs
+        snapshots = {'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
+        for snap in fs.snapshots():
+            snap_type = snap.name.split('_')[-1]
+            snapshots[snap_type].append(snap)
+
+        for snap_type, snaps in snapshots.items():
+            assert len(snaps) == config[0][snap_type]
+
+        # Check sub1
+        snapshots = {'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
+        for snap in sub1.snapshots():
+            snap_type = snap.name.split('_')[-1]
+            snapshots[snap_type].append(snap)
+
+        for snap_type, snaps in snapshots.items():
+            assert len(snaps) == config[0][snap_type]
+
+
+    @pytest.mark.dependency(depends=['test_take_snapshot_recursive'])
     def test_clean_recursive(self, zpools):
         fs, _ = zpools
         fs.destroy(force=True)
