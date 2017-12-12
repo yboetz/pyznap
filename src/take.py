@@ -17,7 +17,7 @@ def take_snap(filesystem, conf):
     """Takes snapshots of a single filesystem according to conf"""
 
     logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
-    now = datetime.now()
+    now = lambda: datetime.now()
 
     ssh = filesystem.ssh
     if ssh:
@@ -44,45 +44,45 @@ def take_snap(filesystem, conf):
     for snaps in snapshots.values():
         snaps.reverse()
 
-    snapname = 'pyznap_{:s}_'.format(now.strftime('%Y-%m-%d_%H:%M:%S'))
+    snapname = lambda: 'pyznap_{:s}_'.format(now().strftime('%Y-%m-%d_%H:%M:%S'))
 
     if conf['yearly'] and (not snapshots['yearly'] or
-                           snapshots['yearly'][0][1].year != now.year):
-        print('{:s} INFO: Taking snapshot {:s}@{:s}...'.format(logtime(), name_log, snapname + 'yearly'))
+                           snapshots['yearly'][0][1].year != now().year):
+        print('{:s} INFO: Taking snapshot {:s}@{:s}...'.format(logtime(), name_log, snapname() + 'yearly'))
         try:
-            filesystem.snapshot(snapname=snapname + 'yearly', recursive=True)
+            filesystem.snapshot(snapname=snapname() + 'yearly', recursive=True)
         except (DatasetBusyError, CalledProcessError) as err:
             print('{:s} ERROR: {}'.format(logtime(), err))
 
     if conf['monthly'] and (not snapshots['monthly'] or
-                            snapshots['monthly'][0][1].month != now.month):
-        print('{:s} INFO: Taking snapshot {:s}@{:s}...'.format(logtime(), name_log, snapname + 'monthly'))
+                            snapshots['monthly'][0][1].month != now().month):
+        print('{:s} INFO: Taking snapshot {:s}@{:s}...'.format(logtime(), name_log, snapname() + 'monthly'))
         try:
-            filesystem.snapshot(snapname=snapname + 'monthly', recursive=True)
+            filesystem.snapshot(snapname=snapname() + 'monthly', recursive=True)
         except (DatasetBusyError, CalledProcessError) as err:
             print('{:s} ERROR: {}'.format(logtime(), err))
 
     if conf['weekly'] and (not snapshots['weekly'] or
-                           snapshots['weekly'][0][1].isocalendar()[1] != now.isocalendar()[1]):
-        print('{:s} INFO: Taking snapshot {:s}@{:s}...'.format(logtime(), name_log, snapname + 'weekly'))
+                           snapshots['weekly'][0][1].isocalendar()[1] != now().isocalendar()[1]):
+        print('{:s} INFO: Taking snapshot {:s}@{:s}...'.format(logtime(), name_log, snapname() + 'weekly'))
         try:
-            filesystem.snapshot(snapname=snapname + 'weekly', recursive=True)
+            filesystem.snapshot(snapname=snapname() + 'weekly', recursive=True)
         except (DatasetBusyError, CalledProcessError) as err:
             print('{:s} ERROR: {}'.format(logtime(), err))
 
     if conf['daily'] and (not snapshots['daily'] or
-                          snapshots['daily'][0][1].day != now.day):
-        print('{:s} INFO: Taking snapshot {:s}@{:s}...'.format(logtime(), name_log, snapname + 'daily'))
+                          snapshots['daily'][0][1].day != now().day):
+        print('{:s} INFO: Taking snapshot {:s}@{:s}...'.format(logtime(), name_log, snapname() + 'daily'))
         try:
-            filesystem.snapshot(snapname=snapname + 'daily', recursive=True)
+            filesystem.snapshot(snapname=snapname() + 'daily', recursive=True)
         except (DatasetBusyError, CalledProcessError) as err:
             print('{:s} ERROR: {}'.format(logtime(), err))
 
     if conf['hourly'] and (not snapshots['hourly'] or
-                           snapshots['hourly'][0][1].hour != now.hour):
-        print('{:s} INFO: Taking snapshot {:s}@{:s}...'.format(logtime(), name_log, snapname + 'hourly'))
+                           snapshots['hourly'][0][1].hour != now().hour):
+        print('{:s} INFO: Taking snapshot {:s}@{:s}...'.format(logtime(), name_log, snapname() + 'hourly'))
         try:
-            filesystem.snapshot(snapname=snapname + 'hourly', recursive=True)
+            filesystem.snapshot(snapname=snapname() + 'hourly', recursive=True)
         except (DatasetBusyError, CalledProcessError) as err:
             print('{:s} ERROR: {}'.format(logtime(), err))
 
