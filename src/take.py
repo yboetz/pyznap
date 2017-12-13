@@ -3,7 +3,7 @@ Created on Wed Dec 06 2017
 
 @author: yboetz
 
-Take snapshot
+Take snapshots
 """
 
 from datetime import datetime
