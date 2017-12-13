@@ -56,7 +56,7 @@ and specify the policy for your filesystems. A sample config might look like thi
 
 Then set up a cronjob by opening your `crontab` file
 
-    nano /etc/crontab
+    sudo crontab -u root -e
 
 and let pyznap run regularly by adding the following line
 
