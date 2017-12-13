@@ -110,8 +110,7 @@ def send_config(config):
             continue
 
         try:
-            # source_fs = zfs.open(source_fs_name, ssh=None)
-            # children includes the base filesystem (source_fs)
+            # Children includes the base filesystem (source_fs)
             source_children = zfs.find(path=source_fs_name, types=['filesystem', 'volume'], ssh=None)
         except (ValueError, DatasetNotFoundError, CalledProcessError) as err:
             print('{:s} ERROR: {}'.format(logtime(), err))
