@@ -132,11 +132,12 @@ class TestSnapshot(object):
         user, host, port, key = ssh.user, ssh.host, ssh.port, ssh.key
 
         config = [{'name': 'ssh:{:d}:{:s}@{:s}:{:s}'.format(port, user, host, fs.name), 'key': key,
-                   'hourly': 1, 'daily': 1, 'weekly': 1, 'monthly': 1, 'yearly': 1, 'snap': True}]
+                   'frequent': 1, 'hourly': 1, 'daily': 1, 'weekly': 1, 'monthly': 1, 'yearly': 1,
+                   'snap': True}]
         take_config(config)
         take_config(config)
 
-        snapshots = {'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
+        snapshots = {'frequent': [], 'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
         for snap in fs.snapshots():
             snap_type = snap.name.split('_')[-1]
             snapshots[snap_type].append(snap)
@@ -152,10 +153,11 @@ class TestSnapshot(object):
         user, host, port, key = ssh.user, ssh.host, ssh.port, ssh.key
 
         config = [{'name': 'ssh:{:d}:{:s}@{:s}:{:s}'.format(port, user, host, fs.name), 'key': key,
-                   'hourly': 0, 'daily': 0, 'weekly': 0, 'monthly': 0, 'yearly': 0, 'clean': True}]
+                   'frequent': 0, 'hourly': 0, 'daily': 0, 'weekly': 0, 'monthly': 0, 'yearly': 0,
+                   'clean': True}]
         clean_config(config)
 
-        snapshots = {'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
+        snapshots = {'frequent': [], 'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
         for snap in fs.snapshots():
             snap_type = snap.name.split('_')[-1]
             snapshots[snap_type].append(snap)
@@ -172,7 +174,8 @@ class TestSnapshot(object):
 
         fs.destroy(force=True)
         config = [{'name': 'ssh:{:d}:{:s}@{:s}:{:s}'.format(port, user, host, fs.name), 'key': key,
-                   'hourly': 1, 'daily': 1, 'weekly': 1, 'monthly': 1, 'yearly': 1, 'snap': True}]
+                   'frequent': 1, 'hourly': 1, 'daily': 1, 'weekly': 1, 'monthly': 1, 'yearly': 1,
+                   'snap': True}]
         take_config(config)
         fs.snapshots()[-1].destroy(force=True)
         fs.snapshots()[-1].destroy(force=True)
@@ -181,7 +184,7 @@ class TestSnapshot(object):
         take_config(config)
 
         # Check fs
-        snapshots = {'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
+        snapshots = {'frequent': [], 'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
         for snap in fs.snapshots():
             snap_type = snap.name.split('_')[-1]
             snapshots[snap_type].append(snap)
@@ -190,7 +193,7 @@ class TestSnapshot(object):
             assert len(snaps) == config[0][snap_type]
 
         # Check sub1
-        snapshots = {'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
+        snapshots = {'frequent': [], 'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
         for snap in sub1.snapshots():
             snap_type = snap.name.split('_')[-1]
             snapshots[snap_type].append(snap)
@@ -214,21 +217,26 @@ class TestSnapshot(object):
         sub3 = zfs.create('{:s}/sub3'.format(fs.name), ssh=ssh)
 
         config = [{'name': 'ssh:{:d}:{:s}@{:s}:{:s}'.format(port, user, host, fs.name), 'key': key,
-                   'hourly': 1, 'daily': 1, 'weekly': 1, 'monthly': 1, 'yearly': 1, 'snap': True}]
+                   'frequent': 1, 'hourly': 1, 'daily': 1, 'weekly': 1, 'monthly': 1, 'yearly': 1,
+                   'snap': True}]
         take_config(config)
 
         config = [{'name': 'ssh:{:d}:{:s}@{:s}:{:s}'.format(port, user, host, fs.name), 'key': key,
-                   'hourly': 0, 'daily': 1, 'weekly': 0, 'monthly': 0, 'yearly': 0, 'clean': True},
+                   'frequent': 1, 'hourly': 0, 'daily': 1, 'weekly': 0, 'monthly': 0, 'yearly': 0,
+                   'clean': True},
                   {'name': 'ssh:{:d}:{:s}@{:s}:{:s}/sub2'.format(port, user, host, fs.name), 'key': key,
-                   'hourly': 1, 'daily': 0, 'weekly': 1, 'monthly': 0, 'yearly': 1, 'clean': True},
+                   'frequent': 0, 'hourly': 1, 'daily': 0, 'weekly': 1, 'monthly': 0, 'yearly': 1,
+                   'clean': True},
                   {'name': 'ssh:{:d}:{:s}@{:s}:{:s}/sub3'.format(port, user, host, fs.name), 'key': key,
-                   'hourly': 0, 'daily': 1, 'weekly': 0, 'monthly': 1, 'yearly': 0, 'clean': False},
-                  {'name': 'ssh:{:d}:{:s}@{:s}:{:s}/sub2/efg/hij'.format(port, user, host, fs.name), 'key': key,
-                   'hourly': 0, 'daily': 0, 'weekly': 0, 'monthly': 0, 'yearly': 0, 'clean': True}]
+                   'frequent': 1, 'hourly': 0, 'daily': 1, 'weekly': 0, 'monthly': 1, 'yearly': 0,
+                   'clean': False},
+                  {'name': 'ssh:{:d}:{:s}@{:s}:{:s}/sub2/efg/hij'.format(port, user, host, fs.name),
+                   'key': key, 'frequent': 0, 'hourly': 0, 'daily': 0, 'weekly': 0, 'monthly': 0,
+                   'yearly': 0, 'clean': True}]
         clean_config(config)
 
         # Check parent filesystem
-        snapshots = {'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
+        snapshots = {'frequent': [], 'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
         for snap in fs.snapshots():
             snap_type = snap.name.split('_')[-1]
             snapshots[snap_type].append(snap)
@@ -236,7 +244,7 @@ class TestSnapshot(object):
         for snap_type, snaps in snapshots.items():
             assert len(snaps) == config[0][snap_type]
         # Check sub1
-        snapshots = {'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
+        snapshots = {'frequent': [], 'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
         for snap in sub1.snapshots():
             snap_type = snap.name.split('_')[-1]
             snapshots[snap_type].append(snap)
@@ -244,7 +252,7 @@ class TestSnapshot(object):
         for snap_type, snaps in snapshots.items():
             assert len(snaps) == config[0][snap_type]
         # Check sub1/abc
-        snapshots = {'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
+        snapshots = {'frequent': [], 'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
         for snap in abc.snapshots():
             snap_type = snap.name.split('_')[-1]
             snapshots[snap_type].append(snap)
@@ -252,7 +260,7 @@ class TestSnapshot(object):
         for snap_type, snaps in snapshots.items():
             assert len(snaps) == config[0][snap_type]
         # Check sub2
-        snapshots = {'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
+        snapshots = {'frequent': [], 'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
         for snap in sub2.snapshots():
             snap_type = snap.name.split('_')[-1]
             snapshots[snap_type].append(snap)
@@ -260,7 +268,7 @@ class TestSnapshot(object):
         for snap_type, snaps in snapshots.items():
             assert len(snaps) == config[1][snap_type]
         # Check sub2/efg
-        snapshots = {'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
+        snapshots = {'frequent': [], 'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
         for snap in efg.snapshots():
             snap_type = snap.name.split('_')[-1]
             snapshots[snap_type].append(snap)
@@ -268,7 +276,7 @@ class TestSnapshot(object):
         for snap_type, snaps in snapshots.items():
             assert len(snaps) == config[1][snap_type]
         # Check sub2/efg/hij
-        snapshots = {'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
+        snapshots = {'frequent': [], 'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
         for snap in hij.snapshots():
             snap_type = snap.name.split('_')[-1]
             snapshots[snap_type].append(snap)
@@ -276,7 +284,7 @@ class TestSnapshot(object):
         for snap_type, snaps in snapshots.items():
             assert len(snaps) == config[3][snap_type]
         # Check sub3
-        snapshots = {'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
+        snapshots = {'frequent': [], 'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
         for snap in sub3.snapshots():
             snap_type = snap.name.split('_')[-1]
             snapshots[snap_type].append(snap)
