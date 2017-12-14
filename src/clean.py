@@ -26,7 +26,7 @@ def clean_snap(filesystem, conf):
 
     # print('{:s} INFO: Cleaning snapshots on {:s}...'.format(logtime(), name_log))
 
-    snapshots = {'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
+    snapshots = {'frequent': [], 'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
     for snap in filesystem.snapshots():
         # Ignore snapshots not taken with pyznap or sanoid
         if not snap.name.split('@')[1].startswith(('pyznap', 'autosnap')):
@@ -71,6 +71,13 @@ def clean_snap(filesystem, conf):
             print('{:s} ERROR: {}'.format(logtime(), err))
 
     for snap in snapshots['hourly'][conf['hourly']:]:
+        print('{:s} INFO: Deleting snapshot {:s}@{:s}...'.format(logtime(), name_log, snap.name.split('@')[-1]))
+        try:
+            snap.destroy()
+        except (DatasetBusyError, CalledProcessError) as err:
+            print('{:s} ERROR: {}'.format(logtime(), err))
+
+    for snap in snapshots['frequent'][conf['frequent']:]:
         print('{:s} INFO: Deleting snapshot {:s}@{:s}...'.format(logtime(), name_log, snap.name.split('@')[-1]))
         try:
             snap.destroy()

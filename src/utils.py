@@ -89,8 +89,8 @@ def read_config(path):
     if not os.path.isfile(path):
         raise FileNotFoundError('File does not exist.')
 
-    options = ['key', 'hourly', 'daily', 'weekly', 'monthly', 'yearly', 'snap', 'clean', 'dest',
-               'dest_keys']
+    options = ['key', 'frequent', 'hourly', 'daily', 'weekly', 'monthly', 'yearly', 'snap', 'clean',
+               'dest', 'dest_keys']
 
     parser = ConfigParser()
     parser.read(path)
@@ -109,7 +109,7 @@ def read_config(path):
             else:
                 if option in ['key']:
                     dic[option] = value if os.path.isfile(value) else None
-                elif option in ['hourly', 'daily', 'weekly', 'monthly', 'yearly']:
+                elif option in ['frequent', 'hourly', 'daily', 'weekly', 'monthly', 'yearly']:
                     dic[option] = int(value)
                 elif option in ['snap', 'clean']:
                     dic[option] = {'yes': True, 'no': False}.get(value.lower(), None)
@@ -124,9 +124,9 @@ def read_config(path):
             if parent == child:
                 continue
             if child['name'].startswith(parent['name']):
-                for option in ['key', 'hourly', 'daily', 'weekly', 'monthly', 'yearly', 'clean']:
+                for option in ['key', 'frequent', 'hourly', 'daily', 'weekly', 'monthly', 'yearly',
+                               'snap', 'clean']:
                     child[option] = child[option] if child[option] is not None else parent[option]
-                child['snap'] = False
     # Sort by pathname
     config = sorted(config, key=lambda entry: entry['name'].split('/'))
 
