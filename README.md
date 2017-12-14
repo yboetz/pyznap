@@ -45,6 +45,7 @@ Copy the config file to `/etc/pyznap/pyznap.conf`
 and specify the policy for your filesystems. A sample config might look like this (remove the comments):
 
     [rpool/filesystem]
+    frequent = 4                          # Keep 4 quarter-hourly snapshots
     hourly = 24                           # Keep 24 hourly snapshots
     daily = 7                             # Keep 7 daily snapshots
     weekly = 4                            # Keep 4 weekly snapshots
