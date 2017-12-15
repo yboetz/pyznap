@@ -3,7 +3,7 @@ Created on Sat Aug 12 2017
 
 @author: yboetz
 
-ZFS functions
+Helper functions
 """
 
 import os
