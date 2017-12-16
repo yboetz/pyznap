@@ -51,7 +51,7 @@ def send_snap(source_fs, dest_name, ssh=None):
     else:
         dest_name_log = dest_name
 
-    print('{:s} INFO: Sending {:s} to {:s}...'.format(logtime(), source_fs.name, dest_name_log))
+    # print('{:s} INFO: Sending {:s} to {:s}...'.format(logtime(), source_fs.name, dest_name_log))
 
     # Get snapshots on source
     snapshots = source_fs.snapshots()[::-1]
@@ -60,7 +60,7 @@ def send_snap(source_fs, dest_name, ssh=None):
         snapshot = snapshots[0]     # Most recent snapshot
         base = snapshots[-1]        # Oldest snapshot
     except IndexError:
-        print('{:s} INFO: No snapshots on {:s}, cannot send...'
+        print('{:s} ERROR: No snapshots on {:s}, cannot send...'
               .format(logtime(), source_fs.name))
         return False
 
@@ -80,16 +80,16 @@ def send_snap(source_fs, dest_name, ssh=None):
                   .format(logtime(), dest_name_log), flush=True)
             return False
         else:
-            print('{:s} INFO: Sending oldest snapshot {:s} (~{:s})...'
-                  .format(logtime(), base.name, base.stream_size()), flush=True)
+            print('{:s} INFO: No common snapshots on {:s}, sending oldest snapshot {} (~{:s})...'
+                  .format(logtime(), dest_name_log, base, base.stream_size()), flush=True)
             send_recv(base, dest_name, base=None, ssh=ssh)
     else:
         # If there are common snapshots, get the most recent one
         base = next(filter(lambda x: x.name.split('@')[1] in common, snapshots), None)
 
     if base.name != snapshot.name:
-        print('{:s} INFO: Updating with recent snapshot {:s} (~{:s})...'
-              .format(logtime(), snapshot.name, snapshot.stream_size(base)), flush=True)
+        print('{:s} INFO: Updating {:s} with recent snapshot {} (~{:s})...'
+              .format(logtime(), dest_name_log, snapshot, snapshot.stream_size(base)), flush=True)
         send_recv(snapshot, dest_name, base=base, ssh=ssh)
 
     print('{:s} INFO: {:s} is up to date...'.format(logtime(), dest_name_log))
