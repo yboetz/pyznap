@@ -29,57 +29,37 @@ def exists(executable=''):
     return bool(out)
 
 
-class Remote:
-    """
-    Class to combine all variables necessary for ssh connection
-    """
-    def __init__(self, user, host, port=22, key=None, proxy=None):
-        self.host = host
-        self.user = user
-        self.port = port
+def open_ssh(user, host, key=None, port=22):
+    """Opens an sftp connection to host"""
 
-        self.key = key if key else '/home/{:s}/.ssh/id_rsa'.format(self.user)
-        if not os.path.isfile(self.key):
-            raise FileNotFoundError(self.key)
+    logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
 
-        self.proxy = proxy
-        self.cmd = self.ssh_cmd()
+    if not key:
+        key = '/home/{:s}/.ssh/id_rsa'.format(user)
+    if not os.path.isfile(key):
+        print('{:s} ERROR: {} is not a valid ssh key file...'.format(logtime(), key))
+        raise FileNotFoundError(key)
 
-    def ssh_cmd(self):
-        """"Returns a command to connect via ssh"""
-        hostsfile = '/home/{:s}/.ssh/known_hosts'.format(self.user)
-        hostsfile = hostsfile if os.path.isfile(hostsfile) else '/dev/null'
-        cmd = ['ssh', '{:s}@{:s}'.format(self.user, self.host),
-               '-i', '{:s}'.format(self.key),
-               '-o', 'UserKnownHostsFile={:s}'.format(hostsfile)]
-        if self.proxy:
-            cmd += ['-J', '{:s}'.format(self.proxy)]
+    ssh = pm.SSHClient()
+    try:
+        ssh.load_system_host_keys('/home/{:s}/.ssh/known_hosts'.format(user))
+    except FileNotFoundError:
+        ssh.load_system_host_keys()
+    ssh.set_missing_host_key_policy(pm.WarningPolicy())
 
-        cmd += ['sudo']
+    try:
+        ssh.connect(hostname=host, port=port, username=user, key_filename=key, timeout=5)
+        # Test connection
+        ssh.exec_command('ls', timeout=5)
+    except (AuthenticationException, BadAuthenticationType,
+            BadHostKeyException, ChannelException, NoValidConnectionsError,
+            PasswordRequiredException, SSHException, PartialAuthentication,
+            ProxyCommandFailure, timeout, gaierror) as err:
+        print('{:s} ERROR: Could not connect to host {:s}: {}...'.format(logtime(), host, err))
+        # Raise general exception to be catched outside
+        raise SSHException(err)
 
-        return cmd
-
-    def test(self):
-        """Tests if ssh connection can be made"""
-        logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
-        ssh = pm.SSHClient()
-        try:
-            ssh.load_system_host_keys('/home/{:s}/.ssh/known_hosts'.format(self.user))
-        except FileNotFoundError:
-            ssh.load_system_host_keys()
-        ssh.set_missing_host_key_policy(pm.WarningPolicy())
-        try:
-            ssh.connect(hostname=self.host, username=self.user, port=self.port,
-                        key_filename=self.key, timeout=5)
-            ssh.exec_command('ls', timeout=5)
-            return True
-        except (AuthenticationException, BadAuthenticationType,
-                BadHostKeyException, ChannelException, NoValidConnectionsError,
-                PasswordRequiredException, SSHException, PartialAuthentication,
-                ProxyCommandFailure, timeout, gaierror) as err:
-            print('{:s} ERROR: Could not connect to host {:s}: {}...'
-                  .format(logtime(), self.host, err))
-            return False
+    return ssh
 
 
 def read_config(path):
