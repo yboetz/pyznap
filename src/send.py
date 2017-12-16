@@ -8,7 +8,8 @@ Send snapshots
 
 from datetime import datetime
 from subprocess import Popen, PIPE, CalledProcessError
-from utils import Remote, parse_name, exists
+from paramiko.ssh_exception import SSHException
+from utils import open_ssh, parse_name, exists
 import pyzfs as zfs
 from process import DatasetBusyError, DatasetNotFoundError, DatasetExistsError
 
@@ -44,7 +45,9 @@ def send_snap(source_fs, dest_name, ssh=None):
     logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
 
     if ssh:
-        dest_name_log = '{:s}@{:s}:{:s}'.format(ssh.user, ssh.host, dest_name)
+        user = ssh.get_transport().get_username()
+        host, *_ = ssh.get_transport().getpeername()
+        dest_name_log = '{:s}@{:s}:{:s}'.format(user, host, dest_name)
     else:
         dest_name_log = dest_name
 
@@ -78,7 +81,7 @@ def send_snap(source_fs, dest_name, ssh=None):
             return False
         else:
             print('{:s} INFO: Sending oldest snapshot {:s} (~{:s})...'
-                  .format(logtime(), base.name, zfs.stream_size(base)), flush=True)
+                  .format(logtime(), base.name, base.stream_size()), flush=True)
             send_recv(base, dest_name, base=None, ssh=ssh)
     else:
         # If there are common snapshots, get the most recent one
@@ -86,7 +89,7 @@ def send_snap(source_fs, dest_name, ssh=None):
 
     if base.name != snapshot.name:
         print('{:s} INFO: Updating with recent snapshot {:s} (~{:s})...'
-              .format(logtime(), snapshot.name, zfs.stream_size(snapshot, base)), flush=True)
+              .format(logtime(), snapshot.name, snapshot.stream_size(base)), flush=True)
         send_recv(snapshot, dest_name, base=base, ssh=ssh)
 
     print('{:s} INFO: {:s} is up to date...'.format(logtime(), dest_name_log))
@@ -111,7 +114,7 @@ def send_config(config):
 
         try:
             # Children includes the base filesystem (source_fs)
-            source_children = zfs.find(path=source_fs_name, types=['filesystem', 'volume'], ssh=None)
+            source_children = zfs.find(path=source_fs_name, types=['filesystem', 'volume'])
         except (ValueError, DatasetNotFoundError, CalledProcessError) as err:
             print('{:s} ERROR: {}'.format(logtime(), err))
             continue
@@ -127,13 +130,10 @@ def send_config(config):
             if _type == 'ssh':
                 dest_key = conf['dest_keys'].pop(0) if conf['dest_keys'] else None
                 try:
-                    ssh = Remote(user, host, port, dest_key)
-                except FileNotFoundError as err:
-                    print('{:s} ERROR: {} is not a valid ssh key file...'.format(logtime(), err))
+                    ssh = open_ssh(user, host, port=port, key=dest_key)
+                except (FileNotFoundError, SSHException):
                     continue
-                if not ssh.test():
-                    continue
-                dest_name_log = '{:s}@{:s}:{:s}'.format(ssh.user, ssh.host, dest_name)
+                dest_name_log = '{:s}@{:s}:{:s}'.format(user, host, dest_name)
             else:
                 ssh = None
                 dest_name_log = dest_name
@@ -155,3 +155,6 @@ def send_config(config):
             # Send all children to corresponding children on dest
             for source, dest in zip(source_children, dest_children_names):
                 send_snap(source, dest, ssh=ssh)
+
+            if ssh:
+                ssh.close()

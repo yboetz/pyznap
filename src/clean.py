@@ -8,7 +8,8 @@ Clean snapshots
 
 from datetime import datetime
 from subprocess import CalledProcessError
-from utils import Remote, parse_name
+from paramiko.ssh_exception import SSHException
+from utils import open_ssh, parse_name
 import pyzfs as zfs
 from process import DatasetBusyError, DatasetNotFoundError
 
@@ -17,12 +18,6 @@ def clean_snap(filesystem, conf):
     """Deletes snapshots of a single filesystem according to conf"""
 
     logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
-
-    ssh = filesystem.ssh
-    if ssh:
-        name_log = '{:s}@{:s}:{:s}'.format(ssh.user, ssh.host, filesystem.name)
-    else:
-        name_log = filesystem.name
 
     # print('{:s} INFO: Cleaning snapshots on {:s}...'.format(logtime(), name_log))
 
@@ -43,42 +38,42 @@ def clean_snap(filesystem, conf):
         snaps.reverse()
 
     for snap in snapshots['yearly'][conf['yearly']:]:
-        print('{:s} INFO: Deleting snapshot {:s}@{:s}...'.format(logtime(), name_log, snap.name.split('@')[-1]))
+        print('{:s} INFO: Deleting snapshot {}...'.format(logtime(), snap))
         try:
             snap.destroy()
         except (DatasetBusyError, CalledProcessError) as err:
             print('{:s} ERROR: {}'.format(logtime(), err))
 
     for snap in snapshots['monthly'][conf['monthly']:]:
-        print('{:s} INFO: Deleting snapshot {:s}@{:s}...'.format(logtime(), name_log, snap.name.split('@')[-1]))
+        print('{:s} INFO: Deleting snapshot {}...'.format(logtime(), snap))
         try:
             snap.destroy()
         except (DatasetBusyError, CalledProcessError) as err:
             print('{:s} ERROR: {}'.format(logtime(), err))
 
     for snap in snapshots['weekly'][conf['weekly']:]:
-        print('{:s} INFO: Deleting snapshot {:s}@{:s}...'.format(logtime(), name_log, snap.name.split('@')[-1]))
+        print('{:s} INFO: Deleting snapshot {}...'.format(logtime(), snap))
         try:
             snap.destroy()
         except (DatasetBusyError, CalledProcessError) as err:
             print('{:s} ERROR: {}'.format(logtime(), err))
 
     for snap in snapshots['daily'][conf['daily']:]:
-        print('{:s} INFO: Deleting snapshot {:s}@{:s}...'.format(logtime(), name_log, snap.name.split('@')[-1]))
+        print('{:s} INFO: Deleting snapshot {}...'.format(logtime(), snap))
         try:
             snap.destroy()
         except (DatasetBusyError, CalledProcessError) as err:
             print('{:s} ERROR: {}'.format(logtime(), err))
 
     for snap in snapshots['hourly'][conf['hourly']:]:
-        print('{:s} INFO: Deleting snapshot {:s}@{:s}...'.format(logtime(), name_log, snap.name.split('@')[-1]))
+        print('{:s} INFO: Deleting snapshot {}...'.format(logtime(), snap))
         try:
             snap.destroy()
         except (DatasetBusyError, CalledProcessError) as err:
             print('{:s} ERROR: {}'.format(logtime(), err))
 
     for snap in snapshots['frequent'][conf['frequent']:]:
-        print('{:s} INFO: Deleting snapshot {:s}@{:s}...'.format(logtime(), name_log, snap.name.split('@')[-1]))
+        print('{:s} INFO: Deleting snapshot {}...'.format(logtime(), snap))
         try:
             snap.destroy()
         except (DatasetBusyError, CalledProcessError) as err:
@@ -105,11 +100,8 @@ def clean_config(config):
 
         if _type == 'ssh':
             try:
-                ssh = Remote(user, host, port, conf['key'])
-            except FileNotFoundError as err:
-                print('{:s} ERROR: {} is not a valid ssh key file...'.format(logtime(), err))
-                continue
-            if not ssh.test():
+                ssh = open_ssh(user, host, port=port, key=conf['key'])
+            except (FileNotFoundError, SSHException):
                 continue
         else:
             ssh = None
@@ -137,3 +129,6 @@ def clean_config(config):
                     break
             else:
                 clean_snap(child, conf)
+
+        if ssh:
+            ssh.close()
