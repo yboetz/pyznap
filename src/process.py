@@ -100,8 +100,6 @@ def run(*popenargs, timeout=None, check=False, ssh=None, **kwargs):
                 process.wait()
                 raise
             retcode = process.poll()
-            if check and retcode:
-                raise sp.CalledProcessError(retcode, process.args, output=stdout, stderr=stderr)
     else:
         args = ' '.join(popenargs[0]) if not isinstance(popenargs[0], str) else popenargs[0]
 
@@ -113,11 +111,11 @@ def run(*popenargs, timeout=None, check=False, ssh=None, **kwargs):
             retcode = stdout.channel.recv_exit_status()
             stdout, stderr = ''.join(stdout.readlines()), ''.join(stderr.readlines())
         except socket.timeout:
-            stdout, stderr, retcode = None, None, 1
+            stdout, stderr = None, None
             raise sp.TimeoutExpired(popenargs[0], timeout, output=stdout, stderr=stderr)
 
-        if check and retcode:
-            raise sp.CalledProcessError(retcode, popenargs[0], output=stdout, stderr=stderr)
+    if check and retcode:
+        raise sp.CalledProcessError(retcode, popenargs[0], output=stdout, stderr=stderr)
 
     return sp.CompletedProcess(popenargs[0], retcode, stdout, stderr)
 
