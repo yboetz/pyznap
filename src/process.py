@@ -7,8 +7,10 @@ Catch ZFS subprocess errors, forked from https://bitbucket.org/stevedrake/weir/
 """
 
 import re
+import shutil
 import errno as _errno
 import subprocess as sp
+import socket
 
 PIPE = sp.PIPE
 
@@ -59,7 +61,8 @@ class CompletedProcess(sp.CompletedProcess):
         super(CompletedProcess, self).check_returncode()
 
 
-def check_output(*popenargs, timeout=None, **kwargs):
+# ssh is a connected instance of paramiko.client.SSHClient
+def check_output(*popenargs, timeout=None, ssh=None, **kwargs):
     """check_output for zfs commands. Catches some errors if
     returncode is not 0."""
 
@@ -74,12 +77,51 @@ def check_output(*popenargs, timeout=None, **kwargs):
         kwargs['input'] = '' if kwargs.get('universal_newlines', False) else b''
 
     ret = sp.run(*popenargs, stdout=PIPE, stderr=PIPE, timeout=timeout,
-                 universal_newlines=True, **kwargs)
+                 universal_newlines=True, ssh=ssh, **kwargs)
     ret.check_returncode()
     out = ret.stdout
 
     return None if out is None else [line.split('\t') for line in out.splitlines()]
 
 
+def run(*popenargs, timeout=None, check=False, ssh=None, **kwargs):
+    """Run command for ZFS functions that also works over ssh."""
+
+    if ssh is None:
+        with sp.Popen(*popenargs, **kwargs) as process:
+            try:
+                stdout, stderr = process.communicate(timeout=timeout)
+            except sp.TimeoutExpired:
+                process.kill()
+                stdout, stderr = process.communicate()
+                raise sp.TimeoutExpired(process.args, timeout, output=stdout, stderr=stderr)
+            except:
+                process.kill()
+                process.wait()
+                raise
+            retcode = process.poll()
+            if check and retcode:
+                raise sp.CalledProcessError(retcode, process.args, output=stdout, stderr=stderr)
+    else:
+        args = ' '.join(popenargs[0]) if not isinstance(popenargs[0], str) else popenargs[0]
+
+        try:
+            stdin, stdout, stderr = ssh.exec_command(args, *popenargs[1:], timeout=timeout)
+            if kwargs.get('stdin', None):
+                shutil.copyfileobj(kwargs['stdin'], stdin, 128*1024)
+            stdin.close()
+            retcode = stdout.channel.recv_exit_status()
+            stdout, stderr = ''.join(stdout.readlines()), ''.join(stderr.readlines())
+        except socket.timeout:
+            stdout, stderr, retcode = None, None, 1
+            raise sp.TimeoutExpired(popenargs[0], timeout, output=stdout, stderr=stderr)
+
+        if check and retcode:
+            raise sp.CalledProcessError(retcode, popenargs[0], output=stdout, stderr=stderr)
+
+    return sp.CompletedProcess(popenargs[0], retcode, stdout, stderr)
+
+
 sp.CompletedProcess = CompletedProcess
+sp.run = run
 sp.check_output = check_output
