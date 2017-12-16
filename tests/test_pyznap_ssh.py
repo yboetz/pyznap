@@ -20,11 +20,12 @@ import paramiko as pm
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../src')
 import pyzfs as zfs
-from utils import Remote, read_config, parse_name
+from utils import open_ssh, read_config, parse_name
 from clean import clean_config
 from take import take_config
 from send import send_config
 from process import DatasetNotFoundError
+import process
 
 
 logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
@@ -33,6 +34,12 @@ logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
 def randomword(length):
    letters = string.ascii_lowercase
    return ''.join(random.choice(letters) for i in range(length))
+
+# ssh connection to dest
+USER = 'yboetz'
+HOST = '192.168.1.102'
+PORT = 22
+KEY = None
 
 
 @pytest.fixture(scope='module')
@@ -44,31 +51,26 @@ def zpools():
     pool0 = 'pyznap_test_source'
     pool1 = 'pyznap_test_dest'
 
-    # ssh connection to dest
-    user = 'yboetz'
-    host = '192.168.1.102'
-    port = 22
-    key = None
     sftp_filename = '/tmp/' + randomword(10)
 
     # ssh arguments for zfs functions
-    ssh = Remote(user, host, port, key=key)
+    ssh = open_ssh(USER, HOST, port=PORT, key=KEY)
 
     # sftp connection to create/remove file on dest
-    sshclient = pm.SSHClient()
-    if not key:
-        key = '/home/{:s}/.ssh/id_rsa'.format(user)
-    if not os.path.isfile(key):
-        raise FileNotFoundError(key)
-    try:
-        sshclient.load_system_host_keys('/home/{:s}/.ssh/known_hosts'.format(user))
-    except FileNotFoundError:
-        sshclient.load_system_host_keys()
-    sshclient.set_missing_host_key_policy(pm.WarningPolicy())
-    sshclient.connect(hostname=host, port=port, username=user, key_filename=key, timeout=5)
+    # sshclient = pm.SSHClient()
+    # if not key:
+    #     key = '/home/{:s}/.ssh/id_rsa'.format(user)
+    # if not os.path.isfile(key):
+    #     raise FileNotFoundError(key)
+    # try:
+    #     sshclient.load_system_host_keys('/home/{:s}/.ssh/known_hosts'.format(user))
+    # except FileNotFoundError:
+    #     sshclient.load_system_host_keys()
+    # sshclient.set_missing_host_key_policy(pm.WarningPolicy())
+    # sshclient.connect(hostname=host, port=port, username=user, key_filename=key, timeout=5)
 
-    assert sshclient.get_transport().is_active(), 'Failed to connect to server'
-    sftp = sshclient.open_sftp()
+    # assert sshclient.get_transport().is_active(), 'Failed to connect to server'
+    sftp = ssh.open_sftp()
 
 
     # Create temporary file on which the source zpool is created. Manually create sftp file
@@ -86,13 +88,13 @@ def zpools():
         
         # Create temporary test pools
         try:
-            sp.check_call(['sudo', zpool, 'create', pool0, filename0])
+            sp.check_output(['sudo', zpool, 'create', pool0, filename0])
         except sp.CalledProcessError as err:
             print('{:s} ERROR: {}'.format(logtime(), err))
             return
 
         try:
-            sp.check_call(ssh.cmd + [zpool, 'create', pool1, filename1])
+            sp.check_output(['sudo', zpool, 'create', pool1, filename1], ssh=ssh)
         except sp.CalledProcessError as err:
             print('{:s} ERROR: {}'.format(logtime(), err))
             return
@@ -109,19 +111,19 @@ def zpools():
 
         # Destroy temporary test pools
         try:
-            sp.check_call(['sudo', zpool, 'destroy', pool0])
+            sp.check_output(['sudo', zpool, 'destroy', pool0])
         except sp.CalledProcessError as err:
             print('{:s} ERROR: {}'.format(logtime(), err))
 
         try:
-            sp.check_call(ssh.cmd + [zpool, 'destroy', pool1])
+            sp.check_output(['sudo', zpool, 'destroy', pool1], ssh=ssh)
         except sp.CalledProcessError as err:
             print('{:s} ERROR: {}'.format(logtime(), err))
 
     # Delete tempfile on dest
     sftp.remove(sftp_filename)
     sftp.close()
-    sshclient.close()
+    ssh.close()
 
 
 class TestSnapshot(object):
@@ -129,11 +131,9 @@ class TestSnapshot(object):
     def test_take_snapshot(self, zpools):
         _, fs = zpools
         ssh = fs.ssh
-        user, host, port, key = ssh.user, ssh.host, ssh.port, ssh.key
 
-        config = [{'name': 'ssh:{:d}:{:s}@{:s}:{:s}'.format(port, user, host, fs.name), 'key': key,
-                   'frequent': 1, 'hourly': 1, 'daily': 1, 'weekly': 1, 'monthly': 1, 'yearly': 1,
-                   'snap': True}]
+        config = [{'name': 'ssh:{:d}:{}'.format(PORT, fs), 'key': KEY, 'frequent': 1, 'hourly': 1,
+                   'daily': 1, 'weekly': 1, 'monthly': 1, 'yearly': 1, 'snap': True}]
         take_config(config)
         take_config(config)
 
@@ -150,11 +150,9 @@ class TestSnapshot(object):
     def test_clean_snapshot(self, zpools):
         _, fs = zpools
         ssh = fs.ssh
-        user, host, port, key = ssh.user, ssh.host, ssh.port, ssh.key
 
-        config = [{'name': 'ssh:{:d}:{:s}@{:s}:{:s}'.format(port, user, host, fs.name), 'key': key,
-                   'frequent': 0, 'hourly': 0, 'daily': 0, 'weekly': 0, 'monthly': 0, 'yearly': 0,
-                   'clean': True}]
+        config = [{'name': 'ssh:{:d}:{}'.format(PORT, fs), 'key': KEY, 'frequent': 0, 'hourly': 0,
+                   'daily': 0, 'weekly': 0, 'monthly': 0, 'yearly': 0, 'clean': True}]
         clean_config(config)
 
         snapshots = {'frequent': [], 'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
@@ -170,12 +168,10 @@ class TestSnapshot(object):
     def test_take_snapshot_recursive(self, zpools):
         _, fs = zpools
         ssh = fs.ssh
-        user, host, port, key = ssh.user, ssh.host, ssh.port, ssh.key
 
         fs.destroy(force=True)
-        config = [{'name': 'ssh:{:d}:{:s}@{:s}:{:s}'.format(port, user, host, fs.name), 'key': key,
-                   'frequent': 1, 'hourly': 1, 'daily': 1, 'weekly': 1, 'monthly': 1, 'yearly': 1,
-                   'snap': True}]
+        config = [{'name': 'ssh:{:d}:{}'.format(PORT, fs), 'key': KEY, 'frequent': 1, 'hourly': 1,
+                   'daily': 1, 'weekly': 1, 'monthly': 1, 'yearly': 1, 'snap': True}]
         take_config(config)
         fs.snapshots()[-1].destroy(force=True)
         fs.snapshots()[-1].destroy(force=True)
@@ -206,7 +202,6 @@ class TestSnapshot(object):
     def test_clean_recursive(self, zpools):
         _, fs = zpools
         ssh = fs.ssh
-        user, host, port, key = ssh.user, ssh.host, ssh.port, ssh.key
 
         fs.destroy(force=True)
         sub1 = zfs.create('{:s}/sub1'.format(fs.name), ssh=ssh)
@@ -216,23 +211,18 @@ class TestSnapshot(object):
         hij = zfs.create('{:s}/sub2/efg/hij'.format(fs.name), ssh=ssh)
         sub3 = zfs.create('{:s}/sub3'.format(fs.name), ssh=ssh)
 
-        config = [{'name': 'ssh:{:d}:{:s}@{:s}:{:s}'.format(port, user, host, fs.name), 'key': key,
-                   'frequent': 1, 'hourly': 1, 'daily': 1, 'weekly': 1, 'monthly': 1, 'yearly': 1,
-                   'snap': True}]
+        config = [{'name': 'ssh:{:d}:{}'.format(PORT, fs), 'key': KEY, 'frequent': 1, 'hourly': 1,
+                   'daily': 1, 'weekly': 1, 'monthly': 1, 'yearly': 1, 'snap': True}]
         take_config(config)
 
-        config = [{'name': 'ssh:{:d}:{:s}@{:s}:{:s}'.format(port, user, host, fs.name), 'key': key,
-                   'frequent': 1, 'hourly': 0, 'daily': 1, 'weekly': 0, 'monthly': 0, 'yearly': 0,
-                   'clean': True},
-                  {'name': 'ssh:{:d}:{:s}@{:s}:{:s}/sub2'.format(port, user, host, fs.name), 'key': key,
-                   'frequent': 0, 'hourly': 1, 'daily': 0, 'weekly': 1, 'monthly': 0, 'yearly': 1,
-                   'clean': True},
-                  {'name': 'ssh:{:d}:{:s}@{:s}:{:s}/sub3'.format(port, user, host, fs.name), 'key': key,
-                   'frequent': 1, 'hourly': 0, 'daily': 1, 'weekly': 0, 'monthly': 1, 'yearly': 0,
-                   'clean': False},
-                  {'name': 'ssh:{:d}:{:s}@{:s}:{:s}/sub2/efg/hij'.format(port, user, host, fs.name),
-                   'key': key, 'frequent': 0, 'hourly': 0, 'daily': 0, 'weekly': 0, 'monthly': 0,
-                   'yearly': 0, 'clean': True}]
+        config = [{'name': 'ssh:{:d}:{}'.format(PORT, fs), 'key': KEY, 'frequent': 1, 'hourly': 0,
+                   'daily': 1, 'weekly': 0, 'monthly': 0, 'yearly': 0, 'clean': True},
+                  {'name': 'ssh:{:d}:{}/sub2'.format(PORT, fs), 'key': KEY, 'frequent': 0,
+                   'hourly': 1, 'daily': 0, 'weekly': 1, 'monthly': 0, 'yearly': 1, 'clean': True},
+                  {'name': 'ssh:{:d}:{}/sub3'.format(PORT, fs), 'key':KEY, 'frequent': 1,
+                   'hourly': 0, 'daily': 1, 'weekly': 0, 'monthly': 1, 'yearly': 0, 'clean': False},
+                  {'name': 'ssh:{:d}:{}/sub2/efg/hij'.format(PORT, fs), 'key': KEY, 'frequent': 0,
+                   'hourly': 0, 'daily': 0, 'weekly': 0, 'monthly': 0, 'yearly': 0, 'clean': True}]
         clean_config(config)
 
         # Check parent filesystem
@@ -299,12 +289,10 @@ class TestSending(object):
         """Checks if send_snap totally replicates a filesystem"""
         fs0, fs1 = zpools
         ssh = fs1.ssh
-        user, host, port, key = ssh.user, ssh.host, ssh.port, ssh.key
 
         fs0.destroy(force=True)
         fs1.destroy(force=True)
-        config = [{'name': fs0.name, 'dest': ['ssh:{:d}:{:s}@{:s}:{:s}'.format(port, user, host, fs1.name)],
-                   'dest_keys': [key]}]
+        config = [{'name': fs0.name, 'dest': ['ssh:{:d}:{}'.format(PORT, fs1)], 'dest_keys': [KEY]}]
 
         fs0.snapshot('snap0')
         zfs.create('{:s}/sub1'.format(fs0.name))
@@ -331,12 +319,10 @@ class TestSending(object):
     def test_send_incremental(self, zpools):
         fs0, fs1 = zpools
         ssh = fs1.ssh
-        user, host, port, key = ssh.user, ssh.host, ssh.port, ssh.key
 
         fs0.destroy(force=True)
         fs1.destroy(force=True)
-        config = [{'name': fs0.name, 'dest': ['ssh:{:d}:{:s}@{:s}:{:s}'.format(port, user, host, fs1.name)],
-                   'dest_keys': [key]}]
+        config = [{'name': fs0.name, 'dest': ['ssh:{:d}:{}'.format(PORT, fs1)], 'dest_keys': [KEY]}]
 
         fs0.snapshot('snap0', recursive=True)
         zfs.create('{:s}/sub1'.format(fs0.name))
@@ -365,10 +351,8 @@ class TestSending(object):
     def test_send_delete_snapshot(self, zpools):
         fs0, fs1 = zpools
         ssh = fs1.ssh
-        user, host, port, key = ssh.user, ssh.host, ssh.port, ssh.key
 
-        config = [{'name': fs0.name, 'dest': ['ssh:{:d}:{:s}@{:s}:{:s}'.format(port, user, host, fs1.name)],
-                   'dest_keys': [key]}]
+        config = [{'name': fs0.name, 'dest': ['ssh:{:d}:{}'.format(PORT, fs1)], 'dest_keys': [KEY]}]
 
         # Delete recent snapshots on dest
         fs1.snapshots()[-1].destroy(force=True)
@@ -393,10 +377,8 @@ class TestSending(object):
     def test_send_delete_sub(self, zpools):
         fs0, fs1 = zpools
         ssh = fs1.ssh
-        user, host, port, key = ssh.user, ssh.host, ssh.port, ssh.key
 
-        config = [{'name': fs0.name, 'dest': ['ssh:{:d}:{:s}@{:s}:{:s}'.format(port, user, host, fs1.name)],
-                   'dest_keys': [key]}]
+        config = [{'name': fs0.name, 'dest': ['ssh:{:d}:{}'.format(PORT, fs1)], 'dest_keys': [KEY]}]
 
         # Delete subfilesystems
         sub3 = fs1.filesystems()[-1]
@@ -414,10 +396,8 @@ class TestSending(object):
     def test_send_delete_old(self, zpools):
         fs0, fs1 = zpools
         ssh = fs1.ssh
-        user, host, port, key = ssh.user, ssh.host, ssh.port, ssh.key
         
-        config = [{'name': fs0.name, 'dest': ['ssh:{:d}:{:s}@{:s}:{:s}'.format(port, user, host, fs1.name)],
-                   'dest_keys': [key]}]
+        config = [{'name': fs0.name, 'dest': ['ssh:{:d}:{}'.format(PORT, fs1)], 'dest_keys': [KEY]}]
 
         # Delete old snapshot on source
         fs0.snapshots()[0].destroy(force=True)
