@@ -27,12 +27,11 @@ def take_snap(filesystem, conf):
         # Ignore snapshots not taken with pyznap or sanoid
         if not snap.name.split('@')[1].startswith(('pyznap', 'autosnap')):
             continue
-        snap_time = datetime.fromtimestamp(int(snap.getprop('creation')[0]))
-        snap_type = snap.name.split('_')[-1]
-
         try:
+            _date, _time, snap_type = snap.name.split('_')[-3:]
+            snap_time =  datetime.strptime('{:s}_{:s}'.format(_date, _time), '%Y-%m-%d_%H:%M:%S')
             snapshots[snap_type].append((snap, snap_time))
-        except KeyError:
+        except (ValueError, KeyError):
             continue
 
     # Reverse sort by time taken
