@@ -30,7 +30,7 @@ def exists(executable=''):
 
 
 def open_ssh(user, host, key=None, port=22):
-    """Opens an sftp connection to host"""
+    """Opens an ssh connection to host"""
 
     logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
 

@@ -1,7 +1,7 @@
 """
 Created on Sat Aug 12 2017
 
-@author: yboetz
+@author: stevedrake, yboetz
 
 Catch ZFS subprocess errors, forked from https://bitbucket.org/stevedrake/weir/
 """
@@ -63,18 +63,14 @@ class CompletedProcess(sp.CompletedProcess):
 
 # ssh is a connected instance of paramiko.client.SSHClient
 def check_output(*popenargs, timeout=None, ssh=None, **kwargs):
-    """check_output for zfs commands. Catches some errors if
-    returncode is not 0."""
+    """check_output for zfs commands. Catches some errors if returncode is not 0."""
 
     if 'stdout' in kwargs:
         raise ValueError('stdout argument not allowed, it will be overridden.')
     if 'universal_newlines' in kwargs:
         raise ValueError('universal_newlines argument not allowed, it will be overridden.')
-    
-    if 'input' in kwargs and kwargs['input'] is None:
-    # Explicitly passing input=None was previously equivalent to passing an
-    # empty string. That is maintained here for backwards compatibility.
-        kwargs['input'] = '' if kwargs.get('universal_newlines', False) else b''
+    if 'input' in kwargs:
+        raise ValueError('input argument not allowed, it will be overridden.')
 
     ret = sp.run(*popenargs, stdout=PIPE, stderr=PIPE, timeout=timeout,
                  universal_newlines=True, ssh=ssh, **kwargs)
