@@ -29,7 +29,7 @@ pyznap uses `mbuffer` to speed up zfs send/recv, but also works if it is not ins
 Navigate to the folder where you want to install pyznap, e.g. `/opt` and clone the git repository
 
     cd /opt
-    git clone git@github.com:cythoning/pyznap.git
+    git clone git@github.com:yboetz/pyznap.git
 
 This will create a folder `opt/pyznap` and download all files from github. Then install the required
 python packages (best in your virtualenv)
