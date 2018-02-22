@@ -120,12 +120,15 @@ def clean_config(config):
             # Check if any of the parents (but child of base filesystem) have a config entry
             for parent in children[1:]:
                 if ssh:
+                    child_name = 'ssh:{:d}:{:s}@{:s}:{:s}'.format(port, user, host, child.name)
                     parent_name = 'ssh:{:d}:{:s}@{:s}:{:s}'.format(port, user, host, parent.name)
                 else:
+                    child_name = child.name
                     parent_name = parent.name
-                # Skip if any parent entry already in config
-                if (child.name.startswith(parent.name) and
-                        parent_name in [entry['name'] for entry in config]):
+                # Skip if child has an entry or if any parent entry already in config
+                child_parent = '/'.join(child_name.split('/')[:-1]) # get parent of child filesystem
+                if ((child_name == parent_name or child_parent.startswith(parent_name)) and
+                    (parent_name in [entry['name'] for entry in config])):
                     break
             else:
                 clean_snap(child, conf)

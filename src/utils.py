@@ -103,7 +103,8 @@ def read_config(path):
         for child in config:
             if parent == child:
                 continue
-            if child['name'].startswith(parent['name']):
+            child_parent = '/'.join(child['name'].split('/')[:-1])  # get parent of child filesystem
+            if child_parent.startswith(parent['name']):
                 for option in ['key', 'frequent', 'hourly', 'daily', 'weekly', 'monthly', 'yearly',
                                'snap', 'clean']:
                     child[option] = child[option] if child[option] is not None else parent[option]
