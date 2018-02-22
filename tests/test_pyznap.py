@@ -1,5 +1,4 @@
 #!/home/yboetz/.virtualenvs/pyznap/bin/pytest -v
-# -*- coding: utf-8 -*-
 """
 Created on Tue Nov 28 2017
 
