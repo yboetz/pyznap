@@ -94,11 +94,16 @@ class TestUtils(object):
             file.write('yearly = 2\n')
             file.write('snap = yes\n')
             file.write('clean = yes\n')
-            file.write('dest = backup, tank\n')
+            file.write('dest = backup, tank\n\n')
+
+            file.write('[rpool/data_2]\n')
+            file.write('daily = 14\n')
+            file.write('yearly = 0\n')
+            file.write('clean = yes\n')
             file.seek(0)
 
             config = read_config(name)
-            conf0, conf1 = config
+            conf0, conf1, conf2 = config
 
             assert conf0['name'] == 'rpool'
             assert conf0['key'] == None
@@ -115,7 +120,7 @@ class TestUtils(object):
 
             assert conf1['name'] == 'rpool/data'
             assert conf1['key'] == None
-            assert conf0['frequent'] == 4
+            assert conf1['frequent'] == 4
             assert conf1['hourly'] == 12
             assert conf1['daily'] == 7
             assert conf1['weekly'] == 4
@@ -125,6 +130,19 @@ class TestUtils(object):
             assert conf1['clean'] == False
             assert conf1['dest'] == ['backup/data', 'tank/data', 'rpool/data']
             assert conf1['dest_keys'] == None
+
+            assert conf2['name'] == 'rpool/data_2'
+            assert conf2['key'] == None
+            assert conf2['frequent'] == 4
+            assert conf2['hourly'] == 24
+            assert conf2['daily'] == 14
+            assert conf2['weekly'] == 4
+            assert conf2['monthly'] == 12
+            assert conf2['yearly'] == 0
+            assert conf2['snap'] == True
+            assert conf2['clean'] == True
+            assert conf2['dest'] == None
+            assert conf2['dest_keys'] == None
 
 
     def test_parse_name(self):
@@ -213,16 +231,14 @@ class TestSnapshot(object):
     def test_clean_recursive(self, zpools):
         fs, _ = zpools
         fs.destroy(force=True)
-        zfs.create('{:s}/sub1'.format(fs.name))
-        zfs.create('{:s}/sub1/abc'.format(fs.name))
-        zfs.create('{:s}/sub2'.format(fs.name))
-        zfs.create('{:s}/sub2/efg'.format(fs.name))
-        zfs.create('{:s}/sub2/efg/hij'.format(fs.name))
-        zfs.create('{:s}/sub3'.format(fs.name))
-        sub1, sub2, sub3 = fs.filesystems()
-        abc = sub1.filesystems()[0]
-        efg = sub2.filesystems()[0]
-        hij = efg.filesystems()[0]
+        sub1 = zfs.create('{:s}/sub1'.format(fs.name))
+        abc = zfs.create('{:s}/sub1/abc'.format(fs.name))
+        abc_efg = zfs.create('{:s}/sub1/abc_efg'.format(fs.name))
+        sub2 = zfs.create('{:s}/sub2'.format(fs.name))
+        efg = zfs.create('{:s}/sub2/efg'.format(fs.name))
+        hij = zfs.create('{:s}/sub2/efg/hij'.format(fs.name))
+        klm = zfs.create('{:s}/sub2/efg/hij/klm'.format(fs.name))
+        sub3 = zfs.create('{:s}/sub3'.format(fs.name))
 
         config = [{'name': fs.name, 'frequent': 1, 'hourly': 1, 'daily': 1, 'weekly': 1,
                    'monthly': 1, 'yearly': 1, 'snap': True}]
@@ -230,11 +246,13 @@ class TestSnapshot(object):
 
         config = [{'name': fs.name, 'frequent': 1, 'hourly': 0, 'daily': 1, 'weekly': 0,
                    'monthly': 0, 'yearly': 0, 'clean': True},
-                  {'name': '{:s}/sub2'.format(fs.name), 'frequent': 0, 'hourly': 1, 'daily': 0,
+                  {'name': '{}/sub2'.format(fs), 'frequent': 0, 'hourly': 1, 'daily': 0,
                    'weekly': 1, 'monthly': 0, 'yearly': 1, 'clean': True},
-                  {'name': '{:s}/sub3'.format(fs.name), 'frequent': 1, 'hourly': 0, 'daily': 1,
+                  {'name': '{}/sub3'.format(fs), 'frequent': 1, 'hourly': 0, 'daily': 1,
                    'weekly': 0, 'monthly': 1, 'yearly': 0, 'clean': False},
-                  {'name': '{:s}/sub2/efg/hij'.format(fs.name), 'frequent': 0, 'hourly': 0,
+                  {'name': '{}/sub1/abc'.format(fs), 'frequent': 0, 'hourly': 0, 'daily': 0,
+                   'weekly': 1, 'monthly': 1, 'yearly': 1, 'clean': True},
+                  {'name': '{}/sub2/efg/hij'.format(fs), 'frequent': 0, 'hourly': 0,
                    'daily': 0, 'weekly': 0, 'monthly': 0, 'yearly': 0, 'clean': True}]
         clean_config(config)
 
@@ -257,6 +275,14 @@ class TestSnapshot(object):
         # Check sub1/abc
         snapshots = {'frequent': [], 'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
         for snap in abc.snapshots():
+            snap_type = snap.name.split('_')[-1]
+            snapshots[snap_type].append(snap)
+
+        for snap_type, snaps in snapshots.items():
+            assert len(snaps) == config[3][snap_type]
+        # Check sub1/abc_efg
+        snapshots = {'frequent': [], 'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
+        for snap in abc_efg.snapshots():
             snap_type = snap.name.split('_')[-1]
             snapshots[snap_type].append(snap)
 
@@ -285,7 +311,15 @@ class TestSnapshot(object):
             snapshots[snap_type].append(snap)
 
         for snap_type, snaps in snapshots.items():
-            assert len(snaps) == config[3][snap_type]
+            assert len(snaps) == config[4][snap_type]
+        # Check sub2/efg/hij/klm
+        snapshots = {'frequent': [], 'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
+        for snap in klm.snapshots():
+            snap_type = snap.name.split('_')[-1]
+            snapshots[snap_type].append(snap)
+
+        for snap_type, snaps in snapshots.items():
+            assert len(snaps) == config[4][snap_type]
         # Check sub3
         snapshots = {'frequent': [], 'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
         for snap in sub3.snapshots():
@@ -316,9 +350,11 @@ class TestSending(object):
         fs0.snapshot('snap5', recursive=True)
         zfs.create('{:s}/sub3/abc'.format(fs0.name))
         fs0.snapshot('snap6', recursive=True)
-        zfs.create('{:s}/sub3/efg'.format(fs0.name))
+        zfs.create('{:s}/sub3/abc_abc'.format(fs0.name))
         fs0.snapshot('snap7', recursive=True)
+        zfs.create('{:s}/sub3/efg'.format(fs0.name))
         fs0.snapshot('snap8', recursive=True)
+        fs0.snapshot('snap9', recursive=True)
         send_config(config)
 
         fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]

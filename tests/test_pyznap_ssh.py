@@ -54,21 +54,6 @@ def zpools():
 
     # ssh arguments for zfs functions
     ssh = open_ssh(USER, HOST, port=PORT, key=KEY)
-
-    # sftp connection to create/remove file on dest
-    # sshclient = pm.SSHClient()
-    # if not key:
-    #     key = '/home/{:s}/.ssh/id_rsa'.format(user)
-    # if not os.path.isfile(key):
-    #     raise FileNotFoundError(key)
-    # try:
-    #     sshclient.load_system_host_keys('/home/{:s}/.ssh/known_hosts'.format(user))
-    # except FileNotFoundError:
-    #     sshclient.load_system_host_keys()
-    # sshclient.set_missing_host_key_policy(pm.WarningPolicy())
-    # sshclient.connect(hostname=host, port=port, username=user, key_filename=key, timeout=5)
-
-    # assert sshclient.get_transport().is_active(), 'Failed to connect to server'
     sftp = ssh.open_sftp()
 
 
@@ -205,9 +190,11 @@ class TestSnapshot(object):
         fs.destroy(force=True)
         sub1 = zfs.create('{:s}/sub1'.format(fs.name), ssh=ssh)
         abc = zfs.create('{:s}/sub1/abc'.format(fs.name), ssh=ssh)
+        abc_efg = zfs.create('{:s}/sub1/abc_efg'.format(fs.name), ssh=ssh)
         sub2 = zfs.create('{:s}/sub2'.format(fs.name), ssh=ssh)
         efg = zfs.create('{:s}/sub2/efg'.format(fs.name), ssh=ssh)
         hij = zfs.create('{:s}/sub2/efg/hij'.format(fs.name), ssh=ssh)
+        klm = zfs.create('{:s}/sub2/efg/hij/klm'.format(fs.name), ssh=ssh)
         sub3 = zfs.create('{:s}/sub3'.format(fs.name), ssh=ssh)
 
         config = [{'name': 'ssh:{:d}:{}'.format(PORT, fs), 'key': KEY, 'frequent': 1, 'hourly': 1,
@@ -218,8 +205,10 @@ class TestSnapshot(object):
                    'daily': 1, 'weekly': 0, 'monthly': 0, 'yearly': 0, 'clean': True},
                   {'name': 'ssh:{:d}:{}/sub2'.format(PORT, fs), 'key': KEY, 'frequent': 0,
                    'hourly': 1, 'daily': 0, 'weekly': 1, 'monthly': 0, 'yearly': 1, 'clean': True},
-                  {'name': 'ssh:{:d}:{}/sub3'.format(PORT, fs), 'key':KEY, 'frequent': 1,
+                  {'name': 'ssh:{:d}:{}/sub3'.format(PORT, fs), 'key': KEY, 'frequent': 1,
                    'hourly': 0, 'daily': 1, 'weekly': 0, 'monthly': 1, 'yearly': 0, 'clean': False},
+                  {'name': 'ssh:{:d}:{}/sub1/abc'.format(PORT, fs), 'key': KEY, 'frequent': 0,
+                   'hourly': 0,'daily': 0, 'weekly': 1, 'monthly': 1, 'yearly': 1, 'clean': True},
                   {'name': 'ssh:{:d}:{}/sub2/efg/hij'.format(PORT, fs), 'key': KEY, 'frequent': 0,
                    'hourly': 0, 'daily': 0, 'weekly': 0, 'monthly': 0, 'yearly': 0, 'clean': True}]
         clean_config(config)
@@ -243,6 +232,14 @@ class TestSnapshot(object):
         # Check sub1/abc
         snapshots = {'frequent': [], 'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
         for snap in abc.snapshots():
+            snap_type = snap.name.split('_')[-1]
+            snapshots[snap_type].append(snap)
+
+        for snap_type, snaps in snapshots.items():
+            assert len(snaps) == config[3][snap_type]
+        # Check sub1/abc_efg
+        snapshots = {'frequent': [], 'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
+        for snap in abc_efg.snapshots():
             snap_type = snap.name.split('_')[-1]
             snapshots[snap_type].append(snap)
 
@@ -271,7 +268,15 @@ class TestSnapshot(object):
             snapshots[snap_type].append(snap)
 
         for snap_type, snaps in snapshots.items():
-            assert len(snaps) == config[3][snap_type]
+            assert len(snaps) == config[4][snap_type]
+        # Check sub2/efg/hij/klm
+        snapshots = {'frequent': [], 'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
+        for snap in klm.snapshots():
+            snap_type = snap.name.split('_')[-1]
+            snapshots[snap_type].append(snap)
+
+        for snap_type, snaps in snapshots.items():
+            assert len(snaps) == config[4][snap_type]
         # Check sub3
         snapshots = {'frequent': [], 'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
         for snap in sub3.snapshots():
@@ -304,9 +309,11 @@ class TestSending(object):
         fs0.snapshot('snap5', recursive=True)
         zfs.create('{:s}/sub3/abc'.format(fs0.name))
         fs0.snapshot('snap6', recursive=True)
-        zfs.create('{:s}/sub3/efg'.format(fs0.name))
+        zfs.create('{:s}/sub3/abc_abc'.format(fs0.name))
         fs0.snapshot('snap7', recursive=True)
+        zfs.create('{:s}/sub3/efg'.format(fs0.name))
         fs0.snapshot('snap8', recursive=True)
+        fs0.snapshot('snap9', recursive=True)
         send_config(config)
 
         fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
