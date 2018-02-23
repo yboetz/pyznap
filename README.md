@@ -1,14 +1,14 @@
 # README #
 
-pyznap is a ZFS snapshot management tool. It automatically takes and deletets snapshots and can send
+pyznap is a ZFS snapshot management tool. It automatically takes and deletes snapshots and can send
 them to different backup locations. You can specify a policy for a given filesystem in the
-pyznap.conf file and then use cron to let it run once per hour. pyznap includes zfs bindings for
-python, forked and modified from https://bitbucket.org/stevedrake/weir/.
+pyznap.conf file and then use cron to let it run once per quarter-hour. pyznap includes zfs
+bindings for python, forked and modified from https://bitbucket.org/stevedrake/weir/.
 
 
 #### Requirements ####
 
-pyznap is written in python 3.6 and requires the following packages:
+pyznap is written in python 3.x and requires the following packages:
 
     configparser
     paramiko
