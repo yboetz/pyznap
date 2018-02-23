@@ -20,7 +20,18 @@ from paramiko.ssh_exception import (AuthenticationException, BadAuthenticationTy
 
 
 def exists(executable=''):
-    """Tests if an executable exists on the system."""
+    """Tests if an executable exists on the system.
+
+    Parameters:
+    ----------
+    executable : {str}, optional
+        Name of the executable to test (the default is an empty string)
+
+    Returns
+    -------
+    bool
+        True if executable exists, False if not
+    """
 
     assert isinstance(executable, str), "Input must be string."
     cmd = ['which', executable]
@@ -30,7 +41,32 @@ def exists(executable=''):
 
 
 def open_ssh(user, host, key=None, port=22):
-    """Opens an ssh connection to host"""
+    """Opens an ssh connection to host.
+
+    Parameters:
+    ----------
+    user : {str}
+        Username to use
+    host : {str}
+        Host to connect to
+    key : {str}, optional
+        Path to ssh keyfile (the default is None, meaning the standard location
+        '/home/user/.ssh/id_rsa' will be checked)
+    port : {int}, optional
+        Port number to connect to (the default is 22)
+
+    Raises
+    ------
+    FileNotFoundError
+        If keyfile does not exist
+    SSHException
+        General exception raised if anything goes wrong during ssh connection
+
+    Returns
+    -------
+    paramiko.SSHClient
+        Open ssh connection.
+    """
 
     logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
 
@@ -63,8 +99,23 @@ def open_ssh(user, host, key=None, port=22):
 
 
 def read_config(path):
-    """Reads a config file and outputs a list of dicts with the given snapshot strategy. If ssh
-    keyfiles do not exist it will take standard location in .ssh folder"""
+    """Reads a config file and outputs a list of dicts with the given snapshot strategy.
+
+    Parameters:
+    ----------
+    path : {str}
+        Path to the config file
+
+    Raises
+    ------
+    FileNotFoundError
+        If path does not exist
+
+    Returns
+    -------
+    list of dict
+        Full config list containing all strategies for different filesytems
+    """
 
     if not os.path.isfile(path):
         raise FileNotFoundError('File does not exist.')
@@ -115,7 +166,19 @@ def read_config(path):
 
 
 def parse_name(value):
-    """Splits a string of the form 'ssh:port:user@host:rpool/data' into its parts"""
+    """Splits a string of the form 'ssh:port:user@host:rpool/data' into its parts.
+
+    Parameters:
+    ----------
+    value : {str}
+        String to split up
+
+    Returns
+    -------
+    (str, str, str, str, int)
+        Tuple containing the different parts of the string
+    """
+
     if value.startswith('ssh'):
         _type, port, host, fsname = value.split(':', maxsplit=3)
         port = int(port) if port else 22

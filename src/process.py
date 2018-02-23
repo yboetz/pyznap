@@ -41,7 +41,14 @@ class HoldTagExistsError(ZFSError):
 
 class CompletedProcess(sp.CompletedProcess):
     def check_returncode(self):
-        # check for known errors of form "cannot <action> <dataset>: <reason>"
+        """Check for known errors of the form "cannot <action> <dataset>: <reason>"
+
+        Raises
+        ------
+        DatasetNotFoundError, DatasetExistsError, DatasetBusyError, HoldTagNotFoundError, HoldTagExistsError
+            Raises corresponding ZFS error
+        """
+
         if self.returncode == 1:
             pattern = r"^cannot ([^ ]+(?: [^ ]+)*?) ([^ ]+): (.+)$"
             match = re.search(pattern, self.stderr)
@@ -63,7 +70,29 @@ class CompletedProcess(sp.CompletedProcess):
 
 # ssh is a connected instance of paramiko.client.SSHClient
 def check_output(*popenargs, timeout=None, ssh=None, **kwargs):
-    """check_output for zfs commands. Catches some errors if returncode is not 0."""
+    """Run command with arguments and return its output. Works over ssh.
+
+    Parameters:
+    ----------
+    *popenargs : {}
+        Variable length argument list, same as Popen constructor
+    **kwargs : {}
+        Arbitrary keyword arguments, same as Popen constructor
+    timeout : {float}, optional
+        Timeout in seconds, if process takes to long TimeoutExpired will be raised (the default is None)
+    ssh : {paramiko.SSHClient}, optional
+        Open ssh connection for remote execution (the default is None)
+
+    Raises
+    ------
+    ValueError
+        Raise ValueError for forbidden kwargs
+
+    Returns
+    -------
+    None or list of lists
+        List of all lines from the output, seperated at '\t' into lists
+    """
 
     if 'stdout' in kwargs:
         raise ValueError('stdout argument not allowed, it will be overridden.')
@@ -81,7 +110,33 @@ def check_output(*popenargs, timeout=None, ssh=None, **kwargs):
 
 
 def run(*popenargs, timeout=None, check=False, ssh=None, **kwargs):
-    """Run command for ZFS functions that also works over ssh."""
+    """Run command with ZFS arguments and return a CompletedProcess instance. Works over ssh.
+
+    Parameters:
+    ----------
+    *popenargs : {}
+        Variable length argument list, same as Popen constructor
+    **kwargs : {}
+        Arbitrary keyword arguments, same as Popen constructor
+    timeout : {float}, optional
+        Timeout in seconds, if process takes to long TimeoutExpired will be raised (the default is None)
+    check : {bool}, optional
+        Check return code (the default is False, meaning return code will not be checked)
+    ssh : {paramiko.SSHClient}, optional
+        Open ssh connection for remote execution (the default is None)
+
+    Raises
+    ------
+    sp.TimeoutExpired
+        Raised if process takes longer than given timeout
+    sp.CalledProcessError
+        Raised if check=True and return code != 0
+
+    Returns
+    -------
+    subprocess.CompletedProcess
+        Return instance of CompletedProcess class with given return code, stdout and stderr
+    """
 
     if ssh is None:
         with sp.Popen(*popenargs, **kwargs) as process:

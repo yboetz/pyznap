@@ -15,7 +15,15 @@ from process import DatasetBusyError, DatasetNotFoundError
 
 
 def clean_snap(filesystem, conf):
-    """Deletes snapshots of a single filesystem according to conf"""
+    """Deletes snapshots of a single filesystem according to conf.
+
+    Parameters:
+    ----------
+    filesystem : {ZFSFilesystem}
+        Filesystem to clean
+    conf : {dict}
+        Config entry with snapshot strategy
+    """
 
     logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
 
@@ -81,7 +89,14 @@ def clean_snap(filesystem, conf):
 
 
 def clean_config(config):
-    """Deletes old snapshots according to strategy given in config"""
+    """Deletes old snapshots according to strategies given in config. Goes through each config,
+    opens up ssh connection if necessary and then recursively calls clean_snap.
+
+    Parameters:
+    ----------
+    config : {list of dict}
+        Full config list containing all strategies for different filesytems
+    """
 
     logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
     print('{:s} INFO: Cleaning snapshots...'.format(logtime()))

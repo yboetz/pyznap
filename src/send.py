@@ -22,7 +22,24 @@ else:
 
 
 def send_recv(snapshot, dest_name, base=None, ssh=None):
-    """Sends snapshot to dest_name, incremental if base is given."""
+    """Sends snapshot to destination, incrementally and over ssh if specified.
+
+    Parameters:
+    ----------
+    snapshot : {ZFSSnapshot}
+        Snapshot to send
+    dest_name : {str}
+        Name of the location to send snapshot
+    base : {ZFSSnapshot}, optional
+        Base snapshot for incremental stream (the default is None, meaning a full stream)
+    ssh : {paramiko.SSHClient}, optional
+        Open ssh connection for remote backup (the default is None, meaning local backup)
+
+    Returns
+    -------
+    bool
+        True if success, False if not
+    """
 
     logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
 
@@ -40,7 +57,22 @@ def send_recv(snapshot, dest_name, base=None, ssh=None):
 def send_snap(source_fs, dest_name, ssh=None):
     """Checks for common snapshots between source and dest.
     If none are found, send the oldest snapshot, then update with the most recent one.
-    If there are common snaps, update dest with the most recent one."""
+    If there are common snaps, update destination with the most recent one.
+
+    Parameters:
+    ----------
+    source_fs : {ZFSFilesystem}
+        Source zfs filesystem from where to send
+    dest_name : {str}
+        Name of the location to send to
+    ssh : {paramiko.SSHClient}, optional
+        Open ssh connection for remote backup (the default is None, meaning local backup)
+
+    Returns
+    -------
+    bool
+        True if success, False if not
+    """
 
     logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
 
@@ -98,7 +130,13 @@ def send_snap(source_fs, dest_name, ssh=None):
 
 def send_config(config):
     """Tries to sync all entries in the config to their dest. Finds all children of the filesystem
-    and calls send_snap on each of them."""
+    and calls send_snap on each of them.
+
+    Parameters:
+    ----------
+    config : {list of dict}
+        Full config list containing all strategies for different filesytems
+    """
 
     logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
     print('{:s} INFO: Sending snapshots...'.format(logtime()))

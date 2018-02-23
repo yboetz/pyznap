@@ -15,7 +15,15 @@ from process import DatasetBusyError, DatasetNotFoundError
 
 
 def take_snap(filesystem, conf):
-    """Takes snapshots of a single filesystem according to conf"""
+    """Takes snapshots of a single filesystem according to conf.
+
+    Parameters:
+    ----------
+    filesystem : {ZFSFilesystem}
+        Filesystem to take snapshot of
+    conf : {dict}
+        Config entry with snapshot strategy
+    """
 
     logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
     now = datetime.now
@@ -95,7 +103,13 @@ def take_snap(filesystem, conf):
 
 
 def take_config(config):
-    """Takes snapshots according to strategy given in config"""
+    """Takes snapshots according to strategy given in config.
+
+    Parameters:
+    ----------
+    config : {list of dict}
+        Full config list containing all strategies for different filesytems
+    """
 
     logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
     print('{:s} INFO: Taking snapshots...'.format(logtime()))
