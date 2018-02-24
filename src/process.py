@@ -79,7 +79,8 @@ def check_output(*popenargs, timeout=None, ssh=None, **kwargs):
     **kwargs : {}
         Arbitrary keyword arguments, same as Popen constructor
     timeout : {float}, optional
-        Timeout in seconds, if process takes to long TimeoutExpired will be raised (the default is None)
+        Timeout in seconds, if process takes too long TimeoutExpired will be raised (the default is
+        None, meaning no timeout)
     ssh : {paramiko.SSHClient}, optional
         Open ssh connection for remote execution (the default is None)
 
@@ -119,7 +120,8 @@ def run(*popenargs, timeout=None, check=False, ssh=None, **kwargs):
     **kwargs : {}
         Arbitrary keyword arguments, same as Popen constructor
     timeout : {float}, optional
-        Timeout in seconds, if process takes to long TimeoutExpired will be raised (the default is None)
+        Timeout in seconds, if process takes too long TimeoutExpired will be raised (the default is
+        None, meaning no timeout)
     check : {bool}, optional
         Check return code (the default is False, meaning return code will not be checked)
     ssh : {paramiko.SSHClient}, optional
@@ -135,7 +137,7 @@ def run(*popenargs, timeout=None, check=False, ssh=None, **kwargs):
     Returns
     -------
     subprocess.CompletedProcess
-        Return instance of CompletedProcess class with given return code, stdout and stderr
+        Return instance of CompletedProcess with given return code, stdout and stderr
     """
 
     if ssh is None:
