@@ -95,7 +95,7 @@ def clean_config(config):
     Parameters:
     ----------
     config : {list of dict}
-        Full config list containing all strategies for different filesytems
+        Full config list containing all strategies for different filesystems
     """
 
     logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')

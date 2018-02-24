@@ -114,7 +114,7 @@ def read_config(path):
     Returns
     -------
     list of dict
-        Full config list containing all strategies for different filesytems
+        Full config list containing all strategies for different filesystems
     """
 
     if not os.path.isfile(path):
