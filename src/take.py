@@ -28,7 +28,7 @@ def take_snap(filesystem, conf):
     logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
     now = datetime.now
 
-    # print('{:s} INFO: Taking snapshots on {:s}...'.format(logtime(), name_log))
+    # print('{:s} INFO: Taking snapshots on {:s}...'.format(logtime(), filesystem))
 
     snapshots = {'frequent': [], 'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
     for snap in filesystem.snapshots():

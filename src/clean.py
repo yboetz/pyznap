@@ -27,7 +27,7 @@ def clean_snap(filesystem, conf):
 
     logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
 
-    # print('{:s} INFO: Cleaning snapshots on {:s}...'.format(logtime(), name_log))
+    # print('{:s} INFO: Cleaning snapshots on {:s}...'.format(logtime(), filesystem))
 
     snapshots = {'frequent': [], 'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
     for snap in filesystem.snapshots():

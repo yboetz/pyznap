@@ -83,7 +83,7 @@ def send_snap(source_fs, dest_name, ssh=None):
     else:
         dest_name_log = dest_name
 
-    # print('{:s} INFO: Sending {:s} to {:s}...'.format(logtime(), source_fs.name, dest_name_log))
+    # print('{:s} INFO: Sending {} to {:s}...'.format(logtime(), source_fs, dest_name_log))
 
     # Get snapshots on source
     snapshots = source_fs.snapshots()[::-1]
