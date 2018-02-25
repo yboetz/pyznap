@@ -145,18 +145,7 @@ def take_config(config):
         take_snap(children[0], conf)
         # Take snapshot of all children that don't have all snapshots yet
         for child in children[1:]:
-            # Check if any of the parents (but child of base filesystem) have a config entry
-            for parent in children[1:]:
-                if ssh:
-                    parent_name = 'ssh:{:d}:{:s}@{:s}:{:s}'.format(port, user, host, parent.name)
-                else:
-                    parent_name = parent.name
-                # Skip if any parent entry already in config
-                if (child.name.startswith(parent.name) and
-                        parent_name in [entry['name'] for entry in config]):
-                    break
-            else:
-                take_snap(child, conf)
+            take_snap(child, conf)
 
         if ssh:
             ssh.close()
