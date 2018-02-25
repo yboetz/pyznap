@@ -160,6 +160,10 @@ class TestSnapshot(object):
         fs.snapshots()[-1].destroy(force=True)
 
         sub1 = zfs.create('{:s}/sub1'.format(fs.name), ssh=ssh)
+        abc = zfs.create('{:s}/sub1/abc'.format(fs.name), ssh=ssh)
+        sub1_abc = zfs.create('{:s}/sub1_abc'.format(fs.name), ssh=ssh)
+        config += [{'name': 'ssh:{:d}:{}/sub1'.format(PORT, fs), 'key': KEY, 'frequent': 1, 'hourly': 1,
+                    'daily': 1, 'weekly': 1, 'monthly': 1, 'yearly': 1, 'snap': False}]
         take_config(config)
 
         # Check fs
@@ -174,6 +178,24 @@ class TestSnapshot(object):
         # Check sub1
         snapshots = {'frequent': [], 'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
         for snap in sub1.snapshots():
+            snap_type = snap.name.split('_')[-1]
+            snapshots[snap_type].append(snap)
+
+        for snap_type, snaps in snapshots.items():
+            assert len(snaps) == config[0][snap_type]
+
+        # Check abc
+        snapshots = {'frequent': [], 'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
+        for snap in abc.snapshots():
+            snap_type = snap.name.split('_')[-1]
+            snapshots[snap_type].append(snap)
+
+        for snap_type, snaps in snapshots.items():
+            assert len(snaps) == config[0][snap_type]
+
+        # Check sub1_abc
+        snapshots = {'frequent': [], 'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
+        for snap in sub1_abc.snapshots():
             snap_type = snap.name.split('_')[-1]
             snapshots[snap_type].append(snap)
 
