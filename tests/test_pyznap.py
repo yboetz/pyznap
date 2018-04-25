@@ -51,7 +51,7 @@ def zpools():
         # Create temporary test pools
         for pool, filename in zip([pool0, pool1], [filename0, filename1]):
             try:
-                sp.check_call(['sudo', zpool, 'create', pool, filename])
+                sp.check_call([zpool, 'create', pool, filename])
             except sp.CalledProcessError as err:
                 print('{:s} ERROR: {}'.format(logtime(), err))
                 return
@@ -69,7 +69,7 @@ def zpools():
         # Destroy temporary test pools
         for pool in [pool0, pool1]:
             try:
-                sp.check_call(['sudo', zpool, 'destroy', pool])
+                sp.check_call([zpool, 'destroy', pool])
             except sp.CalledProcessError as err:
                 print('{:s} ERROR: {}'.format(logtime(), err))
 

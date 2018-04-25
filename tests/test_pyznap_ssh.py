@@ -71,13 +71,13 @@ def zpools():
         
         # Create temporary test pools
         try:
-            sp.check_output(['sudo', zpool, 'create', pool0, filename0])
+            sp.check_output([zpool, 'create', pool0, filename0])
         except sp.CalledProcessError as err:
             print('{:s} ERROR: {}'.format(logtime(), err))
             return
 
         try:
-            sp.check_output(['sudo', zpool, 'create', pool1, filename1], ssh=ssh)
+            sp.check_output([zpool, 'create', pool1, filename1], ssh=ssh)
         except sp.CalledProcessError as err:
             print('{:s} ERROR: {}'.format(logtime(), err))
             return
@@ -94,12 +94,12 @@ def zpools():
 
         # Destroy temporary test pools
         try:
-            sp.check_output(['sudo', zpool, 'destroy', pool0])
+            sp.check_output([zpool, 'destroy', pool0])
         except sp.CalledProcessError as err:
             print('{:s} ERROR: {}'.format(logtime(), err))
 
         try:
-            sp.check_output(['sudo', zpool, 'destroy', pool1], ssh=ssh)
+            sp.check_output([zpool, 'destroy', pool1], ssh=ssh)
         except sp.CalledProcessError as err:
             print('{:s} ERROR: {}'.format(logtime(), err))
 

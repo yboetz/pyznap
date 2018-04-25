@@ -12,7 +12,7 @@ import process
 
 def find(path=None, ssh=None, max_depth=None, types=[]):
     """Lists filesystems and snapshots for a given path"""
-    cmd = ['sudo', 'zfs', 'list']
+    cmd = ['zfs', 'list']
 
     cmd.append('-H')
 
@@ -41,7 +41,7 @@ def find(path=None, ssh=None, max_depth=None, types=[]):
 
 def findprops(path=None, ssh=None, max_depth=None, props=['all'], sources=[], types=[]):
     """Lists all properties of a given filesystem"""
-    cmd = ['sudo', 'zfs', 'get']
+    cmd = ['zfs', 'get']
 
     cmd.append('-H')
     cmd.append('-p')
@@ -98,7 +98,7 @@ def roots(ssh=None):
 
 # note: force means create missing parent filesystems
 def create(name, ssh=None, type='filesystem', props={}, force=False):
-    cmd = ['sudo', 'zfs', 'create']
+    cmd = ['zfs', 'create']
 
     if type == 'volume':
         raise NotImplementedError()
@@ -120,7 +120,7 @@ def create(name, ssh=None, type='filesystem', props={}, force=False):
 
 def receive(name, stdin, ssh=None, append_name=False, append_path=False,
             force=False, nomount=False):
-    cmd = ['sudo', 'zfs', 'receive']
+    cmd = ['zfs', 'receive']
 
     # cmd.append('-v')
 
@@ -183,7 +183,7 @@ class ZFSDataset(object):
     # TODO: split force to allow -f, -r and -R to be specified individually
     # TODO: remove or ignore defer option for non-snapshot datasets
     def destroy(self, defer=False, force=False):
-        cmd = ['sudo', 'zfs', 'destroy']
+        cmd = ['zfs', 'destroy']
 
         cmd.append('-v')
 
@@ -199,7 +199,7 @@ class ZFSDataset(object):
         sp.check_output(cmd, ssh=self.ssh)
 
     def snapshot(self, snapname, recursive=False, props={}):
-        cmd = ['sudo', 'zfs', 'snapshot']
+        cmd = ['zfs', 'snapshot']
 
         if recursive:
             cmd.append('-r')
@@ -236,7 +236,7 @@ class ZFSDataset(object):
         return default if value == '-' else value
 
     def setprop(self, prop, value):
-        cmd = ['sudo', 'zfs', 'set']
+        cmd = ['zfs', 'set']
 
         cmd.append(prop + '=' + str(value))
         cmd.append(self.name)
@@ -244,7 +244,7 @@ class ZFSDataset(object):
         sp.check_output(cmd, ssh=self.ssh)
 
     def delprop(self, prop, recursive=False):
-        cmd = ['sudo', 'zfs', 'inherit']
+        cmd = ['zfs', 'inherit']
 
         if recursive:
             cmd.append('-r')
@@ -303,7 +303,7 @@ class ZFSSnapshot(ZFSDataset):
         if self.ssh:
             raise NotImplementedError()
 
-        cmd = ['sudo', 'zfs', 'send']
+        cmd = ['zfs', 'send']
 
         # cmd.append('-v')
         cmd.append('-P')
@@ -330,7 +330,7 @@ class ZFSSnapshot(ZFSDataset):
         if self.ssh:
             raise NotImplementedError()
 
-        cmd = ['sudo', 'zfs', 'send', '-nv']
+        cmd = ['zfs', 'send', '-nv']
 
         if base is not None:
             cmd.append('-I')
@@ -352,7 +352,7 @@ class ZFSSnapshot(ZFSDataset):
         return out.split(' ')[-1]
 
     def hold(self, tag, recursive=False):
-        cmd = ['sudo', 'zfs', 'hold']
+        cmd = ['zfs', 'hold']
 
         if recursive:
             cmd.append('-r')
@@ -363,7 +363,7 @@ class ZFSSnapshot(ZFSDataset):
         sp.check_output(cmd, ssh=self.ssh)
 
     def holds(self):
-        cmd = ['sudo', 'zfs', 'holds']
+        cmd = ['zfs', 'holds']
 
         cmd.append('-H')
 
@@ -375,7 +375,7 @@ class ZFSSnapshot(ZFSDataset):
         return [hold[1] for hold in out]
 
     def release(self, tag, recursive=False):
-        cmd = ['sudo', 'zfs', 'release']
+        cmd = ['zfs', 'release']
 
         if recursive:
             cmd.append('-r')
