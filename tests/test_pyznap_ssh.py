@@ -12,6 +12,8 @@ import sys
 import os
 import random
 import string
+import logging
+from logging.config import fileConfig
 from tempfile import NamedTemporaryFile
 from datetime import datetime
 import pytest
@@ -26,18 +28,19 @@ from process import DatasetNotFoundError
 import process
 
 
-logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
-
+__dirname__ = os.path.dirname(os.path.abspath(__file__))
+fileConfig(os.path.join(__dirname__, '../logging.ini'), disable_existing_loggers=False)
+logger = logging.getLogger(__name__)
 
 def randomword(length):
    letters = string.ascii_lowercase
    return ''.join(random.choice(letters) for i in range(length))
 
 # ssh connection to dest
-USER = 'yboetz'
-HOST = '192.168.1.102'
+USER = 'root'
+HOST = 'localhost'
 PORT = 22
-KEY = None
+KEY = '/home/yboetz/.ssh/id_rsa'
 
 
 @pytest.fixture(scope='module')
@@ -73,13 +76,13 @@ def zpools():
         try:
             sp.check_output([zpool, 'create', pool0, filename0])
         except sp.CalledProcessError as err:
-            print('{:s} ERROR: {}'.format(logtime(), err))
+            logger.error(err)
             return
 
         try:
             sp.check_output([zpool, 'create', pool1, filename1], ssh=ssh)
         except sp.CalledProcessError as err:
-            print('{:s} ERROR: {}'.format(logtime(), err))
+            logger.error(err)
             return
 
         try:
@@ -88,7 +91,7 @@ def zpools():
             assert fs0.name == pool0
             assert fs1.name == pool1
         except (DatasetNotFoundError, AssertionError, Exception) as err:
-            print('{:s} ERROR: {}'.format(logtime(), err))
+            logger.error(err)
         else:
             yield fs0, fs1
 
@@ -96,12 +99,12 @@ def zpools():
         try:
             sp.check_output([zpool, 'destroy', pool0])
         except sp.CalledProcessError as err:
-            print('{:s} ERROR: {}'.format(logtime(), err))
+            logger.error(err)
 
         try:
             sp.check_output([zpool, 'destroy', pool1], ssh=ssh)
         except sp.CalledProcessError as err:
-            print('{:s} ERROR: {}'.format(logtime(), err))
+            logger.error(err)
 
     # Delete tempfile on dest
     sftp.remove(sftp_filename)
@@ -317,7 +320,6 @@ class TestSending(object):
 
         fs0.destroy(force=True)
         fs1.destroy(force=True)
-        config = [{'name': fs0.name, 'dest': ['ssh:{:d}:{}'.format(PORT, fs1)], 'dest_keys': [KEY]}]
 
         fs0.snapshot('snap0')
         zfs.create('{:s}/sub1'.format(fs0.name))
@@ -335,6 +337,7 @@ class TestSending(object):
         zfs.create('{:s}/sub3/efg'.format(fs0.name))
         fs0.snapshot('snap8', recursive=True)
         fs0.snapshot('snap9', recursive=True)
+        config = [{'name': fs0.name, 'dest': ['ssh:{:d}:{}'.format(PORT, fs1)], 'dest_keys': [KEY]}]
         send_config(config)
 
         fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
@@ -349,11 +352,11 @@ class TestSending(object):
 
         fs0.destroy(force=True)
         fs1.destroy(force=True)
-        config = [{'name': fs0.name, 'dest': ['ssh:{:d}:{}'.format(PORT, fs1)], 'dest_keys': [KEY]}]
 
         fs0.snapshot('snap0', recursive=True)
         zfs.create('{:s}/sub1'.format(fs0.name))
         fs0.snapshot('snap1', recursive=True)
+        config = [{'name': fs0.name, 'dest': ['ssh:{:d}:{}'.format(PORT, fs1)], 'dest_keys': [KEY]}]
         send_config(config)
         fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
         fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'], ssh=ssh)[1:]]
@@ -361,6 +364,7 @@ class TestSending(object):
 
         zfs.create('{:s}/sub2'.format(fs0.name))
         fs0.snapshot('snap2', recursive=True)
+        config = [{'name': fs0.name, 'dest': ['ssh:{:d}:{}'.format(PORT, fs1)], 'dest_keys': [KEY]}]
         send_config(config)
         fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
         fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'], ssh=ssh)[1:]]
@@ -368,6 +372,7 @@ class TestSending(object):
 
         zfs.create('{:s}/sub3'.format(fs0.name))
         fs0.snapshot('snap3', recursive=True)
+        config = [{'name': fs0.name, 'dest': ['ssh:{:d}:{}'.format(PORT, fs1)], 'dest_keys': [KEY]}]
         send_config(config)
         fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
         fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'], ssh=ssh)[1:]]
@@ -379,11 +384,10 @@ class TestSending(object):
         fs0, fs1 = zpools
         ssh = fs1.ssh
 
-        config = [{'name': fs0.name, 'dest': ['ssh:{:d}:{}'.format(PORT, fs1)], 'dest_keys': [KEY]}]
-
         # Delete recent snapshots on dest
         fs1.snapshots()[-1].destroy(force=True)
         fs1.snapshots()[-1].destroy(force=True)
+        config = [{'name': fs0.name, 'dest': ['ssh:{:d}:{}'.format(PORT, fs1)], 'dest_keys': [KEY]}]
         send_config(config)
         fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
         fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'], ssh=ssh)[1:]]
@@ -394,6 +398,7 @@ class TestSending(object):
         send_config(config)
         fs0.snapshots()[-1].destroy(force=True)
         fs0.snapshot('snap5', recursive=True)
+        config = [{'name': fs0.name, 'dest': ['ssh:{:d}:{}'.format(PORT, fs1)], 'dest_keys': [KEY]}]
         send_config(config)
         fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
         fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'], ssh=ssh)[1:]]
@@ -405,14 +410,13 @@ class TestSending(object):
         fs0, fs1 = zpools
         ssh = fs1.ssh
 
-        config = [{'name': fs0.name, 'dest': ['ssh:{:d}:{}'.format(PORT, fs1)], 'dest_keys': [KEY]}]
-
         # Delete subfilesystems
         sub3 = fs1.filesystems()[-1]
         sub3.destroy(force=True)
         fs0.snapshot('snap6', recursive=True)
         sub2 = fs1.filesystems()[-1]
         sub2.destroy(force=True)
+        config = [{'name': fs0.name, 'dest': ['ssh:{:d}:{}'.format(PORT, fs1)], 'dest_keys': [KEY]}]
         send_config(config)
         fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
         fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'], ssh=ssh)[1:]]
@@ -423,12 +427,11 @@ class TestSending(object):
     def test_send_delete_old(self, zpools):
         fs0, fs1 = zpools
         ssh = fs1.ssh
-        
-        config = [{'name': fs0.name, 'dest': ['ssh:{:d}:{}'.format(PORT, fs1)], 'dest_keys': [KEY]}]
 
         # Delete old snapshot on source
         fs0.snapshots()[0].destroy(force=True)
         fs0.snapshot('snap7', recursive=True)
+        config = [{'name': fs0.name, 'dest': ['ssh:{:d}:{}'.format(PORT, fs1)], 'dest_keys': [KEY]}]
         send_config(config)
         fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
         fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'], ssh=ssh)[1:]]

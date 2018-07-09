@@ -10,6 +10,8 @@ Tests for pyznap
 import subprocess as sp
 import sys
 import os
+import logging
+from logging.config import fileConfig
 from tempfile import NamedTemporaryFile
 from datetime import datetime
 import pytest
@@ -23,8 +25,9 @@ from send import send_config
 from process import DatasetNotFoundError
 
 
-logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
-
+__dirname__ = os.path.dirname(os.path.abspath(__file__))
+fileConfig(os.path.join(__dirname__, '../logging.ini'), disable_existing_loggers=False)
+logger = logging.getLogger(__name__)
 
 @pytest.fixture(scope='module')
 def zpools():
@@ -53,7 +56,7 @@ def zpools():
             try:
                 sp.check_call([zpool, 'create', pool, filename])
             except sp.CalledProcessError as err:
-                print('{:s} ERROR: {}'.format(logtime(), err))
+                logger.error(err)
                 return
 
         try:
@@ -62,7 +65,7 @@ def zpools():
             assert fs0.name == pool0
             assert fs1.name == pool1
         except (DatasetNotFoundError, AssertionError, Exception) as err:
-            print('{:s} ERROR: {}'.format(logtime(), err))
+            logger.error(err)
         else:
             yield fs0, fs1
 
@@ -71,7 +74,7 @@ def zpools():
             try:
                 sp.check_call([zpool, 'destroy', pool])
             except sp.CalledProcessError as err:
-                print('{:s} ERROR: {}'.format(logtime(), err))
+                logger.error(err)
 
 
 class TestUtils(object):
