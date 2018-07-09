@@ -6,6 +6,7 @@ Created on Wed Dec 06 2017
 Clean snapshots
 """
 
+import logging
 from datetime import datetime
 from subprocess import CalledProcessError
 from paramiko.ssh_exception import SSHException
@@ -13,6 +14,7 @@ from utils import open_ssh, parse_name
 import pyzfs as zfs
 from process import DatasetBusyError, DatasetNotFoundError
 
+logger = logging.getLogger(__name__)
 
 def clean_snap(filesystem, conf):
     """Deletes snapshots of a single filesystem according to conf.
@@ -25,9 +27,7 @@ def clean_snap(filesystem, conf):
         Config entry with snapshot strategy
     """
 
-    logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
-
-    # print('{:s} INFO: Cleaning snapshots on {:s}...'.format(logtime(), filesystem))
+    logger.debug('Cleaning snapshots on {}...'.format(filesystem))
 
     snapshots = {'frequent': [], 'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
     for snap in filesystem.snapshots():
@@ -46,46 +46,46 @@ def clean_snap(filesystem, conf):
         snaps.reverse()
 
     for snap in snapshots['yearly'][conf['yearly']:]:
-        print('{:s} INFO: Deleting snapshot {}...'.format(logtime(), snap))
+        logger.info('Deleting snapshot {}...'.format(snap))
         try:
             snap.destroy()
         except (DatasetBusyError, CalledProcessError) as err:
-            print('{:s} ERROR: {}'.format(logtime(), err))
+            logger.error(err)
 
     for snap in snapshots['monthly'][conf['monthly']:]:
-        print('{:s} INFO: Deleting snapshot {}...'.format(logtime(), snap))
+        logger.info('Deleting snapshot {}...'.format(snap))
         try:
             snap.destroy()
         except (DatasetBusyError, CalledProcessError) as err:
-            print('{:s} ERROR: {}'.format(logtime(), err))
+            logger.error(err)
 
     for snap in snapshots['weekly'][conf['weekly']:]:
-        print('{:s} INFO: Deleting snapshot {}...'.format(logtime(), snap))
+        logger.info('Deleting snapshot {}...'.format(snap))
         try:
             snap.destroy()
         except (DatasetBusyError, CalledProcessError) as err:
-            print('{:s} ERROR: {}'.format(logtime(), err))
+            logger.error(err)
 
     for snap in snapshots['daily'][conf['daily']:]:
-        print('{:s} INFO: Deleting snapshot {}...'.format(logtime(), snap))
+        logger.info('Deleting snapshot {}...'.format(snap))
         try:
             snap.destroy()
         except (DatasetBusyError, CalledProcessError) as err:
-            print('{:s} ERROR: {}'.format(logtime(), err))
+            logger.error(err)
 
     for snap in snapshots['hourly'][conf['hourly']:]:
-        print('{:s} INFO: Deleting snapshot {}...'.format(logtime(), snap))
+        logger.info('Deleting snapshot {}...'.format(snap))
         try:
             snap.destroy()
         except (DatasetBusyError, CalledProcessError) as err:
-            print('{:s} ERROR: {}'.format(logtime(), err))
+            logger.error(err)
 
     for snap in snapshots['frequent'][conf['frequent']:]:
-        print('{:s} INFO: Deleting snapshot {}...'.format(logtime(), snap))
+        logger.info('Deleting snapshot {}...'.format(snap))
         try:
             snap.destroy()
         except (DatasetBusyError, CalledProcessError) as err:
-            print('{:s} ERROR: {}'.format(logtime(), err))
+            logger.error(err)
 
 
 def clean_config(config):
@@ -98,8 +98,7 @@ def clean_config(config):
         Full config list containing all strategies for different filesystems
     """
 
-    logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
-    print('{:s} INFO: Cleaning snapshots...'.format(logtime()))
+    logger.info('Cleaning snapshots...')
 
     for conf in config:
         if not conf.get('clean', None):
@@ -109,8 +108,7 @@ def clean_config(config):
         try:
             _type, fsname, user, host, port = parse_name(name)
         except ValueError as err:
-            print('{:s} ERROR: Could not parse {:s}: {}...'
-                  .format(logtime(), name, err))
+            logger.error('Could not parse {:s}: {}...'.format(name, err))
             continue
 
         if _type == 'ssh':
@@ -125,7 +123,7 @@ def clean_config(config):
             # Children includes the base filesystem (filesystem)
             children = zfs.find(path=fsname, types=['filesystem', 'volume'], ssh=ssh)
         except (ValueError, DatasetNotFoundError, CalledProcessError) as err:
-            print('{:s} ERROR: {}'.format(logtime(), err))
+            logger.error(err)
             continue
 
         # Clean snapshots of parent filesystem

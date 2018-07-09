@@ -7,6 +7,7 @@ Helper functions
 """
 
 import os
+import logging
 from datetime import datetime
 from configparser import ConfigParser, NoOptionError
 from subprocess import Popen, PIPE
@@ -18,6 +19,7 @@ from paramiko.ssh_exception import (AuthenticationException, BadAuthenticationTy
                                     PasswordRequiredException, SSHException, PartialAuthentication,
                                     ProxyCommandFailure)
 
+logger = logging.getLogger(__name__)
 
 def exists(executable=''):
     """Tests if an executable exists on the system.
@@ -68,12 +70,10 @@ def open_ssh(user, host, key=None, port=22):
         Open ssh connection.
     """
 
-    logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
-
     if not key:
         key = '/home/{:s}/.ssh/id_rsa'.format(user)
     if not os.path.isfile(key):
-        print('{:s} ERROR: {} is not a valid ssh key file...'.format(logtime(), key))
+        logger.error('{} is not a valid ssh key file...'.format(key))
         raise FileNotFoundError(key)
 
     ssh = pm.SSHClient()
@@ -91,7 +91,7 @@ def open_ssh(user, host, key=None, port=22):
             BadHostKeyException, ChannelException, NoValidConnectionsError,
             PasswordRequiredException, SSHException, PartialAuthentication,
             ProxyCommandFailure, timeout, gaierror) as err:
-        print('{:s} ERROR: Could not connect to host {:s}: {}...'.format(logtime(), host, err))
+        logger.error('Could not connect to host {:s}: {}...'.format(host, err))
         # Raise general exception to be catched outside
         raise SSHException(err)
 

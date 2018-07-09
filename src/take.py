@@ -6,6 +6,7 @@ Created on Wed Dec 06 2017
 Take snapshots
 """
 
+import logging
 from datetime import datetime, timedelta
 from subprocess import CalledProcessError
 from paramiko.ssh_exception import SSHException
@@ -13,6 +14,7 @@ from utils import open_ssh, parse_name
 import pyzfs as zfs
 from process import DatasetBusyError, DatasetNotFoundError
 
+logger = logging.getLogger(__name__)
 
 def take_snap(filesystem, conf):
     """Takes snapshots of a single filesystem according to conf.
@@ -25,10 +27,8 @@ def take_snap(filesystem, conf):
         Config entry with snapshot strategy
     """
 
-    logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
+    logger.debug('Taking snapshots on {}...'.format(filesystem))
     now = datetime.now
-
-    # print('{:s} INFO: Taking snapshots on {:s}...'.format(logtime(), filesystem))
 
     snapshots = {'frequent': [], 'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
     for snap in filesystem.snapshots():
@@ -50,56 +50,56 @@ def take_snap(filesystem, conf):
 
     if conf['yearly'] and (not snapshots['yearly'] or
                            snapshots['yearly'][0][1].year != now().year):
-        print('{:s} INFO: Taking snapshot {}@{:s}...'.format(logtime(), filesystem, snapname('yearly')))
+        logger.info('Taking snapshot {}@{:s}...'.format(filesystem, snapname('yearly')))
         try:
             filesystem.snapshot(snapname=snapname('yearly'), recursive=True)
         except (DatasetBusyError, CalledProcessError) as err:
-            print('{:s} ERROR: {}'.format(logtime(), err))
+            logger.error(err)
 
     if conf['monthly'] and (not snapshots['monthly'] or
                             snapshots['monthly'][0][1].month != now().month or
                             now() - snapshots['monthly'][0][1] > timedelta(days=31)):
-        print('{:s} INFO: Taking snapshot {}@{:s}...'.format(logtime(), filesystem, snapname('monthly')))
+        logger.info('Taking snapshot {}@{:s}...'.format(filesystem, snapname('monthly')))
         try:
             filesystem.snapshot(snapname=snapname('monthly'), recursive=True)
         except (DatasetBusyError, CalledProcessError) as err:
-            print('{:s} ERROR: {}'.format(logtime(), err))
+            logger.error(err)
 
     if conf['weekly'] and (not snapshots['weekly'] or
                            snapshots['weekly'][0][1].isocalendar()[1] != now().isocalendar()[1] or
                            now() - snapshots['weekly'][0][1] > timedelta(days=7)):
-        print('{:s} INFO: Taking snapshot {}@{:s}...'.format(logtime(), filesystem, snapname('weekly')))
+        logger.info('Taking snapshot {}@{:s}...'.format(filesystem, snapname('weekly')))
         try:
             filesystem.snapshot(snapname=snapname('weekly'), recursive=True)
         except (DatasetBusyError, CalledProcessError) as err:
-            print('{:s} ERROR: {}'.format(logtime(), err))
+            logger.error(err)
 
     if conf['daily'] and (not snapshots['daily'] or
                           snapshots['daily'][0][1].day != now().day or
                           now() - snapshots['daily'][0][1] > timedelta(days=1)):
-        print('{:s} INFO: Taking snapshot {}@{:s}...'.format(logtime(), filesystem, snapname('daily')))
+        logger.info('Taking snapshot {}@{:s}...'.format(filesystem, snapname('daily')))
         try:
             filesystem.snapshot(snapname=snapname('daily'), recursive=True)
         except (DatasetBusyError, CalledProcessError) as err:
-            print('{:s} ERROR: {}'.format(logtime(), err))
+            logger.error(err)
 
     if conf['hourly'] and (not snapshots['hourly'] or
                            snapshots['hourly'][0][1].hour != now().hour or
                            now() - snapshots['hourly'][0][1] > timedelta(hours=1)):
-        print('{:s} INFO: Taking snapshot {}@{:s}...'.format(logtime(), filesystem, snapname('hourly')))
+        logger.info('Taking snapshot {}@{:s}...'.format(filesystem, snapname('hourly')))
         try:
             filesystem.snapshot(snapname=snapname('hourly'), recursive=True)
         except (DatasetBusyError, CalledProcessError) as err:
-            print('{:s} ERROR: {}'.format(logtime(), err))
+            logger.error(err)
 
     if conf['frequent'] and (not snapshots['frequent'] or
                              snapshots['frequent'][0][1].minute//15 != now().minute//15 or
                              now() - snapshots['frequent'][0][1] > timedelta(minutes=15)):
-        print('{:s} INFO: Taking snapshot {}@{:s}...'.format(logtime(), filesystem, snapname('frequent')))
+        logger.info('Taking snapshot {}@{:s}...'.format(filesystem, snapname('frequent')))
         try:
             filesystem.snapshot(snapname=snapname('frequent'), recursive=True)
         except (DatasetBusyError, CalledProcessError) as err:
-            print('{:s} ERROR: {}'.format(logtime(), err))
+            logger.error(err)
 
 
 def take_config(config):
@@ -111,8 +111,7 @@ def take_config(config):
         Full config list containing all strategies for different filesystems
     """
 
-    logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
-    print('{:s} INFO: Taking snapshots...'.format(logtime()))
+    logger.info('Taking snapshots...')
 
     for conf in config:
         if not conf.get('snap', None):
@@ -122,8 +121,7 @@ def take_config(config):
         try:
             _type, fsname, user, host, port = parse_name(name)
         except ValueError as err:
-            print('{:s} ERROR: Could not parse {:s}: {}...'
-                  .format(logtime(), name, err))
+            logger.error('Could not parse {:s}: {}...'.format(name, err))
             continue
 
         if _type == 'ssh':
@@ -138,7 +136,7 @@ def take_config(config):
             # Children includes the base filesystem (filesystem)
             children = zfs.find(path=fsname, types=['filesystem', 'volume'], ssh=ssh)
         except (ValueError, DatasetNotFoundError, CalledProcessError) as err:
-            print('{:s} ERROR: {}'.format(logtime(), err))
+            logger.error(err)
             continue
 
         # Take recursive snapshot of parent filesystem

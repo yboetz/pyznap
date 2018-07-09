@@ -8,6 +8,9 @@ ZFS snapshot tool written in python.
 """
 
 import sys
+import os
+import logging
+from logging.config import fileConfig
 from argparse import ArgumentParser
 from datetime import datetime
 from configparser import MissingSectionHeaderError
@@ -18,10 +21,14 @@ from send import send_config
 
 
 __version__ = '0.1.0'
+DIRNAME = os.path.dirname(os.path.abspath(__file__))
 
 if __name__ == "__main__":
-    logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
-    print('{:s} INFO: Starting pyznap...'.format(logtime()))
+    fileConfig(os.path.join(DIRNAME, '../logging.ini'), disable_existing_loggers=False)
+    logger = logging.getLogger(__name__)
+    logging.getLogger("paramiko").setLevel(logging.WARNING)
+
+    logger.info('Starting pyznap...')
 
     parser = ArgumentParser(prog='pyznap', description='ZFS snapshot tool written in python')
     parser.add_argument('--config', action="store",
@@ -51,14 +58,14 @@ if __name__ == "__main__":
         config_path = args.config if args.config else '/etc/pyznap/pyznap.conf'
         config = read_config(config_path)
     except FileNotFoundError as err:
-        print('{:s} ERROR: Config file does not exist...'.format(logtime()))
+        logger.error('Config file does not exist...')
         sys.exit(1)
     except MissingSectionHeaderError as err:
-        print('{:s} ERROR: Config file contains no section headers...'.format(logtime()))
+        logger.error('Config file contains no section headers...')
         sys.exit(1)
 
     if args.version:
-        print('{:s} INFO: pyznap version: {:s}'.format(logtime(), __version__))
+        logger.info('pyznap version: {:s}'.format(__version__))
 
     elif args.command == 'snap':
         # Default if no args are given
@@ -76,11 +83,11 @@ if __name__ == "__main__":
             key = [args.key] if args.key else None
             send_config([{'name': args.source, 'dest': [args.dest], 'dest_keys': key}])
         elif args.source and not args.dest:
-            print('{:s} ERROR: Missing dest...'.format(logtime()))
+            logger.error('Missing dest...')
         elif args.dest and not args.source:
-            print('{:s} ERROR: Missing source...'.format(logtime()))
+            logger.error('Missing source...')
         else:
             send_config(config)
 
-    print('{:s} INFO: Finished successfully...\n'.format(logtime()))
+    logger.info('Finished successfully...\n')
     sys.exit(0)

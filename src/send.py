@@ -6,6 +6,7 @@ Created on Wed Dec 06 2017
 Send snapshots
 """
 
+import logging
 from datetime import datetime
 from subprocess import Popen, PIPE, CalledProcessError
 from paramiko.ssh_exception import SSHException
@@ -13,6 +14,7 @@ from utils import open_ssh, parse_name, exists
 import pyzfs as zfs
 from process import DatasetBusyError, DatasetNotFoundError, DatasetExistsError
 
+logger = logging.getLogger(__name__)
 
 # Use mbuffer if installed on the system
 if exists('mbuffer'):
@@ -41,14 +43,12 @@ def send_recv(snapshot, dest_name, base=None, ssh=None):
         True if success, False if not
     """
 
-    logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
-
     try:
         with snapshot.send(base=base, intermediates=True) as send:
             with Popen(MBUFFER, stdin=send.stdout, stdout=PIPE) as mbuffer:
                 zfs.receive(name=dest_name, stdin=mbuffer.stdout, ssh=ssh, force=True, nomount=True)
     except (DatasetNotFoundError, DatasetExistsError, DatasetBusyError, CalledProcessError) as err:
-        print('{:s} ERROR: {}'.format(logtime(), err))
+        logger.error(err)
         return False
     else:
         return True
@@ -74,8 +74,6 @@ def send_snap(source_fs, dest_name, ssh=None):
         True if success, False if not
     """
 
-    logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
-
     if ssh:
         user = ssh.get_transport().get_username()
         host, *_ = ssh.get_transport().getpeername()
@@ -83,7 +81,7 @@ def send_snap(source_fs, dest_name, ssh=None):
     else:
         dest_name_log = dest_name
 
-    # print('{:s} INFO: Sending {} to {:s}...'.format(logtime(), source_fs, dest_name_log))
+    logger.debug('Sending {} to {:s}...'.format(source_fs, dest_name_log))
 
     # Get snapshots on source
     snapshots = source_fs.snapshots()[::-1]
@@ -92,8 +90,7 @@ def send_snap(source_fs, dest_name, ssh=None):
         snapshot = snapshots[0]     # Most recent snapshot
         base = snapshots[-1]        # Oldest snapshot
     except IndexError:
-        print('{:s} ERROR: No snapshots on {:s}, cannot send...'
-              .format(logtime(), source_fs.name))
+        logger.error('No snapshots on {}, cannot send...'.format(source_fs))
         return False
 
     try:
@@ -108,23 +105,23 @@ def send_snap(source_fs, dest_name, ssh=None):
 
     if not common:
         if dest_snapnames:
-            print('{:s} ERROR: No common snapshots on {:s}, but snapshots exist. Not sending...'
-                  .format(logtime(), dest_name_log), flush=True)
+            logger.error('No common snapshots on {:s}, but snapshots exist. Not sending...'
+                         .format(dest_name_log))
             return False
         else:
-            print('{:s} INFO: No common snapshots on {:s}, sending oldest snapshot {} (~{:s})...'
-                  .format(logtime(), dest_name_log, base, base.stream_size()), flush=True)
+            logger.info('No common snapshots on {:s}, sending oldest snapshot {} (~{:s})...'
+                        .format(dest_name_log, base, base.stream_size()))
             send_recv(base, dest_name, base=None, ssh=ssh)
     else:
         # If there are common snapshots, get the most recent one
         base = next(filter(lambda x: x.name.split('@')[1] in common, snapshots), None)
 
     if base.name != snapshot.name:
-        print('{:s} INFO: Updating {:s} with recent snapshot {} (~{:s})...'
-              .format(logtime(), dest_name_log, snapshot, snapshot.stream_size(base)), flush=True)
+        logger.info('Updating {:s} with recent snapshot {} (~{:s})...'
+                    .format(dest_name_log, snapshot, snapshot.stream_size(base)))
         send_recv(snapshot, dest_name, base=base, ssh=ssh)
 
-    print('{:s} INFO: {:s} is up to date...'.format(logtime(), dest_name_log))
+    logger.info('{:s} is up to date...'.format(dest_name_log))
     return True
 
 
@@ -138,8 +135,7 @@ def send_config(config):
         Full config list containing all strategies for different filesystems
     """
 
-    logtime = lambda: datetime.now().strftime('%b %d %H:%M:%S')
-    print('{:s} INFO: Sending snapshots...'.format(logtime()))
+    logger.info('Sending snapshots...')
 
     for conf in config:
         if not conf.get('dest', None):
@@ -147,22 +143,21 @@ def send_config(config):
 
         source_fs_name = conf['name']
         if source_fs_name.startswith('ssh'):
-            print('{:s} ERROR: Cannot send from remote location...'.format(logtime()))
+            logger.error('Cannot send from remote location...')
             continue
 
         try:
             # Children includes the base filesystem (source_fs)
             source_children = zfs.find(path=source_fs_name, types=['filesystem', 'volume'])
         except (ValueError, DatasetNotFoundError, CalledProcessError) as err:
-            print('{:s} ERROR: {}'.format(logtime(), err))
+            logger.error(err)
             continue
 
         for backup_dest in conf['dest']:
             try:
                 _type, dest_name, user, host, port = parse_name(backup_dest)
             except ValueError as err:
-                print('{:s} ERROR: Could not parse {:s}: {}...'
-                      .format(logtime(), backup_dest, err))
+                logger.error('Could not parse {:s}: {}...'.format(backup_dest, err))
                 continue
 
             if _type == 'ssh':
@@ -180,11 +175,10 @@ def send_config(config):
             try:
                 zfs.open(dest_name, ssh=ssh)
             except DatasetNotFoundError:
-                print('{:s} ERROR: Destination {:s} does not exist...'
-                      .format(logtime(), dest_name_log))
+                logger.error('Destination {:s} does not exist...'.format(dest_name_log))
                 continue
             except (ValueError, CalledProcessError) as err:
-                print('{:s} ERROR: {}'.format(logtime(), err))
+                logger.error(err)
                 continue
 
             # Match children on source to children on dest
