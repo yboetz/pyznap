@@ -1,2 +1,2 @@
 configparser==3.5.0
-paramiko==2.4.0
+paramiko==2.4.1
