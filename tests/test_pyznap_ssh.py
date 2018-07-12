@@ -1,4 +1,4 @@
-#!/home/yboetz/.virtualenvs/pyznap/bin/pytest -v
+#!/usr/bin/env pytest -v
 """
 Created on Sat Dec 09 2017
 

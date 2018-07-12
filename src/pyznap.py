@@ -1,4 +1,4 @@
-#!/home/yboetz/.virtualenvs/pyznap/bin/python
+#!/usr/bin/env python
 """
 Created on Sat Aug 12 2017
 
