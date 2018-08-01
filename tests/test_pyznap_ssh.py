@@ -40,7 +40,7 @@ def randomword(length):
 USER = 'root'
 HOST = 'localhost'
 PORT = 22
-KEY = '/home/yboetz/.ssh/id_rsa'
+KEY = None
 
 
 @pytest.fixture(scope='module')
