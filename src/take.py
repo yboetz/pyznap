@@ -14,7 +14,6 @@ from utils import open_ssh, parse_name
 import pyzfs as zfs
 from process import DatasetBusyError, DatasetNotFoundError
 
-logger = logging.getLogger(__name__)
 
 def take_snap(filesystem, conf):
     """Takes snapshots of a single filesystem according to conf.
@@ -27,6 +26,7 @@ def take_snap(filesystem, conf):
         Config entry with snapshot strategy
     """
 
+    logger = logging.getLogger(__name__)
     logger.debug('Taking snapshots on {}...'.format(filesystem))
     now = datetime.now
 
@@ -111,6 +111,7 @@ def take_config(config):
         Full config list containing all strategies for different filesystems
     """
 
+    logger = logging.getLogger(__name__)
     logger.info('Taking snapshots...')
 
     for conf in config:

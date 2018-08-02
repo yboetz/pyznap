@@ -14,7 +14,6 @@ from utils import open_ssh, parse_name
 import pyzfs as zfs
 from process import DatasetBusyError, DatasetNotFoundError
 
-logger = logging.getLogger(__name__)
 
 def clean_snap(filesystem, conf):
     """Deletes snapshots of a single filesystem according to conf.
@@ -27,6 +26,7 @@ def clean_snap(filesystem, conf):
         Config entry with snapshot strategy
     """
 
+    logger = logging.getLogger(__name__)
     logger.debug('Cleaning snapshots on {}...'.format(filesystem))
 
     snapshots = {'frequent': [], 'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
@@ -98,6 +98,7 @@ def clean_config(config):
         Full config list containing all strategies for different filesystems
     """
 
+    logger = logging.getLogger(__name__)
     logger.info('Cleaning snapshots...')
 
     for conf in config:

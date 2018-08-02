@@ -19,7 +19,6 @@ from paramiko.ssh_exception import (AuthenticationException, BadAuthenticationTy
                                     PasswordRequiredException, SSHException, PartialAuthentication,
                                     ProxyCommandFailure)
 
-logger = logging.getLogger(__name__)
 
 def exists(executable=''):
     """Tests if an executable exists on the system.
@@ -70,15 +69,17 @@ def open_ssh(user, host, key=None, port=22):
         Open ssh connection.
     """
 
+    logger = logging.getLogger(__name__)
+
     if not key:
-        key = '/home/{:s}/.ssh/id_rsa'.format(user)
+        key = os.path.expanduser('~/.ssh/id_rsa')
     if not os.path.isfile(key):
         logger.error('{} is not a valid ssh key file...'.format(key))
         raise FileNotFoundError(key)
 
     ssh = pm.SSHClient()
     try:
-        ssh.load_system_host_keys('/home/{:s}/.ssh/known_hosts'.format(user))
+        ssh.load_system_host_keys(os.path.expanduser('~/.ssh/known_hosts'))
     except FileNotFoundError:
         ssh.load_system_host_keys()
     ssh.set_missing_host_key_policy(pm.WarningPolicy())

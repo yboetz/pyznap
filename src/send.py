@@ -14,7 +14,6 @@ from utils import open_ssh, parse_name, exists
 import pyzfs as zfs
 from process import DatasetBusyError, DatasetNotFoundError, DatasetExistsError
 
-logger = logging.getLogger(__name__)
 
 # Use mbuffer if installed on the system
 if exists('mbuffer'):
@@ -42,6 +41,8 @@ def send_recv(snapshot, dest_name, base=None, ssh=None):
     bool
         True if success, False if not
     """
+
+    logger = logging.getLogger(__name__)
 
     try:
         with snapshot.send(base=base, intermediates=True) as send:
@@ -73,6 +74,8 @@ def send_snap(source_fs, dest_name, ssh=None):
     bool
         True if success, False if not
     """
+
+    logger = logging.getLogger(__name__)
 
     if ssh:
         user = ssh.get_transport().get_username()
@@ -135,6 +138,7 @@ def send_config(config):
         Full config list containing all strategies for different filesystems
     """
 
+    logger = logging.getLogger(__name__)
     logger.info('Sending snapshots...')
 
     for conf in config:

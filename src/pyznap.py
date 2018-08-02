@@ -23,7 +23,7 @@ from send import send_config
 __version__ = '0.1.0'
 DIRNAME = os.path.dirname(os.path.abspath(__file__))
 
-if __name__ == "__main__":
+def main():
     fileConfig(os.path.join(DIRNAME, '../logging.ini'), disable_existing_loggers=False)
     logger = logging.getLogger(__name__)
     logging.getLogger("paramiko").setLevel(logging.WARNING)
@@ -90,4 +90,7 @@ if __name__ == "__main__":
             send_config(config)
 
     logger.info('Finished successfully...\n')
+
+if __name__ == "__main__":
+    main()
     sys.exit(0)
