@@ -38,7 +38,7 @@ def randomword(length):
 
 # ssh connection to dest
 USER = 'root'
-HOST = 'localhost'
+HOST = '127.0.0.1'
 PORT = 22
 KEY = None
 
