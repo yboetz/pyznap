@@ -7,7 +7,7 @@ Python ZFS bindings, forked from https://bitbucket.org/stevedrake/weir/
 """
 
 import subprocess as sp
-import process
+import pyznap.process
 
 
 def find(path=None, ssh=None, max_depth=None, types=[]):

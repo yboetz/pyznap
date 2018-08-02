@@ -10,9 +10,9 @@ import logging
 from datetime import datetime, timedelta
 from subprocess import CalledProcessError
 from paramiko.ssh_exception import SSHException
-from utils import open_ssh, parse_name
-import pyzfs as zfs
-from process import DatasetBusyError, DatasetNotFoundError
+from .utils import open_ssh, parse_name
+import pyznap.pyzfs as zfs
+from .process import DatasetBusyError, DatasetNotFoundError
 
 
 def take_snap(filesystem, conf):

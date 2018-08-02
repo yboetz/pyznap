@@ -10,9 +10,9 @@ import logging
 from datetime import datetime
 from subprocess import Popen, PIPE, CalledProcessError
 from paramiko.ssh_exception import SSHException
-from utils import open_ssh, parse_name, exists
-import pyzfs as zfs
-from process import DatasetBusyError, DatasetNotFoundError, DatasetExistsError
+from .utils import open_ssh, parse_name, exists
+import pyznap.pyzfs as zfs
+from .process import DatasetBusyError, DatasetNotFoundError, DatasetExistsError
 
 
 # Use mbuffer if installed on the system

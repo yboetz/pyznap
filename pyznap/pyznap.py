@@ -9,22 +9,24 @@ ZFS snapshot tool written in python.
 
 import sys
 import os
+import re
 import logging
 from logging.config import fileConfig
 from argparse import ArgumentParser
 from datetime import datetime
 from configparser import MissingSectionHeaderError
-from utils import read_config
-from clean import clean_config
-from take import take_config
-from send import send_config
+from .utils import read_config
+from .clean import clean_config
+from .take import take_config
+from .send import send_config
 
 
-__version__ = '0.1.0'
 DIRNAME = os.path.dirname(os.path.abspath(__file__))
 
 def main():
-    fileConfig(os.path.join(DIRNAME, '../logging.ini'), disable_existing_loggers=False)
+    # fileConfig(os.path.join(DIRNAME, '../logging.ini'), disable_existing_loggers=False)
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s',
+                        datefmt='%b %d %H:%M:%S')
     logger = logging.getLogger(__name__)
     logging.getLogger("paramiko").setLevel(logging.WARNING)
 
@@ -65,7 +67,9 @@ def main():
         sys.exit(1)
 
     if args.version:
-        logger.info('pyznap version: {:s}'.format(__version__))
+        with open(os.path.join(DIRNAME, '__init__.py'), 'r') as file:
+            version = re.search(r'__version__ = \'(.*?)\'', file.read()).group(1)
+        logger.info('pyznap version: {:s}'.format(version))
 
     elif args.command == 'snap':
         # Default if no args are given
