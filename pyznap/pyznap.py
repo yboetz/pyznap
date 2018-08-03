@@ -24,7 +24,6 @@ from .send import send_config
 DIRNAME = os.path.dirname(os.path.abspath(__file__))
 
 def main():
-    # fileConfig(os.path.join(DIRNAME, '../logging.ini'), disable_existing_loggers=False)
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s',
                         datefmt='%b %d %H:%M:%S')
     logger = logging.getLogger(__name__)
