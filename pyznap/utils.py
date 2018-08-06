@@ -9,9 +9,10 @@ Helper functions
 import os
 import logging
 from datetime import datetime
-from configparser import ConfigParser, NoOptionError
+from configparser import ConfigParser, NoOptionError, MissingSectionHeaderError
 from subprocess import Popen, PIPE
 from socket import timeout, gaierror
+from pkg_resources import resource_string
 
 import paramiko as pm
 from paramiko.ssh_exception import (AuthenticationException, BadAuthenticationType,
@@ -118,16 +119,23 @@ def read_config(path):
         Full config list containing all strategies for different filesystems
     """
 
-    if not os.path.isfile(path):
-        raise FileNotFoundError('File does not exist.')
+    logger = logging.getLogger(__name__)
 
+    if not os.path.isfile(path):
+        logger.error('Error while loading config: File {:s} does not exist.'.format(path))
+        return None
+
+    parser = ConfigParser()
+    try:
+        parser.read(path)
+    except MissingSectionHeaderError as e:
+        logger.error('Error while loading config: {}'.format(e))
+        return None
+
+    config = []
     options = ['key', 'frequent', 'hourly', 'daily', 'weekly', 'monthly', 'yearly', 'snap', 'clean',
                'dest', 'dest_keys']
 
-    parser = ConfigParser()
-    parser.read(path)
-
-    config = []
     for section in parser.sections():
         dic = {}
         config.append(dic)
@@ -188,3 +196,50 @@ def parse_name(value):
         _type, user, host, port = 'local', None, None, None
         fsname = value
     return _type, fsname, user, host, port
+
+
+def create_config(path):
+    """Initial configuration: Creates dir 'path' and puts sample config there
+
+    Parameters
+    ----------
+    path : str
+        Path where to store config file
+
+    """
+
+    logger = logging.getLogger(__name__)
+
+    CONFIG_FILE = os.path.join(path, 'pyznap.conf')
+    config = resource_string(__name__, 'config/pyznap.conf').decode("utf-8")
+
+    logger.info('Initial setup...')
+
+    if not os.path.isdir(path):
+        logger.info('Creating directory {:s}...'.format(path))
+        try:
+            os.mkdir(path, mode=int('755', base=8))
+        except (PermissionError, FileNotFoundError) as e:
+            logger.error('Could not create {:s}: {}'.format(path, e))
+            logger.error('Aborting setup...')
+            return 1
+    else:
+        logger.info('Directory {:s} does already exist...'.format(path))
+
+    if not os.path.isfile(CONFIG_FILE):
+        logger.info('Creating sample config {:s}...'.format(CONFIG_FILE))
+        try:
+            with open(CONFIG_FILE, 'w') as file:
+                file.write(config)
+        except (PermissionError, FileNotFoundError) as e:
+            logger.error('Could not write to file {:s}: {}'.format(CONFIG_FILE, e))
+        else:
+            try:
+                os.chmod(CONFIG_FILE, mode=int('644', base=8))
+            except PermissionError as e:
+                logger.error('Could not set correct permissions on file {:s}. Please do so manually'
+                             .format(CONFIG_FILE))
+    else:
+        logger.info('File {:s} does already exist...'.format(CONFIG_FILE))
+
+    return 0

@@ -14,14 +14,14 @@ import logging
 from logging.config import fileConfig
 from argparse import ArgumentParser
 from datetime import datetime
-from configparser import MissingSectionHeaderError
-from .utils import read_config
+from .utils import read_config, create_config
 from .clean import clean_config
 from .take import take_config
 from .send import send_config
 
 
 DIRNAME = os.path.dirname(os.path.abspath(__file__))
+CONFIG_DIR = '/etc/pyznap/'
 
 def main():
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s',
@@ -53,22 +53,26 @@ def main():
     parser_send.add_argument('-i', '--key', action="store",
                              dest='key', help='ssh key for destination')
 
+    parser_setup = subparsers.add_parser('setup', help='initial setup')
+    parser_setup.add_argument('-p', '--path', action='store',
+                              dest='path', help='pyznap config dir. default is {:s}'.format(CONFIG_DIR))
+
     args = parser.parse_args(sys.argv[1:])
 
-    try:
+    if args.command in ('snap', 'send'):
         config_path = args.config if args.config else '/etc/pyznap/pyznap.conf'
         config = read_config(config_path)
-    except FileNotFoundError as err:
-        logger.error('Config file does not exist...')
-        sys.exit(1)
-    except MissingSectionHeaderError as err:
-        logger.error('Config file contains no section headers...')
-        sys.exit(1)
+        if config == None:
+            return 1
 
     if args.version:
         with open(os.path.join(DIRNAME, '__init__.py'), 'r') as file:
             version = re.search(r'__version__ = \'(.*?)\'', file.read()).group(1)
         logger.info('pyznap version: {:s}'.format(version))
+
+    elif args.command == 'setup':
+        path = args.path if args.path else CONFIG_DIR
+        create_config(path)
 
     elif args.command == 'snap':
         # Default if no args are given
@@ -93,6 +97,8 @@ def main():
             send_config(config)
 
     logger.info('Finished successfully...\n')
+    return 0
+
 
 if __name__ == "__main__":
     main()
