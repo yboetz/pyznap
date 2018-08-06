@@ -36,7 +36,8 @@ setup(
     extras_require={
         'dev': [
             'pytest>=3',
-            'pytest-dependency>=0.2',
+            'pytest-dependency==0.2',
+            'pytest-runner',
         ]
     },
     classifiers=[

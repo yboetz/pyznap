@@ -13,23 +13,20 @@ import os
 import random
 import string
 import logging
-from logging.config import fileConfig
 from tempfile import NamedTemporaryFile
 from datetime import datetime
 import pytest
 
-sys.path.append(os.path.dirname(os.path.abspath(__file__)) + '/../src')
-import pyzfs as zfs
-from utils import open_ssh, read_config, parse_name
-from clean import clean_config
-from take import take_config
-from send import send_config
-from process import DatasetNotFoundError
-import process
+import pyznap.pyzfs as zfs
+from pyznap.utils import open_ssh, read_config, parse_name
+from pyznap.clean import clean_config
+from pyznap.take import take_config
+from pyznap.send import send_config
+from pyznap.process import DatasetNotFoundError
 
 
-__dirname__ = os.path.dirname(os.path.abspath(__file__))
-fileConfig(os.path.join(__dirname__, '../logging.ini'), disable_existing_loggers=False)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s',
+                    datefmt='%b %d %H:%M:%S')
 logger = logging.getLogger(__name__)
 
 def randomword(length):
