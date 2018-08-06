@@ -20,7 +20,7 @@ with open(os.path.join(DIRNAME, 'pyznap/__init__.py'), 'r') as file:
 setup(
     name='pyznap',
     version=version,
-    description=' ZFS snapshot tool written in Python',
+    description='ZFS snapshot tool written in Python',
     long_description=readme,
     keywords='pyznap zfs snapshot',
     url='https://github.com/yboetz/pyznap',
