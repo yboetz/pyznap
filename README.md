@@ -23,7 +23,8 @@ so you don't clutter your system python installation with additional packages.
 
 pyznap uses `mbuffer` to speed up zfs send/recv, but also works if it is not installed.
 
-Note that ZFS needs root access to run commands.
+Note that ZFS needs root access to run commands. Due to this you should install pyznap under your
+root user.
 
 
 #### How do I set it up? ####
@@ -39,7 +40,7 @@ Before you can use pyznap, you will need to create a config file. For initial se
 
     pyznap setup [-p PATH]
 
-This will create a directory `PATH` (default is `/etc/pyznap`) and copy a sample config there. A
+This will create a directory `PATH` (default is `/etc/pyznap/`) and copy a sample config there. A
 config for your system might look like this (remove the comments):
 
     [rpool/filesystem]
@@ -59,9 +60,9 @@ Then set up a cronjob by opening your `crontab` file
 
 and let pyznap run regularly by adding the following line
 
-    0 * * * *   root    /path/to/pyznap snap >> /var/log/pyznap.log
+    */15 * * * *   root    /path/to/pyznap snap >> /var/log/pyznap.log
 
-This will run pyznap once per hour to take and delete snapshots. If you also want to send your
+This will run pyznap every quarter hour to take and delete snapshots. If you also want to send your
 filesystems to another location you can create a cronjob with
 
     0 0 * * *   root    /path/to/pyznap send >> /var/log/pyznap.log
