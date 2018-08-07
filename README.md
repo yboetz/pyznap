@@ -23,26 +23,24 @@ so you don't clutter your system python installation with additional packages.
 
 pyznap uses `mbuffer` to speed up zfs send/recv, but also works if it is not installed.
 
+Note that ZFS needs root access to run commands.
+
 
 #### How do I set it up? ####
 
-Navigate to the folder where you want to install pyznap, e.g. `/opt` and clone the git repository
+pyznap can easily be installed with pip. In your virtualenv just run
 
-    cd /opt
-    git clone git@github.com:yboetz/pyznap.git
+    pip install pyznap
 
-This will create a folder `opt/pyznap` and download all files from github. Then install the required
-python packages (best in your virtualenv)
+and pyznap & its requirements will be installed. This should also create an executable in your PATH.
+If you want to use your system python installation use the `--user` flag.
 
-    cd pyznap
-    pip install -r requirements.txt
+Before you can use pyznap, you will need to create a config file. For initial setup run
 
-Copy the config file to `/etc/pyznap/pyznap.conf`
+    pyznap setup [-p PATH]
 
-    mkdir /etc/pyznap
-    rsync -av /opt/pyznap/pyznap.conf /etc/pyznap/pyznap.conf
-
-and specify the policy for your filesystems. A sample config might look like this (remove the comments):
+This will create a directory `PATH` (default is `/etc/pyznap`) and copy a sample config there. A
+sample config for your system might look like this (remove the comments):
 
     [rpool/filesystem]
     frequent = 4                          # Keep 4 quarter-hourly snapshots
@@ -61,12 +59,12 @@ Then set up a cronjob by opening your `crontab` file
 
 and let pyznap run regularly by adding the following line
 
-    0 * * * *   root    /path/to/python /opt/pyznap/src/pyznap.py snap >> /var/log/pyznap.log
+    0 * * * *   root    /path/to/pyznap snap >> /var/log/pyznap.log
 
 This will run pyznap once per hour to take and delete snapshots. If you also want to send your
 filesystems to another location you can create a cronjob with
 
-    0 0 * * *   root    /path/to/python /opt/pyznap/src/pyznap.py send >> /var/log/pyznap.log
+    0 0 * * *   root    /path/to/pyznap send >> /var/log/pyznap.log
 
 This will backup your data once per day at 12pm.
 
@@ -83,10 +81,10 @@ A sample config which backs up a filesystem to a remote location looks like
     dest = ssh:22:user@host:backup/data   # Specify ssh destination
     dest_keys = /home/user/.ssh/id_rsa    # Provide key for ssh login. If none given, look in home dir
 
-I would also suggest giving file ownership to root for all files, s.t. no user can modify them:
+I would also suggest making sure that root has ownership for all files, s.t. no user can modify them.
+If that is not the case just run
 
-    chown root:root -R /etc/pyznap
-    chown root:root -R /opt/pyznap
+    chown root:root -R /etc/pyznap/
 
 
 #### Command line options ####
