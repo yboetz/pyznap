@@ -1,3 +1,7 @@
 .vscode/
 __pycache__/
 .cache/
+*.pyc
+/dist/
+/*.egg-info
+/*.egg

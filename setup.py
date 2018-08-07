@@ -22,6 +22,7 @@ setup(
     version=version,
     description='ZFS snapshot tool written in Python',
     long_description=readme,
+    long_description_content_type="text/markdown",
     keywords='pyznap zfs snapshot',
     url='https://github.com/yboetz/pyznap',
     author='Yannick Boetzel',
