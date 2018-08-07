@@ -1,10 +1,12 @@
 #!/usr/bin/env pytest -v
 """
-Created on Tue Nov 28 2017
+    pyznap.test_pyznap
+    ~~~~~~~~~~~~~~
 
-@author: yboetz
+    Tests for pyznap functions.
 
-Tests for pyznap
+    :copyright: (c) 2018 by Yannick Boetzel.
+    :license: GPLv3, see LICENSE for more details.
 """
 
 import subprocess as sp

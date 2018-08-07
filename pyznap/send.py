@@ -1,9 +1,11 @@
 """
-Created on Wed Dec 06 2017
+    pyznap.send
+    ~~~~~~~~~~~~~~
 
-@author: yboetz
+    Send snapshots.
 
-Send snapshots
+    :copyright: (c) 2018 by Yannick Boetzel.
+    :license: GPLv3, see LICENSE for more details.
 """
 
 import logging

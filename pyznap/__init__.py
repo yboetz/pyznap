@@ -1,9 +1,11 @@
 """
-Created on Sat Aug 02 2018
+    pyznap
+    ~~~~~~~~~~~~~~
 
-@author: yboetz
+    pyznap - ZFS snapshot tool written in python.
 
-pyznap - ZFS snapshot tool written in python.
+    :copyright: (c) 2018 by Yannick Boetzel.
+    :license: GPLv3, see LICENSE for more details.
 """
 
 

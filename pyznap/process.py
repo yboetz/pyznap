@@ -1,9 +1,11 @@
 """
-Created on Sat Aug 12 2017
+    pyznap.process
+    ~~~~~~~~~~~~~~
 
-@author: stevedrake, yboetz
+    Catch ZFS subprocess errors, forked from https://bitbucket.org/stevedrake/weir/.
 
-Catch ZFS subprocess errors, forked from https://bitbucket.org/stevedrake/weir/
+    :copyright: (c) 2015-2018 by Stephen Drake, Yannick Boetzel.
+    :license: GPLv3, see LICENSE for more details.
 """
 
 import re

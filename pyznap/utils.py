@@ -1,9 +1,11 @@
 """
-Created on Sat Aug 12 2017
+    pyznap.utils
+    ~~~~~~~~~~~~~~
 
-@author: yboetz
+    Helper functions.
 
-Helper functions
+    :copyright: (c) 2018 by Yannick Boetzel.
+    :license: GPLv3, see LICENSE for more details.
 """
 
 import os

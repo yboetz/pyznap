@@ -1,10 +1,12 @@
 #!/usr/bin/env python
 """
-Created on Sat Aug 12 2017
+    pyznap.pyznap
+    ~~~~~~~~~~~~~~
 
-@author: yboetz
+    ZFS snapshot tool written in python.
 
-ZFS snapshot tool written in python.
+    :copyright: (c) 2018 by Yannick Boetzel.
+    :license: GPLv3, see LICENSE for more details.
 """
 
 import sys
@@ -101,5 +103,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
-    sys.exit(0)
+    sys.exit(main())

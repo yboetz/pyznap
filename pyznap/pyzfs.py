@@ -1,10 +1,13 @@
 """
-Created on Sat Aug 12 2017
+    pyznap.pyzfs
+    ~~~~~~~~~~~~~~
 
-@author: stevedrake, yboetz
+    Python ZFS bindings, forked from https://bitbucket.org/stevedrake/weir/.
 
-Python ZFS bindings, forked from https://bitbucket.org/stevedrake/weir/
+    :copyright: (c) 2015-2018 by Stephen Drake, Yannick Boetzel.
+    :license: GPLv3, see LICENSE for more details.
 """
+
 
 import subprocess as sp
 import pyznap.process as process
