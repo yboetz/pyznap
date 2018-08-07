@@ -41,11 +41,10 @@ HOST = '127.0.0.1'
 PORT = 22
 KEY = None
 
-
 @pytest.fixture(scope='module')
 def zpools():
     """Creates two temporary zpools to be called from test functions, source is local and dest on
-    remote ssh locatoin. Yields the two pool names and destroys them after testing."""
+    remote ssh location. Yields the two pool names and destroys them after testing."""
 
     zpool = '/sbin/zpool'
     pool0 = 'pyznap_test_source'
@@ -56,7 +55,6 @@ def zpools():
     # ssh arguments for zfs functions
     ssh = open_ssh(USER, HOST, port=PORT, key=KEY)
     sftp = ssh.open_sftp()
-
 
     # Create temporary file on which the source zpool is created. Manually create sftp file
     with NamedTemporaryFile() as file0, sftp.open(sftp_filename, 'w') as file1:
