@@ -40,7 +40,7 @@ Before you can use pyznap, you will need to create a config file. For initial se
     pyznap setup [-p PATH]
 
 This will create a directory `PATH` (default is `/etc/pyznap`) and copy a sample config there. A
-sample config for your system might look like this (remove the comments):
+config for your system might look like this (remove the comments):
 
     [rpool/filesystem]
     frequent = 4                          # Keep 4 quarter-hourly snapshots
