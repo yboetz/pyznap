@@ -206,7 +206,7 @@ def create_config(path):
     Parameters
     ----------
     path : str
-        Path where to store config file
+        Path to dir where to store config file
 
     """
 
@@ -221,7 +221,7 @@ def create_config(path):
         logger.info('Creating directory {:s}...'.format(path))
         try:
             os.mkdir(path, mode=int('755', base=8))
-        except (PermissionError, FileNotFoundError) as e:
+        except (PermissionError, FileNotFoundError, OSError) as e:
             logger.error('Could not create {:s}: {}'.format(path, e))
             logger.error('Aborting setup...')
             return 1
@@ -233,7 +233,7 @@ def create_config(path):
         try:
             with open(CONFIG_FILE, 'w') as file:
                 file.write(config)
-        except (PermissionError, FileNotFoundError) as e:
+        except (PermissionError, FileNotFoundError, IOError, OSError) as e:
             logger.error('Could not write to file {:s}: {}'.format(CONFIG_FILE, e))
         else:
             try:
