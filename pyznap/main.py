@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-    pyznap.pyznap
+    pyznap.main
     ~~~~~~~~~~~~~~
 
     ZFS snapshot tool written in python.

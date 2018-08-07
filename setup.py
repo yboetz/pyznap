@@ -56,7 +56,7 @@ setup(
         'Topic :: System :: Filesystems',
     ],
     entry_points = {
-        'console_scripts': ['pyznap=pyznap.pyznap:main'],
+        'console_scripts': ['pyznap=pyznap.main:main'],
     },
     zip_safe=False
 )
