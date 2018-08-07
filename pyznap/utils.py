@@ -239,7 +239,7 @@ def create_config(path):
             try:
                 os.chmod(CONFIG_FILE, mode=int('644', base=8))
             except PermissionError as e:
-                logger.error('Could not set correct permissions on file {:s}. Please do so manually'
+                logger.error('Could not set correct permissions on file {:s}. Please do so manually...'
                              .format(CONFIG_FILE))
     else:
         logger.info('File {:s} does already exist...'.format(CONFIG_FILE))

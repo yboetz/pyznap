@@ -1,5 +1,5 @@
 
-.PHONY: all install-dev test release clean
+.PHONY: all install-dev test release release-test clean
 
 all: test
 
@@ -13,6 +13,12 @@ release:
 	pip install twine
 	python setup.py sdist bdist_wheel
 	#twine upload dist/*
+	rm -f -r build/ dist/ pyznap.egg-info/
+
+release-test:
+	pip install twine
+	python setup.py sdist bdist_wheel
+	twine upload --repository-url https://test.pypi.org/legacy/ dist/*
 	rm -f -r build/ dist/ pyznap.egg-info/
 
 clean:
