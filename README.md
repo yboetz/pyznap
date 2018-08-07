@@ -92,23 +92,28 @@ If that is not the case just run
 
 + --config
 
-  Specify config file. Default is /etc/pyznap/pyznap.conf
+  Specify config file. Default is `/etc/pyznap/pyznap.conf`.
+
++ setup [-p PATH]
+
+  Initial setup. Creates a config dir and puts a sample config file there. You can specify the path
+  to the config dir with the `-p` flag, default is `/etc/pyznap/`.
 
 + snap
 
-  Interface to the snapshot management tool. Has three options:
+  Interface to the snapshot management tool. Has three optional arguments:
 
   + --take
 
-    Takes snapshots according to policy in the config file
+    Takes snapshots according to policy in the config file.
 
   + --clean
 
-    Deletes old snapshots according to policy
+    Deletes old snapshots according to policy.
 
   + --full
 
-    First takes snapshots, then deletes old ones. Default when no other option is given
+    First takes snapshots, then deletes old ones. Default when no other option is given.
 
 + send
 
@@ -116,8 +121,9 @@ If that is not the case just run
 
   + No further option is given
 
-    Send snapshots to backup locations according to policy
+    Send snapshots to backup locations according to policy.
 
-  + -s source -d destination
+  + -s SOURCE -d DESTINATION [-i KEYFILE]
 
-    Send source filesystem to destination filesystem
+    Send source filesystem to destination filesystem. If destination is a ssh location you can
+    specify a keyfile with the `-i` flag.
