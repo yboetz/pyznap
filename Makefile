@@ -1,4 +1,3 @@
-
 .PHONY: all install-dev test release release-test clean
 
 all: test
@@ -12,7 +11,7 @@ test: clean install-dev
 release:
 	pip install twine
 	python setup.py sdist bdist_wheel
-	#twine upload dist/*
+	twine upload dist/*
 	rm -f -r build/ dist/ pyznap.egg-info/
 
 release-test:
