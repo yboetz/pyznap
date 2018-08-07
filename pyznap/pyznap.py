@@ -11,7 +11,6 @@
 
 import sys
 import os
-import re
 import logging
 from logging.config import fileConfig
 from argparse import ArgumentParser
@@ -31,15 +30,16 @@ def main():
     logger = logging.getLogger(__name__)
     logging.getLogger("paramiko").setLevel(logging.WARNING)
 
-    logger.info('Starting pyznap...')
-
     parser = ArgumentParser(prog='pyznap', description='ZFS snapshot tool written in python')
     parser.add_argument('--config', action="store",
                         dest="config", help='path to config file')
-    parser.add_argument('--version', action="store_true", help='prints version and exits')
     subparsers = parser.add_subparsers(dest='command')
 
-    parser_snap = subparsers.add_parser('snap', help='snapshot tools')
+    parser_setup = subparsers.add_parser('setup', help='initial setup')
+    parser_setup.add_argument('-p', '--path', action='store',
+                              dest='path', help='pyznap config dir. default is {:s}'.format(CONFIG_DIR))
+
+    parser_snap = subparsers.add_parser('snap', help='zfs snapshot tools')
     parser_snap.add_argument('--take', action="store_true",
                              help='take snapshots according to config file')
     parser_snap.add_argument('--clean', action="store_true",
@@ -55,11 +55,12 @@ def main():
     parser_send.add_argument('-i', '--key', action="store",
                              dest='key', help='ssh key for destination')
 
-    parser_setup = subparsers.add_parser('setup', help='initial setup')
-    parser_setup.add_argument('-p', '--path', action='store',
-                              dest='path', help='pyznap config dir. default is {:s}'.format(CONFIG_DIR))
+    if len(sys.argv)==1:
+        parser.print_help(sys.stderr)
+        sys.exit(1)
+    args = parser.parse_args()
 
-    args = parser.parse_args(sys.argv[1:])
+    logger.info('Starting pyznap...')
 
     if args.command in ('snap', 'send'):
         config_path = args.config if args.config else '/etc/pyznap/pyznap.conf'
@@ -67,12 +68,7 @@ def main():
         if config == None:
             return 1
 
-    if args.version:
-        with open(os.path.join(DIRNAME, '__init__.py'), 'r') as file:
-            version = re.search(r'__version__ = \'(.*?)\'', file.read()).group(1)
-        logger.info('pyznap version: {:s}'.format(version))
-
-    elif args.command == 'setup':
+    if args.command == 'setup':
         path = args.path if args.path else CONFIG_DIR
         create_config(path)
 
