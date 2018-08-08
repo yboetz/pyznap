@@ -26,7 +26,7 @@ CONFIG_DIR = '/etc/pyznap/'
 
 def main():
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s',
-                        datefmt='%b %d %H:%M:%S')
+                        datefmt='%b %d %H:%M:%S', stream=sys.stdout)
     logger = logging.getLogger(__name__)
     logging.getLogger("paramiko").setLevel(logging.WARNING)
 
