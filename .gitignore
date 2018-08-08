@@ -1,6 +1,7 @@
 .vscode/
 __pycache__/
 .cache/
+.pytest_cache/
 *.pyc
 /dist/
 /build/

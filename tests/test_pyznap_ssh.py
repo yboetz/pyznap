@@ -113,7 +113,6 @@ class TestSnapshot(object):
     @pytest.mark.dependency()
     def test_take_snapshot(self, zpools):
         _, fs = zpools
-        ssh = fs.ssh
 
         config = [{'name': 'ssh:{:d}:{}'.format(PORT, fs), 'key': KEY, 'frequent': 1, 'hourly': 1,
                    'daily': 1, 'weekly': 1, 'monthly': 1, 'yearly': 1, 'snap': True}]
@@ -132,7 +131,6 @@ class TestSnapshot(object):
     @pytest.mark.dependency(depends=['test_take_snapshot'])
     def test_clean_snapshot(self, zpools):
         _, fs = zpools
-        ssh = fs.ssh
 
         config = [{'name': 'ssh:{:d}:{}'.format(PORT, fs), 'key': KEY, 'frequent': 0, 'hourly': 0,
                    'daily': 0, 'weekly': 0, 'monthly': 0, 'yearly': 0, 'clean': True}]
