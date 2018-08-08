@@ -33,8 +33,10 @@ pyznap can easily be installed with pip. In your virtualenv just run
 
     pip install pyznap
 
-and pyznap & its requirements will be installed. This should also create an executable in your PATH.
-If you want to use your system python installation use the `--user` flag.
+and pyznap & its requirements will be installed. This should also create an executable in your PATH,
+either at `/path/to/virtualenv/pyznap/bin/pyznap` or `/usr/local/bin/pyznap`. If you use your
+system python installation you might want to use the `--user` flag. In this case the executable will
+be located at `~/.local/bin/pyznap`.
 
 Before you can use pyznap, you will need to create a config file. For initial setup run
 
