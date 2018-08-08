@@ -1,12 +1,17 @@
+#!/usr/bin/env python
 """
-Created on Wed Aug 01 2018
+    setup
+    ~~~~~~~~~~~~~~
 
-@author: yboetz
+    pyznap installation using setuptools.
+
+    :copyright: (c) 2018 by Yannick Boetzel.
+    :license: GPLv3, see LICENSE for more details.
 """
 
 import os
 import re
-from setuptools import setup, find_packages
+from setuptools import setup
 
 
 DIRNAME = os.path.dirname(os.path.abspath(__file__))
