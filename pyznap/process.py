@@ -53,7 +53,8 @@ class CompletedProcess(sp.CompletedProcess):
 
         if self.returncode == 1:
             pattern = r"^cannot ([^ ]+(?: [^ ]+)*?) ([^ ]+): (.+)$"
-            match = re.search(pattern, self.stderr)
+            # only use first line of stderr to match zfs errors
+            match = re.search(pattern, self.stderr.splitlines()[0])
             if match:
                 _, dataset, reason = match.groups()
                 if dataset[0] == dataset[-1] == "'":
