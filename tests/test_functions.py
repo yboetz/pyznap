@@ -1,6 +1,6 @@
 #!/usr/bin/env pytest -v
 """
-    pyznap.test_pyznap
+    pyznap.test_functions
     ~~~~~~~~~~~~~~
 
     Tests for pyznap functions.

@@ -1,6 +1,6 @@
 #!/usr/bin/env pytest -v
 """
-    pyznap.test_pyznap_ssh
+    pyznap.test_functions_ssh
     ~~~~~~~~~~~~~~
 
     ssh tests for pyznap functions.
