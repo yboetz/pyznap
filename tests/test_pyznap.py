@@ -340,14 +340,15 @@ class TestCycle(object):
                 assert len(snapshots['yearly']) == SNAPSHOTS_REF['yearly']
 
 
-    def test_summer_time(self, zpools, config):
-        """Tests if pyznap does not crash when switching to summer/winter time"""
+class TestSpecialCases(object):
+    def test_winter_time(self, zpools, config):
+        """Tests if pyznap does not crash when switching to winter time"""
 
         fs, _ = zpools
         fs.destroy(force=True)
 
         start_date = datetime(2018, 10, 28, 2, 0, 0)
-        dates = [start_date + i * timedelta(minutes=15) for i in range(8)]
+        dates = [start_date + i * timedelta(minutes=15) for i in range(4)]
 
         for date in dates:
             faketime = ['faketime', date.strftime('%y-%m-%d %H:%M:%S')]
