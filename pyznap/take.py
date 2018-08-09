@@ -14,7 +14,7 @@ from subprocess import CalledProcessError
 from paramiko.ssh_exception import SSHException
 from .utils import open_ssh, parse_name
 import pyznap.pyzfs as zfs
-from .process import DatasetBusyError, DatasetNotFoundError
+from .process import DatasetBusyError, DatasetNotFoundError, DatasetExistsError
 
 
 def take_snap(filesystem, conf):
@@ -55,7 +55,7 @@ def take_snap(filesystem, conf):
         logger.info('Taking snapshot {}@{:s}...'.format(filesystem, snapname('yearly')))
         try:
             filesystem.snapshot(snapname=snapname('yearly'), recursive=True)
-        except (DatasetBusyError, CalledProcessError) as err:
+        except (DatasetBusyError, DatasetExistsError, CalledProcessError) as err:
             logger.error(err)
 
     if conf['monthly'] and (not snapshots['monthly'] or
@@ -64,7 +64,7 @@ def take_snap(filesystem, conf):
         logger.info('Taking snapshot {}@{:s}...'.format(filesystem, snapname('monthly')))
         try:
             filesystem.snapshot(snapname=snapname('monthly'), recursive=True)
-        except (DatasetBusyError, CalledProcessError) as err:
+        except (DatasetBusyError, DatasetExistsError, CalledProcessError) as err:
             logger.error(err)
 
     if conf['weekly'] and (not snapshots['weekly'] or
@@ -73,7 +73,7 @@ def take_snap(filesystem, conf):
         logger.info('Taking snapshot {}@{:s}...'.format(filesystem, snapname('weekly')))
         try:
             filesystem.snapshot(snapname=snapname('weekly'), recursive=True)
-        except (DatasetBusyError, CalledProcessError) as err:
+        except (DatasetBusyError, DatasetExistsError, CalledProcessError) as err:
             logger.error(err)
 
     if conf['daily'] and (not snapshots['daily'] or
@@ -82,7 +82,7 @@ def take_snap(filesystem, conf):
         logger.info('Taking snapshot {}@{:s}...'.format(filesystem, snapname('daily')))
         try:
             filesystem.snapshot(snapname=snapname('daily'), recursive=True)
-        except (DatasetBusyError, CalledProcessError) as err:
+        except (DatasetBusyError, DatasetExistsError, CalledProcessError) as err:
             logger.error(err)
 
     if conf['hourly'] and (not snapshots['hourly'] or
@@ -91,7 +91,7 @@ def take_snap(filesystem, conf):
         logger.info('Taking snapshot {}@{:s}...'.format(filesystem, snapname('hourly')))
         try:
             filesystem.snapshot(snapname=snapname('hourly'), recursive=True)
-        except (DatasetBusyError, CalledProcessError) as err:
+        except (DatasetBusyError, DatasetExistsError, CalledProcessError) as err:
             logger.error(err)
 
     if conf['frequent'] and (not snapshots['frequent'] or
@@ -100,7 +100,7 @@ def take_snap(filesystem, conf):
         logger.info('Taking snapshot {}@{:s}...'.format(filesystem, snapname('frequent')))
         try:
             filesystem.snapshot(snapname=snapname('frequent'), recursive=True)
-        except (DatasetBusyError, CalledProcessError) as err:
+        except (DatasetBusyError, DatasetExistsError, CalledProcessError) as err:
             logger.error(err)
 
 
