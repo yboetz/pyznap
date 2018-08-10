@@ -1,9 +1,9 @@
 #!/usr/bin/env pytest -v
 """
-    pyznap.test_pyznap
+    pyznap.test_pyznap_ssh
     ~~~~~~~~~~~~~~
 
-    Test pyznap over time
+    Test pyznap over time (ssh).
 
     :copyright: (c) 2018 by Yannick Boetzel.
     :license: GPLv3, see LICENSE for more details.
