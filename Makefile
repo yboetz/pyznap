@@ -6,7 +6,7 @@ install-dev:
 	pip install -e .[dev]
 
 test: clean install-dev
-	pytest -v
+	pytest
 
 release:
 	pip install twine

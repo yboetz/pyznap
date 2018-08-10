@@ -136,6 +136,7 @@ def config_send():
         yield file.name
 
 
+@pytest.mark.slow
 class TestCycle(object):
     def test_2_days(self, zpools, config):
         """Tests pyznap over 2 days and checks if the correct amount of 'frequent' snapshots are taken"""
@@ -361,6 +362,7 @@ class TestCycle(object):
                 assert len(snapshots['yearly']) == SNAPSHOTS_REF['yearly']
 
 
+@pytest.mark.slow
 class TestSend(object):
     def test_50_years(self, zpools, config_send):
         """Tests pyznap over 50 years and checks if snapshots are sent correctly"""
@@ -475,6 +477,7 @@ class TestSend(object):
             assert set(fs0_children) == set(fs1_children)
 
 
+@pytest.mark.slow
 class TestSpecialCases(object):
     def test_winter_time(self, zpools, config):
         """Tests if pyznap does not crash when switching to winter time"""
