@@ -136,7 +136,7 @@ def take_config(config):
             ssh = None
 
         try:
-            # Children includes the base filesystem (filesystem)
+            # Children includes the base filesystem (named 'filesystem')
             children = zfs.find(path=fsname, types=['filesystem', 'volume'], ssh=ssh)
         except (ValueError, DatasetNotFoundError, CalledProcessError) as err:
             logger.error(err)

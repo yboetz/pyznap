@@ -11,7 +11,8 @@
 import os
 import logging
 from datetime import datetime
-from configparser import ConfigParser, NoOptionError, MissingSectionHeaderError
+from configparser import (ConfigParser, NoOptionError, MissingSectionHeaderError,
+                          DuplicateSectionError, DuplicateOptionError)
 from subprocess import Popen, PIPE
 from socket import timeout, gaierror
 from pkg_resources import resource_string
@@ -55,7 +56,7 @@ def open_ssh(user, host, key=None, port=22):
         Host to connect to
     key : {str}, optional
         Path to ssh keyfile (the default is None, meaning the standard location
-        '/home/user/.ssh/id_rsa' will be checked)
+        '~/.ssh/id_rsa' will be checked)
     port : {int}, optional
         Port number to connect to (the default is 22)
 
@@ -83,7 +84,7 @@ def open_ssh(user, host, key=None, port=22):
     ssh = pm.SSHClient()
     try:
         ssh.load_system_host_keys(os.path.expanduser('~/.ssh/known_hosts'))
-    except FileNotFoundError:
+    except (IOError, FileNotFoundError):
         ssh.load_system_host_keys()
     ssh.set_missing_host_key_policy(pm.WarningPolicy())
 
@@ -130,7 +131,7 @@ def read_config(path):
     parser = ConfigParser()
     try:
         parser.read(path)
-    except MissingSectionHeaderError as e:
+    except (MissingSectionHeaderError, DuplicateSectionError, DuplicateOptionError) as e:
         logger.error('Error while loading config: {}'.format(e))
         return None
 
@@ -177,7 +178,7 @@ def read_config(path):
 
 
 def parse_name(value):
-    """Splits a string of the form 'ssh:port:user@host:rpool/data' into its parts.
+    """Splits a string of the form 'ssh:port:user@host:rpool/data' into its parts separated by ':'.
 
     Parameters:
     ----------
@@ -238,7 +239,7 @@ def create_config(path):
         else:
             try:
                 os.chmod(CONFIG_FILE, mode=int('644', base=8))
-            except PermissionError as e:
+            except (PermissionError, IOError, OSError) as e:
                 logger.error('Could not set correct permissions on file {:s}. Please do so manually...'
                              .format(CONFIG_FILE))
     else:

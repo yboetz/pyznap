@@ -100,7 +100,7 @@ def send_snap(source_fs, dest_name, ssh=None):
 
     try:
         dest_fs = zfs.open(dest_name, ssh=ssh)
-    except DatasetNotFoundError:
+    except (DatasetNotFoundError, CalledProcessError):
         dest_snapnames = []
         common = set()
     else:
@@ -153,12 +153,13 @@ def send_config(config):
             continue
 
         try:
-            # Children includes the base filesystem (source_fs)
+            # Children includes the base filesystem (named 'source_fs')
             source_children = zfs.find(path=source_fs_name, types=['filesystem', 'volume'])
         except (ValueError, DatasetNotFoundError, CalledProcessError) as err:
             logger.error(err)
             continue
 
+        # Send to every backup destination
         for backup_dest in conf['dest']:
             try:
                 _type, dest_name, user, host, port = parse_name(backup_dest)
@@ -177,7 +178,7 @@ def send_config(config):
                 ssh = None
                 dest_name_log = dest_name
 
-            # Check if base destination filesystem exists
+            # Check if base destination filesystem exists, if not do not send
             try:
                 zfs.open(dest_name, ssh=ssh)
             except DatasetNotFoundError:

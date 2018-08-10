@@ -25,6 +25,14 @@ DIRNAME = os.path.dirname(os.path.abspath(__file__))
 CONFIG_DIR = '/etc/pyznap/'
 
 def main():
+    """pyznap main function. Parses arguments and calls snap/clean/send functions accordingly.
+
+    Returns
+    -------
+    int
+        Exit code
+    """
+
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s',
                         datefmt='%b %d %H:%M:%S', stream=sys.stdout)
     logger = logging.getLogger(__name__)
@@ -63,7 +71,7 @@ def main():
     logger.info('Starting pyznap...')
 
     if args.command in ('snap', 'send'):
-        config_path = args.config if args.config else '/etc/pyznap/pyznap.conf'
+        config_path = args.config if args.config else os.path.join(CONFIG_DIR, 'pyznap.conf')
         config = read_config(config_path)
         if config == None:
             return 1
