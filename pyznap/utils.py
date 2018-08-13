@@ -9,11 +9,14 @@
 """
 
 import os
+import re
 import logging
+from subprocess import Popen, PIPE, TimeoutExpired, CalledProcessError
+from .process import run
+
 from datetime import datetime
 from configparser import (ConfigParser, NoOptionError, MissingSectionHeaderError,
                           DuplicateSectionError, DuplicateOptionError)
-from subprocess import Popen, PIPE
 from socket import timeout, gaierror
 from pkg_resources import resource_string
 
@@ -246,3 +249,66 @@ def create_config(path):
         logger.info('File {:s} does already exist...'.format(CONFIG_FILE))
 
     return 0
+
+
+def check_recv(fsname, ssh=None):
+    """Checks if there is already a 'zfs receive' for that dataset ongoing
+
+    Parameters
+    ----------
+    fsname : str
+        Name of the dataset
+    ssh : paramiko.SSHClient, optional
+        Open ssh connection (the default is None, which means check is done locally)
+
+    Returns
+    -------
+    bool
+        True if there is a 'zfs receive' ongoing or if an error is raised during checking. False if
+        there is no 'zfs receive'.
+    """
+
+    logger = logging.getLogger(__name__)
+    fsname_log = log_name(fsname, ssh=ssh)
+
+    try:
+        out = run(['ps', '-Ao', 'args='], stdout=PIPE, stderr=PIPE, timeout=5,
+                   universal_newlines=True, ssh=ssh).stdout
+    except TimeoutExpired:
+        logger.error('Timeout while checking \'zfs receive\'...')
+        return True
+    except CalledProcessError as err:
+        logger.error(err)
+        return True
+    else:
+        match = re.search(r'zfs (receive|recv).*({:s})(?=\n)'.format(fsname), out)
+        if match:
+            logger.error('Cannot send to {:s}, process \'{:s}\' already running...'
+                         .format(fsname_log, match.group()))
+            return True
+
+    return False
+
+
+def log_name(name, ssh=None):
+    """Converts a dataset name to the form 'user@host:dataset' if ssh is not None. Used for logging.
+
+    Parameters
+    ----------
+    name : str
+        Name of the dataset
+    ssh : paramiko.SSHClient, optional
+        Open ssh connection (the default is None, which means name is not changed)
+
+    Returns
+    -------
+    str
+        Converted name for logging
+    """
+
+    if ssh:
+        user = ssh.get_transport().get_username()
+        host, *_ = ssh.get_transport().getpeername()
+        return '{:s}@{:s}:{:s}'.format(user, host, name)
+    else:
+        return name
