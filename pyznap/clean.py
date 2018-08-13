@@ -119,35 +119,40 @@ def clean_config(config):
                 ssh = open_ssh(user, host, port=port, key=conf['key'])
             except (FileNotFoundError, SSHException):
                 continue
+            name_log = '{:s}@{:s}:{:s}'.format(user, host, fsname)
         else:
             ssh = None
+            name_log = fsname
 
         try:
             # Children includes the base filesystem (named 'filesystem')
             children = zfs.find(path=fsname, types=['filesystem', 'volume'], ssh=ssh)
-        except (ValueError, DatasetNotFoundError, CalledProcessError) as err:
+        except DatasetNotFoundError as err:
+            logger.error('Dataset {:s} does not exist...'.format(name_log))
+            continue
+        except (ValueError, CalledProcessError) as err:
             logger.error(err)
             continue
-
-        # Clean snapshots of parent filesystem
-        clean_snap(children[0], conf)
-        # Clean snapshots of all children that don't have a seperate config entry
-        for child in children[1:]:
-            # Check if any of the parents (but child of base filesystem) have a config entry
-            for parent in children[1:]:
-                if ssh:
-                    child_name = 'ssh:{:d}:{:s}@{:s}:{:s}'.format(port, user, host, child.name)
-                    parent_name = 'ssh:{:d}:{:s}@{:s}:{:s}'.format(port, user, host, parent.name)
+        else:
+            # Clean snapshots of parent filesystem
+            clean_snap(children[0], conf)
+            # Clean snapshots of all children that don't have a seperate config entry
+            for child in children[1:]:
+                # Check if any of the parents (but child of base filesystem) have a config entry
+                for parent in children[1:]:
+                    if ssh:
+                        child_name = 'ssh:{:d}:{:s}@{:s}:{:s}'.format(port, user, host, child.name)
+                        parent_name = 'ssh:{:d}:{:s}@{:s}:{:s}'.format(port, user, host, parent.name)
+                    else:
+                        child_name = child.name
+                        parent_name = parent.name
+                    # Skip if child has an entry or if any parent entry already in config
+                    child_parent = '/'.join(child_name.split('/')[:-1]) # get parent of child filesystem
+                    if ((child_name == parent_name or child_parent.startswith(parent_name)) and
+                        (parent_name in [entry['name'] for entry in config])):
+                        break
                 else:
-                    child_name = child.name
-                    parent_name = parent.name
-                # Skip if child has an entry or if any parent entry already in config
-                child_parent = '/'.join(child_name.split('/')[:-1]) # get parent of child filesystem
-                if ((child_name == parent_name or child_parent.startswith(parent_name)) and
-                    (parent_name in [entry['name'] for entry in config])):
-                    break
-            else:
-                clean_snap(child, conf)
-
-        if ssh:
-            ssh.close()
+                    clean_snap(child, conf)
+        finally:
+            if ssh:
+                ssh.close()

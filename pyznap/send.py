@@ -19,7 +19,7 @@ from .process import DatasetBusyError, DatasetNotFoundError, DatasetExistsError
 
 # Use mbuffer if installed on the system
 if exists('mbuffer'):
-    MBUFFER = ['mbuffer', '-s', '128K', '-m', '1G']
+    MBUFFER = ['mbuffer', '-s', '128K', '-m', '512M']
 else:
     MBUFFER = ['cat']
 
@@ -147,15 +147,18 @@ def send_config(config):
         if not conf.get('dest', None):
             continue
 
-        source_fs_name = conf['name']
-        if source_fs_name.startswith('ssh'):
-            logger.error('Cannot send from remote location...')
+        source_name = conf['name']
+        if source_name.startswith('ssh'):
+            logger.error('Cannot send from remote location ({:s})...'.format(source_name))
             continue
 
         try:
             # Children includes the base filesystem (named 'source_fs')
-            source_children = zfs.find(path=source_fs_name, types=['filesystem', 'volume'])
-        except (ValueError, DatasetNotFoundError, CalledProcessError) as err:
+            source_children = zfs.find(path=source_name, types=['filesystem', 'volume'])
+        except DatasetNotFoundError as err:
+            logger.error('Source {:s} does not exist...'.format(source_name))
+            continue
+        except (ValueError, CalledProcessError) as err:
             logger.error(err)
             continue
 
@@ -187,13 +190,13 @@ def send_config(config):
             except (ValueError, CalledProcessError) as err:
                 logger.error(err)
                 continue
-
-            # Match children on source to children on dest
-            dest_children_names = [child.name.replace(source_fs_name, dest_name) for
-                                   child in source_children]
-            # Send all children to corresponding children on dest
-            for source, dest in zip(source_children, dest_children_names):
-                send_snap(source, dest, ssh=ssh)
-
-            if ssh:
-                ssh.close()
+            else:
+                # Match children on source to children on dest
+                dest_children_names = [child.name.replace(source_name, dest_name) for
+                                       child in source_children]
+                # Send all children to corresponding children on dest
+                for source, dest in zip(source_children, dest_children_names):
+                    send_snap(source, dest, ssh=ssh)
+            finally:
+                if ssh:
+                    ssh.close()

@@ -132,21 +132,26 @@ def take_config(config):
                 ssh = open_ssh(user, host, port=port, key=conf['key'])
             except (FileNotFoundError, SSHException):
                 continue
+            name_log = '{:s}@{:s}:{:s}'.format(user, host, fsname)
         else:
             ssh = None
+            name_log = fsname
 
         try:
             # Children includes the base filesystem (named 'filesystem')
             children = zfs.find(path=fsname, types=['filesystem', 'volume'], ssh=ssh)
-        except (ValueError, DatasetNotFoundError, CalledProcessError) as err:
+        except DatasetNotFoundError as err:
+            logger.error('Dataset {:s} does not exist...'.format(name_log))
+            continue
+        except (ValueError, CalledProcessError) as err:
             logger.error(err)
             continue
-
-        # Take recursive snapshot of parent filesystem
-        take_snap(children[0], conf)
-        # Take snapshot of all children that don't have all snapshots yet
-        for child in children[1:]:
-            take_snap(child, conf)
-
-        if ssh:
-            ssh.close()
+        else:
+            # Take recursive snapshot of parent filesystem
+            take_snap(children[0], conf)
+            # Take snapshot of all children that don't have all snapshots yet
+            for child in children[1:]:
+                take_snap(child, conf)
+        finally:
+            if ssh:
+                ssh.close()
