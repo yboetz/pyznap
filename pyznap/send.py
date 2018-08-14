@@ -51,7 +51,7 @@ def send_recv(snapshot, dest_name, base=None, ssh=None):
         with snapshot.send(base=base, intermediates=True) as send:
             with Popen(MBUFFER, stdin=send.stdout, stdout=PIPE) as mbuffer:
                 zfs.receive(name=dest_name, stdin=mbuffer.stdout, ssh=ssh, force=True, nomount=True)
-    except (DatasetNotFoundError, DatasetExistsError, DatasetBusyError, CalledProcessError) as err:
+    except (DatasetNotFoundError, DatasetExistsError, DatasetBusyError, CalledProcessError, OSError) as err:
         logger.error('Error while sending to {:s}: {}...'.format(dest_name_log, err))
         return 1
     else:
