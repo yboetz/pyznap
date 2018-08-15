@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.2] - 2018-08-15
+### Added
+- More verbose error messages when CalledProcessError is raised
+
+### Fixed
+- Send over ssh would fail with OSError if dataset has no space left
+
 ## [1.0.1] - 2018-08-13
 ### Added
 - pyznap now checks if the dest filesystem has a 'zfs receive' ongoing before trying to send.
@@ -13,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added a changelog.
 
 ### Fixed
--  Fixed bug where ssh connection would be opened but not closed if dataset does not exist.
+- Fixed bug where ssh connection would be opened but not closed if dataset does not exist.
 
 ## [1.0.0] - 2018-08-10
 ### Added
