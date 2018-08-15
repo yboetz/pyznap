@@ -55,8 +55,11 @@ def take_snap(filesystem, conf):
         logger.info('Taking snapshot {}@{:s}...'.format(filesystem, snapname('yearly')))
         try:
             filesystem.snapshot(snapname=snapname('yearly'), recursive=True)
-        except (DatasetBusyError, DatasetExistsError, CalledProcessError) as err:
+        except (DatasetBusyError, DatasetExistsError) as err:
             logger.error(err)
+        except CalledProcessError as err:
+            logger.error('Error while taking snapshot {}@{:s}: \'{:s}\'...'
+                         .format(filesystem, snapname('yearly'), err.stderr.rstrip()))
 
     if conf['monthly'] and (not snapshots['monthly'] or
                             snapshots['monthly'][0][1].month != now().month or
@@ -64,8 +67,11 @@ def take_snap(filesystem, conf):
         logger.info('Taking snapshot {}@{:s}...'.format(filesystem, snapname('monthly')))
         try:
             filesystem.snapshot(snapname=snapname('monthly'), recursive=True)
-        except (DatasetBusyError, DatasetExistsError, CalledProcessError) as err:
+        except (DatasetBusyError, DatasetExistsError) as err:
             logger.error(err)
+        except CalledProcessError as err:
+            logger.error('Error while taking snapshot {}@{:s}: \'{:s}\'...'
+                         .format(filesystem, snapname('monthly'), err.stderr.rstrip()))
 
     if conf['weekly'] and (not snapshots['weekly'] or
                            snapshots['weekly'][0][1].isocalendar()[1] != now().isocalendar()[1] or
@@ -73,8 +79,11 @@ def take_snap(filesystem, conf):
         logger.info('Taking snapshot {}@{:s}...'.format(filesystem, snapname('weekly')))
         try:
             filesystem.snapshot(snapname=snapname('weekly'), recursive=True)
-        except (DatasetBusyError, DatasetExistsError, CalledProcessError) as err:
+        except (DatasetBusyError, DatasetExistsError) as err:
             logger.error(err)
+        except CalledProcessError as err:
+            logger.error('Error while taking snapshot {}@{:s}: \'{:s}\'...'
+                         .format(filesystem, snapname('weekly'), err.stderr.rstrip()))
 
     if conf['daily'] and (not snapshots['daily'] or
                           snapshots['daily'][0][1].day != now().day or
@@ -82,8 +91,11 @@ def take_snap(filesystem, conf):
         logger.info('Taking snapshot {}@{:s}...'.format(filesystem, snapname('daily')))
         try:
             filesystem.snapshot(snapname=snapname('daily'), recursive=True)
-        except (DatasetBusyError, DatasetExistsError, CalledProcessError) as err:
+        except (DatasetBusyError, DatasetExistsError) as err:
             logger.error(err)
+        except CalledProcessError as err:
+            logger.error('Error while taking snapshot {}@{:s}: \'{:s}\'...'
+                         .format(filesystem, snapname('daily'), err.stderr.rstrip()))
 
     if conf['hourly'] and (not snapshots['hourly'] or
                            snapshots['hourly'][0][1].hour != now().hour or
@@ -91,8 +103,11 @@ def take_snap(filesystem, conf):
         logger.info('Taking snapshot {}@{:s}...'.format(filesystem, snapname('hourly')))
         try:
             filesystem.snapshot(snapname=snapname('hourly'), recursive=True)
-        except (DatasetBusyError, DatasetExistsError, CalledProcessError) as err:
+        except (DatasetBusyError, DatasetExistsError) as err:
             logger.error(err)
+        except CalledProcessError as err:
+            logger.error('Error while taking snapshot {}@{:s}: \'{:s}\'...'
+                         .format(filesystem, snapname('hourly'), err.stderr.rstrip()))
 
     if conf['frequent'] and (not snapshots['frequent'] or
                              snapshots['frequent'][0][1].minute//15 != now().minute//15 or
@@ -100,8 +115,11 @@ def take_snap(filesystem, conf):
         logger.info('Taking snapshot {}@{:s}...'.format(filesystem, snapname('frequent')))
         try:
             filesystem.snapshot(snapname=snapname('frequent'), recursive=True)
-        except (DatasetBusyError, DatasetExistsError, CalledProcessError) as err:
+        except (DatasetBusyError, DatasetExistsError) as err:
             logger.error(err)
+        except CalledProcessError as err:
+            logger.error('Error while taking snapshot {}@{:s}: \'{:s}\'...'
+                         .format(filesystem, snapname('frequent'), err.stderr.rstrip()))
 
 
 def take_config(config):
@@ -143,8 +161,12 @@ def take_config(config):
         except DatasetNotFoundError as err:
             logger.error('Dataset {:s} does not exist...'.format(name_log))
             continue
-        except (ValueError, CalledProcessError) as err:
+        except ValueError as err:
             logger.error(err)
+            continue
+        except CalledProcessError as err:
+            logger.error('Error while opening {:s}: \'{:s}\'...'
+                         .format(name_log, err.stderr.rstrip()))
             continue
         else:
             # Take recursive snapshot of parent filesystem

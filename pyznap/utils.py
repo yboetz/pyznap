@@ -275,10 +275,11 @@ def check_recv(fsname, ssh=None):
         out = run(['ps', '-Ao', 'args='], stdout=PIPE, stderr=PIPE, timeout=5,
                    universal_newlines=True, ssh=ssh).stdout
     except TimeoutExpired:
-        logger.error('Timeout while checking \'zfs receive\'...')
+        logger.error('Timeout while checking \'zfs receive\' on {:s}...'.format(fsname_log))
         return True
     except CalledProcessError as err:
-        logger.error(err)
+        logger.error('Error while checking \'zfs receive\' on {:s}: \'{:s}\'...'
+                     .format(fsname_log, err.stderr.rstrip()))
         return True
     else:
         match = re.search(r'zfs (receive|recv).*({:s})(?=\n)'.format(fsname), out)

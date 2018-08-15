@@ -51,43 +51,61 @@ def clean_snap(filesystem, conf):
         logger.info('Deleting snapshot {}...'.format(snap))
         try:
             snap.destroy()
-        except (DatasetBusyError, CalledProcessError) as err:
+        except DatasetBusyError as err:
             logger.error(err)
+        except CalledProcessError as err:
+            logger.error('Error while deleting snapshot {}: \'{:s}\'...'
+                         .format(snap, err.stderr.rstrip()))
 
     for snap in snapshots['monthly'][conf['monthly']:]:
         logger.info('Deleting snapshot {}...'.format(snap))
         try:
             snap.destroy()
-        except (DatasetBusyError, CalledProcessError) as err:
+        except DatasetBusyError as err:
             logger.error(err)
+        except CalledProcessError as err:
+            logger.error('Error while deleting snapshot {}: \'{:s}\'...'
+                         .format(snap, err.stderr.rstrip()))
 
     for snap in snapshots['weekly'][conf['weekly']:]:
         logger.info('Deleting snapshot {}...'.format(snap))
         try:
             snap.destroy()
-        except (DatasetBusyError, CalledProcessError) as err:
+        except DatasetBusyError as err:
             logger.error(err)
+        except CalledProcessError as err:
+            logger.error('Error while deleting snapshot {}: \'{:s}\'...'
+                         .format(snap, err.stderr.rstrip()))
 
     for snap in snapshots['daily'][conf['daily']:]:
         logger.info('Deleting snapshot {}...'.format(snap))
         try:
             snap.destroy()
-        except (DatasetBusyError, CalledProcessError) as err:
+        except DatasetBusyError as err:
             logger.error(err)
+        except CalledProcessError as err:
+            logger.error('Error while deleting snapshot {}: \'{:s}\'...'
+                         .format(snap, err.stderr.rstrip()))
 
     for snap in snapshots['hourly'][conf['hourly']:]:
         logger.info('Deleting snapshot {}...'.format(snap))
         try:
             snap.destroy()
-        except (DatasetBusyError, CalledProcessError) as err:
+        except DatasetBusyError as err:
             logger.error(err)
+        except CalledProcessError as err:
+            logger.error('Error while deleting snapshot {}: \'{:s}\'...'
+                         .format(snap, err.stderr.rstrip()))
 
     for snap in snapshots['frequent'][conf['frequent']:]:
         logger.info('Deleting snapshot {}...'.format(snap))
         try:
             snap.destroy()
-        except (DatasetBusyError, CalledProcessError) as err:
+        except DatasetBusyError as err:
             logger.error(err)
+        except CalledProcessError as err:
+            logger.error('Error while deleting snapshot {}: \'{:s}\'...'
+                         .format(snap, err.stderr.rstrip()))
 
 
 def clean_config(config):
@@ -130,9 +148,12 @@ def clean_config(config):
         except DatasetNotFoundError as err:
             logger.error('Dataset {:s} does not exist...'.format(name_log))
             continue
-        except (ValueError, CalledProcessError) as err:
+        except ValueError as err:
             logger.error(err)
             continue
+        except CalledProcessError as err:
+            logger.error('Error while opening {:s}: \'{:s}\'...'
+                         .format(name_log, err.stderr.rstrip()))
         else:
             # Clean snapshots of parent filesystem
             clean_snap(children[0], conf)

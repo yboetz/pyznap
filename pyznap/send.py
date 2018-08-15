@@ -51,8 +51,11 @@ def send_recv(snapshot, dest_name, base=None, ssh=None):
         with snapshot.send(base=base, intermediates=True) as send:
             with Popen(MBUFFER, stdin=send.stdout, stdout=PIPE) as mbuffer:
                 zfs.receive(name=dest_name, stdin=mbuffer.stdout, ssh=ssh, force=True, nomount=True)
-    except (DatasetNotFoundError, DatasetExistsError, DatasetBusyError, CalledProcessError, OSError) as err:
+    except (DatasetNotFoundError, DatasetExistsError, DatasetBusyError, OSError) as err:
         logger.error('Error while sending to {:s}: {}...'.format(dest_name_log, err))
+        return 1
+    except CalledProcessError as err:
+        logger.error('Error while sending to {:s}: {}...'.format(dest_name_log, err.stderr.rstrip()))
         return 1
     else:
         return 0
@@ -99,9 +102,13 @@ def send_snap(source_fs, dest_name, ssh=None):
 
     try:
         dest_fs = zfs.open(dest_name, ssh=ssh)
-    except (DatasetNotFoundError, CalledProcessError):
+    except DatasetNotFoundError:
         dest_snapnames = []
         common = set()
+    except CalledProcessError as err:
+        logger.error('Error while opening dest {:s}: \'{:s}\'...'
+                     .format(dest_name_log, err.stderr.rstrip()))
+        return 1
     else:
         dest_snapnames = [snap.name.split('@')[1] for snap in dest_fs.snapshots()]
         # Find common snapshots between source & dest
@@ -159,8 +166,12 @@ def send_config(config):
         except DatasetNotFoundError as err:
             logger.error('Source {:s} does not exist...'.format(source_name))
             continue
-        except (ValueError, CalledProcessError) as err:
+        except ValueError as err:
             logger.error(err)
+            continue
+        except CalledProcessError as err:
+            logger.error('Error while opening source {:s}: \'{:s}\'...'
+                         .format(source_name, err.stderr.rstrip()))
             continue
 
         # Send to every backup destination
@@ -188,8 +199,12 @@ def send_config(config):
             except DatasetNotFoundError:
                 logger.error('Destination {:s} does not exist...'.format(dest_name_log))
                 continue
-            except (ValueError, CalledProcessError) as err:
+            except ValueError as err:
                 logger.error(err)
+                continue
+            except CalledProcessError as err:
+                logger.error('Error while opening dest {:s}: \'{:s}\'...'
+                             .format(dest_name_log, err.stderr.rstrip()))
                 continue
             else:
                 # Match children on source to children on dest
