@@ -148,20 +148,10 @@ class ZFSDataset(object):
         self.ssh = ssh
 
     def __str__(self):
-        if self.ssh is None:
-            return self.name
-        else:
-            user = self.ssh.get_transport().get_username()
-            host, *_ = self.ssh.get_transport().getpeername()
-            return '{:s}@{:s}:{:s}'.format(user, host, self.name)
+        return '{:s}@{:s}:{:s}'.format(self.ssh.user, self.ssh.host, self.name) if self.ssh else self.name
 
     def __repr__(self):
-        if self.ssh is None:
-            name = self.name
-        else:
-            user = self.ssh.get_transport().get_username()
-            host, *_ = self.ssh.get_transport().getpeername()
-            name = '{:s}@{:s}:{:s}'.format(user, host, self.name)
+        name = self.__str__()
         return '{0}({1!r})'.format(self.__class__.__name__, name)
 
     def parent(self):

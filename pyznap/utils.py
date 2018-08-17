@@ -85,6 +85,8 @@ def open_ssh(user, host, key=None, port=22):
         raise FileNotFoundError(key)
 
     ssh = pm.SSHClient()
+    # Append username & hostname attributes to ssh class
+    ssh.user, ssh.host = user, host
     try:
         ssh.load_system_host_keys(os.path.expanduser('~/.ssh/known_hosts'))
     except (IOError, FileNotFoundError):
@@ -269,13 +271,14 @@ def check_recv(fsname, ssh=None):
     """
 
     logger = logging.getLogger(__name__)
-    fsname_log = log_name(fsname, ssh=ssh)
+    fsname_log = '{:s}@{:s}:{:s}'.format(ssh.user, ssh.host, fsname) if ssh else fsname
 
     try:
         out = run(['ps', '-Ao', 'args='], stdout=PIPE, stderr=PIPE, timeout=5,
                    universal_newlines=True, ssh=ssh).stdout
-    except TimeoutExpired:
-        logger.error('Timeout while checking \'zfs receive\' on {:s}...'.format(fsname_log))
+    except (TimeoutExpired, SSHException) as err:
+        logger.error('Error while checking \'zfs receive\' on {:s}: \'{}\'...'
+                     .format(fsname_log, err))
         return True
     except CalledProcessError as err:
         logger.error('Error while checking \'zfs receive\' on {:s}: \'{:s}\'...'
@@ -289,27 +292,3 @@ def check_recv(fsname, ssh=None):
             return True
 
     return False
-
-
-def log_name(name, ssh=None):
-    """Converts a dataset name to the form 'user@host:dataset' if ssh is not None. Used for logging.
-
-    Parameters
-    ----------
-    name : str
-        Name of the dataset
-    ssh : paramiko.SSHClient, optional
-        Open ssh connection (the default is None, which means name is not changed)
-
-    Returns
-    -------
-    str
-        Converted name for logging
-    """
-
-    if ssh:
-        user = ssh.get_transport().get_username()
-        host, *_ = ssh.get_transport().getpeername()
-        return '{:s}@{:s}:{:s}'.format(user, host, name)
-    else:
-        return name

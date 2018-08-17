@@ -12,7 +12,7 @@ import logging
 from datetime import datetime
 from subprocess import Popen, PIPE, CalledProcessError
 from paramiko.ssh_exception import SSHException
-from .utils import open_ssh, parse_name, exists, check_recv, log_name
+from .utils import open_ssh, parse_name, exists, check_recv
 import pyznap.pyzfs as zfs
 from .process import DatasetBusyError, DatasetNotFoundError, DatasetExistsError
 
@@ -45,13 +45,13 @@ def send_recv(snapshot, dest_name, base=None, ssh=None):
     """
 
     logger = logging.getLogger(__name__)
-    dest_name_log = log_name(dest_name, ssh=ssh)
+    dest_name_log = '{:s}@{:s}:{:s}'.format(ssh.user, ssh.host, dest_name) if ssh else dest_name
 
     try:
         with snapshot.send(base=base, intermediates=True) as send:
             with Popen(MBUFFER, stdin=send.stdout, stdout=PIPE) as mbuffer:
                 zfs.receive(name=dest_name, stdin=mbuffer.stdout, ssh=ssh, force=True, nomount=True)
-    except (DatasetNotFoundError, DatasetExistsError, DatasetBusyError, OSError) as err:
+    except (DatasetNotFoundError, DatasetExistsError, DatasetBusyError, OSError, EOFError) as err:
         logger.error('Error while sending to {:s}: {}...'.format(dest_name_log, err))
         return 1
     except CalledProcessError as err:
@@ -82,9 +82,14 @@ def send_snap(source_fs, dest_name, ssh=None):
     """
 
     logger = logging.getLogger(__name__)
-    dest_name_log = log_name(dest_name, ssh=ssh)
+    dest_name_log = '{:s}@{:s}:{:s}'.format(ssh.user, ssh.host, dest_name) if ssh else dest_name
 
     logger.debug('Sending {} to {:s}...'.format(source_fs, dest_name_log))
+
+    # Check if ssh session still active
+    if ssh and not ssh.get_transport().is_active():
+        logger.error('Error while sending to {:s}: ssh session not active...'.format(dest_name_log))
+        return 1
 
     # Check if dest already has a 'zfs receive' ongoing
     if check_recv(dest_name, ssh=ssh):

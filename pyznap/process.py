@@ -13,6 +13,7 @@ import shutil
 import errno as _errno
 import subprocess as sp
 import socket
+from paramiko import SSHException
 
 PIPE = sp.PIPE
 
