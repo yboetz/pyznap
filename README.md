@@ -8,7 +8,7 @@ bindings for python, forked and modified from https://bitbucket.org/stevedrake/w
 
 #### Requirements ####
 
-pyznap is written in python 3.x and requires the following packages:
+pyznap is written in python 3.5+ and requires the following packages:
 
     configparser
     paramiko
