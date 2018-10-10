@@ -37,7 +37,7 @@ setup(
     include_package_data=True,
     install_requires=[
         'configparser>=3.5.0',
-        'paramiko>=2.4.1',
+        'paramiko>=2.4.2',
     ],
     extras_require={
         'dev': [
