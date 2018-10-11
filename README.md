@@ -15,6 +15,7 @@ pyznap is written in python 3.5+ and requires the following packages:
 
 For developing and running the tests you additionally need:
 
+    faketime
     pytest
     pytest-dependency
 
