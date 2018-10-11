@@ -13,10 +13,12 @@ pyznap is written in python 3.5+ and requires the following packages:
     configparser
     paramiko
 
-For developing and running the tests you also need:
+For developing and running the tests you additionally need:
 
     pytest
     pytest-dependency
+
+You also need the `faketime` program for some tests to simulate pyznap running over time.
 
 I suggest installing [virtualenv & virtualenvwrapper](http://docs.python-guide.org/en/latest/dev/virtualenvs/),
 so you don't clutter your system python installation with additional packages.
