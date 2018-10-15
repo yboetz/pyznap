@@ -25,7 +25,7 @@ else:
 
 # Use pv if installed on the system
 if exists('pv'):
-    PV = lambda size: ['pv', '-s', str(size)]
+    PV = lambda size: ['pv', '-w', '100', '-s', str(size)]
 else:
     PV = lambda _: ['cat']
 
