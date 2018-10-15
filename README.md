@@ -23,7 +23,8 @@ You also need the `faketime` program for some tests to simulate pyznap running o
 I suggest installing [virtualenv & virtualenvwrapper](http://docs.python-guide.org/en/latest/dev/virtualenvs/),
 so you don't clutter your system python installation with additional packages.
 
-pyznap uses `mbuffer` to speed up zfs send/recv, but also works if it is not installed.
+pyznap uses `mbuffer` to speed up zfs send/recv and `pv` to show progress, but also works if they
+are not installed.
 
 Note that ZFS needs root access to run commands. Due to this you should install pyznap under your
 root user.
