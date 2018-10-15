@@ -12,16 +12,22 @@ import logging
 from datetime import datetime
 from subprocess import Popen, PIPE, CalledProcessError
 from paramiko.ssh_exception import SSHException
-from .utils import open_ssh, parse_name, exists, check_recv
+from .utils import open_ssh, parse_name, exists, check_recv, bytes_fmt
 import pyznap.pyzfs as zfs
 from .process import DatasetBusyError, DatasetNotFoundError, DatasetExistsError
 
 
 # Use mbuffer if installed on the system
 if exists('mbuffer'):
-    MBUFFER = ['mbuffer', '-s', '128K', '-m', '512M']
+    MBUFFER = ['mbuffer', '-q', '-s', '128K', '-m', '512M']
 else:
     MBUFFER = ['cat']
+
+# Use pv if installed on the system
+if exists('pv'):
+    PV = lambda size: ['pv', '-s', str(size)]
+else:
+    PV = lambda _: ['cat']
 
 
 def send_recv(snapshot, dest_name, base=None, ssh=None):
@@ -47,10 +53,13 @@ def send_recv(snapshot, dest_name, base=None, ssh=None):
     logger = logging.getLogger(__name__)
     dest_name_log = '{:s}@{:s}:{:s}'.format(ssh.user, ssh.host, dest_name) if ssh else dest_name
 
+    stream_size = snapshot.stream_size(base=base)
+
     try:
         with snapshot.send(base=base, intermediates=True) as send:
             with Popen(MBUFFER, stdin=send.stdout, stdout=PIPE) as mbuffer:
-                zfs.receive(name=dest_name, stdin=mbuffer.stdout, ssh=ssh, force=True, nomount=True)
+                with Popen(PV(stream_size), stdin=mbuffer.stdout, stdout=PIPE) as pv:
+                    zfs.receive(name=dest_name, stdin=pv.stdout, ssh=ssh, force=True, nomount=True)
     except (DatasetNotFoundError, DatasetExistsError, DatasetBusyError, OSError, EOFError) as err:
         logger.error('Error while sending to {:s}: {}...'.format(dest_name_log, err))
         return 1
@@ -126,7 +135,7 @@ def send_snap(source_fs, dest_name, ssh=None):
             return 1
         else:
             logger.info('No common snapshots on {:s}, sending oldest snapshot {} (~{:s})...'
-                        .format(dest_name_log, base, base.stream_size()))
+                        .format(dest_name_log, base, bytes_fmt(base.stream_size())))
             if send_recv(base, dest_name, base=None, ssh=ssh):
                 return 1
     else:
@@ -135,7 +144,7 @@ def send_snap(source_fs, dest_name, ssh=None):
 
     if base.name != snapshot.name:
         logger.info('Updating {:s} with recent snapshot {} (~{:s})...'
-                    .format(dest_name_log, snapshot, snapshot.stream_size(base)))
+                    .format(dest_name_log, snapshot, bytes_fmt(snapshot.stream_size(base))))
         if send_recv(snapshot, dest_name, base=base, ssh=ssh):
             return 1
 

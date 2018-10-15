@@ -275,7 +275,7 @@ def check_recv(fsname, ssh=None):
 
     try:
         out = run(['ps', '-Ao', 'args='], stdout=PIPE, stderr=PIPE, timeout=5,
-                   universal_newlines=True, ssh=ssh).stdout
+                  universal_newlines=True, ssh=ssh).stdout
     except (TimeoutExpired, SSHException) as err:
         logger.error('Error while checking \'zfs receive\' on {:s}: \'{}\'...'
                      .format(fsname_log, err))
@@ -292,3 +292,25 @@ def check_recv(fsname, ssh=None):
             return True
 
     return False
+
+
+def bytes_fmt(num):
+    """Converts bytes to a human readable format
+
+    Parameters
+    ----------
+    num : int,float
+        Number of bytes
+
+    Returns
+    -------
+    float
+        Human readable format with binary prefixes
+    """
+
+    for x in ['B', 'K', 'M', 'G', 'T', 'P', 'E', 'Z']:
+        if num < 1024:
+            return "{:3.1f}{:s}".format(num, x)
+        num /= 1024
+    else:
+        return "{:3.1f}{:s}".format(num, 'Y')
