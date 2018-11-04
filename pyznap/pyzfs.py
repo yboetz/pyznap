@@ -10,7 +10,7 @@
 
 
 import subprocess as sp
-import pyznap.process as process
+from .process import check_output, DatasetNotFoundError, DatasetBusyError
 
 
 def find(path=None, ssh=None, max_depth=None, types=[]):
@@ -37,7 +37,7 @@ def find(path=None, ssh=None, max_depth=None, types=[]):
     if path:
         cmd.append(path)
 
-    out = sp.check_output(cmd, ssh=ssh)
+    out = check_output(cmd, ssh=ssh)
 
     return [open(name, ssh=ssh, type=type) for name, type in out]
 
@@ -70,7 +70,7 @@ def findprops(path=None, ssh=None, max_depth=None, props=['all'], sources=[], ty
     if path:
         cmd.append(path)
 
-    out = sp.check_output(cmd, ssh=ssh)
+    out = check_output(cmd, ssh=ssh)
 
     names = set(map(lambda x: x[0], out))
 
@@ -117,7 +117,7 @@ def create(name, ssh=None, type='filesystem', props={}, force=False):
 
     cmd.append(name)
 
-    sp.check_output(cmd, ssh=ssh)
+    check_output(cmd, ssh=ssh)
     return ZFSFilesystem(name, ssh=ssh)
 
 
@@ -139,7 +139,7 @@ def receive(name, stdin, ssh=None, append_name=False, append_path=False,
 
     cmd.append(name)
 
-    return sp.check_output(cmd, stdin=stdin, ssh=ssh)
+    return check_output(cmd, stdin=stdin, ssh=ssh)
 
 
 class ZFSDataset(object):
@@ -189,7 +189,7 @@ class ZFSDataset(object):
 
         cmd.append(self.name)
 
-        sp.check_output(cmd, ssh=self.ssh)
+        check_output(cmd, ssh=self.ssh)
 
     def snapshot(self, snapname, recursive=False, props={}):
         cmd = ['zfs', 'snapshot']
@@ -204,7 +204,7 @@ class ZFSDataset(object):
         name = self.name + '@' + snapname
         cmd.append(name)
 
-        sp.check_output(cmd, ssh=self.ssh)
+        check_output(cmd, ssh=self.ssh)
         return ZFSSnapshot(name, ssh=self.ssh)
 
     # TODO: split force to allow -f, -r and -R to be specified individually
@@ -234,7 +234,7 @@ class ZFSDataset(object):
         cmd.append(prop + '=' + str(value))
         cmd.append(self.name)
 
-        sp.check_output(cmd, ssh=self.ssh)
+        check_output(cmd, ssh=self.ssh)
 
     def delprop(self, prop, recursive=False):
         cmd = ['zfs', 'inherit']
@@ -245,7 +245,7 @@ class ZFSDataset(object):
         cmd.append(prop)
         cmd.append(self.name)
 
-        sp.check_output(cmd, ssh=self.ssh)
+        check_output(cmd, ssh=self.ssh)
 
     def userspace(self, *args, **kwargs):
         raise NotImplementedError()
@@ -332,8 +332,8 @@ class ZFSSnapshot(ZFSDataset):
         cmd.append(self.name)
 
         try:
-            out = sp.check_output(cmd)
-        except (process.DatasetNotFoundError, process.DatasetBusyError,
+            out = check_output(cmd)
+        except (DatasetNotFoundError, DatasetBusyError,
                 sp.CalledProcessError):
             return 0
 
@@ -353,7 +353,7 @@ class ZFSSnapshot(ZFSDataset):
         cmd.append(tag)
         cmd.append(self.name)
 
-        sp.check_output(cmd, ssh=self.ssh)
+        check_output(cmd, ssh=self.ssh)
 
     def holds(self):
         cmd = ['zfs', 'holds']
@@ -362,7 +362,7 @@ class ZFSSnapshot(ZFSDataset):
 
         cmd.append(self.name)
 
-        out = sp.check_output(cmd, ssh=self.ssh)
+        out = check_output(cmd, ssh=self.ssh)
 
         # return hold tag names only
         return [hold[1] for hold in out]
@@ -376,4 +376,4 @@ class ZFSSnapshot(ZFSDataset):
         cmd.append(tag)
         cmd.append(self.name)
 
-        sp.check_output(cmd, ssh=self.ssh)
+        check_output(cmd, ssh=self.ssh)

@@ -25,7 +25,7 @@ from pyznap.utils import open_ssh, read_config, parse_name, exists
 from pyznap.clean import clean_config
 from pyznap.take import take_config
 from pyznap.send import send_config
-from pyznap.process import DatasetNotFoundError
+from pyznap.process import check_output, DatasetNotFoundError
 
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s',
@@ -85,13 +85,13 @@ def zpools():
         
         # Create temporary test pools
         try:
-            sp.check_output([ZPOOL, 'create', POOL0, filename0])
+            check_output([ZPOOL, 'create', POOL0, filename0])
         except sp.CalledProcessError as err:
             logger.error(err)
             return
 
         try:
-            sp.check_output([ZPOOL, 'create', POOL1, filename1], ssh=ssh)
+            check_output([ZPOOL, 'create', POOL1, filename1], ssh=ssh)
         except sp.CalledProcessError as err:
             logger.error(err)
             return
@@ -108,12 +108,12 @@ def zpools():
 
         # Destroy temporary test pools
         try:
-            sp.check_output([ZPOOL, 'destroy', POOL0])
+            check_output([ZPOOL, 'destroy', POOL0])
         except sp.CalledProcessError as err:
             logger.error(err)
 
         try:
-            sp.check_output([ZPOOL, 'destroy', POOL1], ssh=ssh)
+            check_output([ZPOOL, 'destroy', POOL1], ssh=ssh)
         except sp.CalledProcessError as err:
             logger.error(err)
 

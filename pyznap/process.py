@@ -106,8 +106,8 @@ def check_output(*popenargs, timeout=None, ssh=None, **kwargs):
     if 'input' in kwargs:
         raise ValueError('input argument not allowed, it will be overridden.')
 
-    ret = sp.run(*popenargs, stdout=PIPE, stderr=PIPE, timeout=timeout,
-                 universal_newlines=True, ssh=ssh, **kwargs)
+    ret = run(*popenargs, stdout=PIPE, stderr=PIPE, timeout=timeout,
+              universal_newlines=True, ssh=ssh, **kwargs)
     ret.check_returncode()
     out = ret.stdout
 
@@ -174,9 +174,4 @@ def run(*popenargs, timeout=None, check=False, ssh=None, **kwargs):
     if check and retcode:
         raise sp.CalledProcessError(retcode, popenargs[0], output=stdout, stderr=stderr)
 
-    return sp.CompletedProcess(popenargs[0], retcode, stdout, stderr)
-
-
-sp.CompletedProcess = CompletedProcess
-sp.run = run
-sp.check_output = check_output
+    return CompletedProcess(popenargs[0], retcode, stdout, stderr)
