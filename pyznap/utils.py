@@ -94,7 +94,8 @@ def open_ssh(user, host, key=None, port=22):
     ssh.set_missing_host_key_policy(pm.WarningPolicy())
 
     try:
-        ssh.connect(hostname=host, port=port, username=user, key_filename=key, timeout=5)
+        ssh.connect(hostname=host, port=port, username=user, key_filename=key, timeout=5,
+                    look_for_keys=False)
         # Test connection
         ssh.exec_command('ls', timeout=5)
     except (AuthenticationException, BadAuthenticationType,
