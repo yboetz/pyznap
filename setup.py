@@ -41,7 +41,7 @@ setup(
     ],
     extras_require={
         'dev': [
-            'pytest>=3',
+            'pytest==3.3.0',
             'pytest-dependency==0.2',
             'pytest-runner',
         ]
