@@ -2,8 +2,20 @@
 
 pyznap is a ZFS snapshot management tool. It automatically takes and deletes snapshots and can send
 them to different backup locations. You can specify a policy for a given filesystem in the
-pyznap.conf file and then use cron to let it run once per quarter-hour. pyznap includes zfs
+pyznap.conf file and then use cron to let it run regularly. pyznap includes zfs
 bindings for python, forked and modified from https://bitbucket.org/stevedrake/weir/.
+
+
+#### How does it work? ####
+
+pyznap regularly takes and deletes snapshots according to a specified policy. You can take frequent,
+hourly, daily, weekly, monthly and yearly snapshots. 'frequent' snapshots can be taken up to once
+per minute, the frequency can be adjusted by the cronjob frequency. Old snapshots are deleted as
+you take new ones, thinning out the history as it gets older.
+
+Datasets can also be replicated to other pools on the same system or remotely over ssh. After an
+initial sync, backups will be done incrementally as long as there are common snapshots between the
+source and the destination.
 
 
 #### Requirements ####
@@ -49,7 +61,7 @@ This will create a directory `PATH` (default is `/etc/pyznap/`) and copy a sampl
 config for your system might look like this (remove the comments):
 
     [rpool/filesystem]
-    frequent = 4                          # Keep 4 quarter-hourly snapshots
+    frequent = 4                          # Keep 4 frequent snapshots
     hourly = 24                           # Keep 24 hourly snapshots
     daily = 7                             # Keep 7 daily snapshots
     weekly = 4                            # Keep 4 weekly snapshots
@@ -67,8 +79,10 @@ and let pyznap run regularly by adding the following line
 
     */15 * * * *   root    /path/to/pyznap snap >> /var/log/pyznap.log
 
-This will run pyznap every quarter hour to take and delete snapshots. If you also want to send your
-filesystems to another location you can create a cronjob with
+This will run pyznap every quarter hour to take and delete snapshots. 'frequent' snapshots can be
+taken up to once per minute, so adjust your cronjob accordingly.
+
+If you also want to send your filesystems to another location you can create a cronjob with
 
     0 0 * * *   root    /path/to/pyznap send >> /var/log/pyznap.log
 
