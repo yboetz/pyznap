@@ -110,8 +110,8 @@ def take_snap(filesystem, conf):
                          .format(filesystem, snapname('hourly'), err.stderr.rstrip()))
 
     if conf['frequent'] and (not snapshots['frequent'] or
-                             snapshots['frequent'][0][1].minute//15 != now().minute//15 or
-                             now() - snapshots['frequent'][0][1] > timedelta(minutes=15)):
+                             snapshots['frequent'][0][1].minute != now().minute or
+                             now() - snapshots['frequent'][0][1] > timedelta(minutes=1)):
         logger.info('Taking snapshot {}@{:s}...'.format(filesystem, snapname('frequent')))
         try:
             filesystem.snapshot(snapname=snapname('frequent'), recursive=True)

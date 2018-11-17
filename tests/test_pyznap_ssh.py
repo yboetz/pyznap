@@ -48,7 +48,7 @@ ZPOOL = '/sbin/zpool'
 POOL0 = 'pyznap_test_source'
 POOL1 = 'pyznap_test_dest'
 
-N_FREQUENT = 8
+N_FREQUENT = 30
 N_HOURLY = 24
 N_DAILY = 14
 N_WEEKLY = 8
@@ -171,6 +171,35 @@ def config_send():
 
 @pytest.mark.slow
 class TestCycle(object):
+    def test_2_hours(self, zpools, config):
+        """Tests pyznap over 2 hours and checks if the correct amount of 'frequent' snapshots are taken"""
+
+        _, fs = zpools
+        fs.destroy(force=True)
+
+        start_date = datetime(2014, 1, 1)
+        dates = [start_date + i * timedelta(minutes=1) for i in range(60*2)]
+
+        for n,date in enumerate(dates):
+            faketime = ['faketime', date.strftime('%y-%m-%d %H:%M:%S')]
+            pyznap_snap = faketime + ['pyznap', '--config', config, 'snap']
+
+            # take snaps every 15min
+            _, _ = Popen(pyznap_snap).communicate()
+
+            # get all snapshots
+            snapshots = {'frequent': [], 'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
+            for snap in fs.snapshots():
+                snap_type = snap.name.split('_')[-1]
+                snapshots[snap_type].append(snap)
+            # check if there are not too many snapshots taken
+            for snap_type, snaps in snapshots.items():
+                assert len(snaps) <= SNAPSHOTS_REF[snap_type]
+            # check if after N_FREQUENT runs there are N_FREQUENT 'frequent' snapshots
+            if n+1 >= N_FREQUENT:
+                assert len(snapshots['frequent']) == SNAPSHOTS_REF['frequent']
+
+
     def test_2_days(self, zpools, config):
         """Tests pyznap over 2 days and checks if the correct amount of 'frequent' snapshots are taken"""
 
