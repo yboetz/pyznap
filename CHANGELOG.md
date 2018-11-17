@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1] - 2018-11-17
+### Changed
+- Changed frequency of 'frequent' snapshots to 1 minute. Interval at which 'frequent' snapshots
+are taken can be controlled by cronjob. This allows users to take snapshots at different intervals
+(1min, 5min, 15min, ...).
+- Code cleanup in process.py. No more overwriting of subprocess functions.
+
+### Fixed
+- Fixed pv width to 100 chars.
+
 ## [1.1.0] - 2018-10-15
 ### Added
 - pyznap now uses `pv` to show progress of zfs send operations.
