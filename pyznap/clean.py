@@ -17,7 +17,32 @@ import pyznap.pyzfs as zfs
 from .process import DatasetBusyError, DatasetNotFoundError
 
 
-def clean_snap(filesystem, conf):
+def clean_snap(snap):
+    """Deletes a snapshot
+
+    Parameters
+    ----------
+    snap : {ZFSSnapshot}
+        Snapshot to destroy
+    """
+
+    logger = logging.getLogger(__name__)
+
+    logger.info('Deleting snapshot {}...'.format(snap))
+    try:
+        snap.destroy()
+    except DatasetBusyError as err:
+        logger.error(err)
+    except CalledProcessError as err:
+        logger.error('Error while deleting snapshot {}: \'{:s}\'...'
+                     .format(snap, err.stderr.rstrip()))
+    except KeyboardInterrupt:
+        logger.error('KeyboardInterrupt while cleaning snapshot {}...'
+                     .format(snap))
+        raise
+
+
+def clean_filesystem(filesystem, conf):
     """Deletes snapshots of a single filesystem according to conf.
 
     Parameters:
@@ -48,69 +73,27 @@ def clean_snap(filesystem, conf):
         snaps.reverse()
 
     for snap in snapshots['yearly'][conf['yearly']:]:
-        logger.info('Deleting snapshot {}...'.format(snap))
-        try:
-            snap.destroy()
-        except DatasetBusyError as err:
-            logger.error(err)
-        except CalledProcessError as err:
-            logger.error('Error while deleting snapshot {}: \'{:s}\'...'
-                         .format(snap, err.stderr.rstrip()))
+        clean_snap(snap)
 
     for snap in snapshots['monthly'][conf['monthly']:]:
-        logger.info('Deleting snapshot {}...'.format(snap))
-        try:
-            snap.destroy()
-        except DatasetBusyError as err:
-            logger.error(err)
-        except CalledProcessError as err:
-            logger.error('Error while deleting snapshot {}: \'{:s}\'...'
-                         .format(snap, err.stderr.rstrip()))
+        clean_snap(snap)
 
     for snap in snapshots['weekly'][conf['weekly']:]:
-        logger.info('Deleting snapshot {}...'.format(snap))
-        try:
-            snap.destroy()
-        except DatasetBusyError as err:
-            logger.error(err)
-        except CalledProcessError as err:
-            logger.error('Error while deleting snapshot {}: \'{:s}\'...'
-                         .format(snap, err.stderr.rstrip()))
+        clean_snap(snap)
 
     for snap in snapshots['daily'][conf['daily']:]:
-        logger.info('Deleting snapshot {}...'.format(snap))
-        try:
-            snap.destroy()
-        except DatasetBusyError as err:
-            logger.error(err)
-        except CalledProcessError as err:
-            logger.error('Error while deleting snapshot {}: \'{:s}\'...'
-                         .format(snap, err.stderr.rstrip()))
+        clean_snap(snap)
 
     for snap in snapshots['hourly'][conf['hourly']:]:
-        logger.info('Deleting snapshot {}...'.format(snap))
-        try:
-            snap.destroy()
-        except DatasetBusyError as err:
-            logger.error(err)
-        except CalledProcessError as err:
-            logger.error('Error while deleting snapshot {}: \'{:s}\'...'
-                         .format(snap, err.stderr.rstrip()))
+        clean_snap(snap)
 
     for snap in snapshots['frequent'][conf['frequent']:]:
-        logger.info('Deleting snapshot {}...'.format(snap))
-        try:
-            snap.destroy()
-        except DatasetBusyError as err:
-            logger.error(err)
-        except CalledProcessError as err:
-            logger.error('Error while deleting snapshot {}: \'{:s}\'...'
-                         .format(snap, err.stderr.rstrip()))
+        clean_snap(snap)
 
 
 def clean_config(config):
     """Deletes old snapshots according to strategies given in config. Goes through each config,
-    opens up ssh connection if necessary and then recursively calls clean_snap.
+    opens up ssh connection if necessary and then recursively calls clean_filesystem.
 
     Parameters:
     ----------
@@ -156,7 +139,7 @@ def clean_config(config):
                          .format(name_log, err.stderr.rstrip()))
         else:
             # Clean snapshots of parent filesystem
-            clean_snap(children[0], conf)
+            clean_filesystem(children[0], conf)
             # Clean snapshots of all children that don't have a seperate config entry
             for child in children[1:]:
                 # Check if any of the parents (but child of base filesystem) have a config entry
@@ -173,7 +156,7 @@ def clean_config(config):
                         (parent_name in [entry['name'] for entry in config])):
                         break
                 else:
-                    clean_snap(child, conf)
+                    clean_filesystem(child, conf)
         finally:
             if ssh:
                 ssh.close()

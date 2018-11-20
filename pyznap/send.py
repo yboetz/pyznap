@@ -30,7 +30,7 @@ else:
     PV = lambda _: ['cat']
 
 
-def send_recv(snapshot, dest_name, base=None, ssh=None):
+def send_snap(snapshot, dest_name, base=None, ssh=None):
     """Sends snapshot to destination, incrementally and over ssh if specified.
 
     Parameters:
@@ -66,11 +66,14 @@ def send_recv(snapshot, dest_name, base=None, ssh=None):
     except CalledProcessError as err:
         logger.error('Error while sending to {:s}: {}...'.format(dest_name_log, err.stderr.rstrip()))
         return 1
+    except KeyboardInterrupt:
+        logger.error('KeyboardInterrupt while sending to {:s}...'.format(dest_name_log))
+        raise
     else:
         return 0
 
 
-def send_snap(source_fs, dest_name, ssh=None):
+def send_filesystem(source_fs, dest_name, ssh=None):
     """Checks for common snapshots between source and dest.
     If none are found, send the oldest snapshot, then update with the most recent one.
     If there are common snaps, update destination with the most recent one.
@@ -136,7 +139,7 @@ def send_snap(source_fs, dest_name, ssh=None):
         else:
             logger.info('No common snapshots on {:s}, sending oldest snapshot {} (~{:s})...'
                         .format(dest_name_log, base, bytes_fmt(base.stream_size())))
-            if send_recv(base, dest_name, base=None, ssh=ssh):
+            if send_snap(base, dest_name, base=None, ssh=ssh):
                 return 1
     else:
         # If there are common snapshots, get the most recent one
@@ -145,7 +148,7 @@ def send_snap(source_fs, dest_name, ssh=None):
     if base.name != snapshot.name:
         logger.info('Updating {:s} with recent snapshot {} (~{:s})...'
                     .format(dest_name_log, snapshot, bytes_fmt(snapshot.stream_size(base))))
-        if send_recv(snapshot, dest_name, base=base, ssh=ssh):
+        if send_snap(snapshot, dest_name, base=base, ssh=ssh):
             return 1
 
     logger.info('{:s} is up to date...'.format(dest_name_log))
@@ -154,7 +157,7 @@ def send_snap(source_fs, dest_name, ssh=None):
 
 def send_config(config):
     """Tries to sync all entries in the config to their dest. Finds all children of the filesystem
-    and calls send_snap on each of them.
+    and calls send_filesystem on each of them.
 
     Parameters:
     ----------
@@ -226,7 +229,7 @@ def send_config(config):
                                        child in source_children]
                 # Send all children to corresponding children on dest
                 for source, dest in zip(source_children, dest_children_names):
-                    send_snap(source, dest, ssh=ssh)
+                    send_filesystem(source, dest, ssh=ssh)
             finally:
                 if ssh:
                     ssh.close()

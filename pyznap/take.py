@@ -17,7 +17,37 @@ import pyznap.pyzfs as zfs
 from .process import DatasetBusyError, DatasetNotFoundError, DatasetExistsError
 
 
-def take_snap(filesystem, conf):
+def take_snap(filesystem, _type):
+    """Takes a snapshot of type '_type'
+
+    Parameters
+    ----------
+    filesystem : {ZFSFilesystem}
+        Filesystem to take snapshot of
+    _type : {str}
+        Type of snapshot to take
+    """
+
+    logger = logging.getLogger(__name__)
+    now = datetime.now
+
+    snapname = lambda _type: 'pyznap_{:s}_{:s}'.format(now().strftime('%Y-%m-%d_%H:%M:%S'), _type)
+
+    logger.info('Taking snapshot {}@{:s}...'.format(filesystem, snapname(_type)))
+    try:
+        filesystem.snapshot(snapname=snapname(_type), recursive=True)
+    except (DatasetBusyError, DatasetExistsError) as err:
+        logger.error(err)
+    except CalledProcessError as err:
+        logger.error('Error while taking snapshot {}@{:s}: \'{:s}\'...'
+                     .format(filesystem, snapname(_type), err.stderr.rstrip()))
+    except KeyboardInterrupt:
+        logger.error('KeyboardInterrupt while taking snapshot {}@{:s}...'
+                     .format(filesystem, snapname(_type)))
+        raise
+
+
+def take_filesystem(filesystem, conf):
     """Takes snapshots of a single filesystem according to conf.
 
     Parameters:
@@ -48,78 +78,34 @@ def take_snap(filesystem, conf):
     for snaps in snapshots.values():
         snaps.reverse()
 
-    snapname = lambda _type: 'pyznap_{:s}_{:s}'.format(now().strftime('%Y-%m-%d_%H:%M:%S'), _type)
-
     if conf['yearly'] and (not snapshots['yearly'] or
                            snapshots['yearly'][0][1].year != now().year):
-        logger.info('Taking snapshot {}@{:s}...'.format(filesystem, snapname('yearly')))
-        try:
-            filesystem.snapshot(snapname=snapname('yearly'), recursive=True)
-        except (DatasetBusyError, DatasetExistsError) as err:
-            logger.error(err)
-        except CalledProcessError as err:
-            logger.error('Error while taking snapshot {}@{:s}: \'{:s}\'...'
-                         .format(filesystem, snapname('yearly'), err.stderr.rstrip()))
+        take_snap(filesystem, 'yearly')
 
     if conf['monthly'] and (not snapshots['monthly'] or
                             snapshots['monthly'][0][1].month != now().month or
                             now() - snapshots['monthly'][0][1] > timedelta(days=31)):
-        logger.info('Taking snapshot {}@{:s}...'.format(filesystem, snapname('monthly')))
-        try:
-            filesystem.snapshot(snapname=snapname('monthly'), recursive=True)
-        except (DatasetBusyError, DatasetExistsError) as err:
-            logger.error(err)
-        except CalledProcessError as err:
-            logger.error('Error while taking snapshot {}@{:s}: \'{:s}\'...'
-                         .format(filesystem, snapname('monthly'), err.stderr.rstrip()))
+        take_snap(filesystem, 'monthly')
 
     if conf['weekly'] and (not snapshots['weekly'] or
                            snapshots['weekly'][0][1].isocalendar()[1] != now().isocalendar()[1] or
                            now() - snapshots['weekly'][0][1] > timedelta(days=7)):
-        logger.info('Taking snapshot {}@{:s}...'.format(filesystem, snapname('weekly')))
-        try:
-            filesystem.snapshot(snapname=snapname('weekly'), recursive=True)
-        except (DatasetBusyError, DatasetExistsError) as err:
-            logger.error(err)
-        except CalledProcessError as err:
-            logger.error('Error while taking snapshot {}@{:s}: \'{:s}\'...'
-                         .format(filesystem, snapname('weekly'), err.stderr.rstrip()))
+        take_snap(filesystem, 'weekly')
 
     if conf['daily'] and (not snapshots['daily'] or
                           snapshots['daily'][0][1].day != now().day or
                           now() - snapshots['daily'][0][1] > timedelta(days=1)):
-        logger.info('Taking snapshot {}@{:s}...'.format(filesystem, snapname('daily')))
-        try:
-            filesystem.snapshot(snapname=snapname('daily'), recursive=True)
-        except (DatasetBusyError, DatasetExistsError) as err:
-            logger.error(err)
-        except CalledProcessError as err:
-            logger.error('Error while taking snapshot {}@{:s}: \'{:s}\'...'
-                         .format(filesystem, snapname('daily'), err.stderr.rstrip()))
+        take_snap(filesystem, 'daily')
 
     if conf['hourly'] and (not snapshots['hourly'] or
                            snapshots['hourly'][0][1].hour != now().hour or
                            now() - snapshots['hourly'][0][1] > timedelta(hours=1)):
-        logger.info('Taking snapshot {}@{:s}...'.format(filesystem, snapname('hourly')))
-        try:
-            filesystem.snapshot(snapname=snapname('hourly'), recursive=True)
-        except (DatasetBusyError, DatasetExistsError) as err:
-            logger.error(err)
-        except CalledProcessError as err:
-            logger.error('Error while taking snapshot {}@{:s}: \'{:s}\'...'
-                         .format(filesystem, snapname('hourly'), err.stderr.rstrip()))
+        take_snap(filesystem, 'hourly')
 
     if conf['frequent'] and (not snapshots['frequent'] or
                              snapshots['frequent'][0][1].minute != now().minute or
                              now() - snapshots['frequent'][0][1] > timedelta(minutes=1)):
-        logger.info('Taking snapshot {}@{:s}...'.format(filesystem, snapname('frequent')))
-        try:
-            filesystem.snapshot(snapname=snapname('frequent'), recursive=True)
-        except (DatasetBusyError, DatasetExistsError) as err:
-            logger.error(err)
-        except CalledProcessError as err:
-            logger.error('Error while taking snapshot {}@{:s}: \'{:s}\'...'
-                         .format(filesystem, snapname('frequent'), err.stderr.rstrip()))
+        take_snap(filesystem, 'frequent')
 
 
 def take_config(config):
@@ -170,10 +156,10 @@ def take_config(config):
             continue
         else:
             # Take recursive snapshot of parent filesystem
-            take_snap(children[0], conf)
+            take_filesystem(children[0], conf)
             # Take snapshot of all children that don't have all snapshots yet
             for child in children[1:]:
-                take_snap(child, conf)
+                take_filesystem(child, conf)
         finally:
             if ssh:
                 ssh.close()
