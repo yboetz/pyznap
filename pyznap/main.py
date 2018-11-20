@@ -24,7 +24,7 @@ from .send import send_config
 DIRNAME = os.path.dirname(os.path.abspath(__file__))
 CONFIG_DIR = '/etc/pyznap/'
 
-def main():
+def _main():
     """pyznap main function. Parses arguments and calls snap/clean/send functions accordingly.
 
     Returns
@@ -104,6 +104,23 @@ def main():
 
     logger.info('Finished successfully...\n')
     return 0
+
+
+def main():
+    """Wrapper around _main function to catch KeyboardInterrupt
+
+    Returns
+    -------
+    int
+        Exit code
+    """
+
+    logger = logging.getLogger(__name__)
+    try:
+        return _main()
+    except KeyboardInterrupt:
+        logger.error('KeyboardInterrupt - exiting gracefully...\n')
+        return 1
 
 
 if __name__ == "__main__":
