@@ -156,7 +156,7 @@ def take_config(config):
             name_log = fsname
 
         try:
-            # Children includes the base filesystem (named 'filesystem')
+            # Children includes the base filesystem (named 'fsname')
             children = zfs.find(path=fsname, types=['filesystem', 'volume'], ssh=ssh)
         except DatasetNotFoundError as err:
             logger.error('Dataset {:s} does not exist...'.format(name_log))
