@@ -19,10 +19,7 @@ from datetime import datetime, timedelta
 import pytest
 
 import pyznap.pyzfs as zfs
-from pyznap.utils import read_config, parse_name, exists
-from pyznap.clean import clean_config
-from pyznap.take import take_config
-from pyznap.send import send_config
+from pyznap.utils import exists
 from pyznap.process import DatasetNotFoundError
 
 
