@@ -300,7 +300,10 @@ class ZFSSnapshot(ZFSDataset):
 
         # cmd.append('-v')
         # cmd.append('-P')
-
+        
+        # compression of the stream if possible
+        cmd.append('-c')
+        
         if replicate:
             cmd.append('-R')
         if properties:
