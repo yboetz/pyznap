@@ -118,6 +118,7 @@ def create(name, ssh=None, type='filesystem', props={}, force=False):
     cmd.append(name)
 
     check_output(cmd, ssh=ssh)
+
     return ZFSFilesystem(name, ssh=ssh)
 
 
@@ -139,7 +140,10 @@ def receive(name, stdin, ssh=None, append_name=False, append_path=False,
 
     cmd.append(name)
 
-    return check_output(cmd, stdin=stdin, ssh=ssh)
+    if ssh:
+        cmd = ssh.cmd + cmd
+
+    return sp.Popen(cmd, stdin=stdin)
 
 
 class ZFSDataset(object):
@@ -332,9 +336,8 @@ class ZFSSnapshot(ZFSDataset):
         cmd.append(self.name)
 
         try:
-            out = check_output(cmd)
-        except (DatasetNotFoundError, DatasetBusyError,
-                sp.CalledProcessError):
+            out = check_output(cmd) # don't forget ssh here
+        except (DatasetNotFoundError, DatasetBusyError, sp.CalledProcessError):
             return 0
 
         try:
