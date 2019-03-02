@@ -36,7 +36,6 @@ def _main():
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s',
                         datefmt='%b %d %H:%M:%S', stream=sys.stdout)
     logger = logging.getLogger(__name__)
-    logging.getLogger("paramiko").setLevel(logging.WARNING)
 
     parser = ArgumentParser(prog='pyznap', description='ZFS snapshot tool written in python')
     parser.add_argument('--config', action="store",
