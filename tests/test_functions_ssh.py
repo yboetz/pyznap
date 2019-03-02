@@ -21,10 +21,11 @@ import pytest
 
 import pyznap.pyzfs as zfs
 from pyznap.utils import open_ssh, read_config, parse_name
+from pyznap.ssh import SSH
 from pyznap.clean import clean_config
 from pyznap.take import take_config
 from pyznap.send import send_config
-from pyznap.process import check_output, DatasetNotFoundError
+from pyznap.process import run, DatasetNotFoundError
 
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s',
@@ -53,8 +54,10 @@ def zpools():
     sftp_filename = '/tmp/' + randomword(10)
 
     # ssh arguments for zfs functions
-    ssh = open_ssh(USER, HOST, port=PORT, key=KEY)
-    sftp = ssh.open_sftp()
+    ssh = SSH(USER, HOST, port=PORT, key=KEY)
+    # need paramiko for sftp file
+    sshclient = open_ssh(USER, HOST, port=PORT, key=KEY)
+    sftp = sshclient.open_sftp()
 
     # Create temporary file on which the source zpool is created. Manually create sftp file
     with NamedTemporaryFile() as file0, sftp.open(sftp_filename, 'w') as file1:
@@ -71,13 +74,13 @@ def zpools():
         
         # Create temporary test pools
         try:
-            check_output([zpool, 'create', pool0, filename0])
+            run([zpool, 'create', pool0, filename0])
         except sp.CalledProcessError as err:
             logger.error(err)
             return
 
         try:
-            check_output([zpool, 'create', pool1, filename1], ssh=ssh)
+            run([zpool, 'create', pool1, filename1], ssh=ssh)
         except sp.CalledProcessError as err:
             logger.error(err)
             return
@@ -94,12 +97,12 @@ def zpools():
 
         # Destroy temporary test pools
         try:
-            check_output([zpool, 'destroy', pool0])
+            run([zpool, 'destroy', pool0])
         except sp.CalledProcessError as err:
             logger.error(err)
 
         try:
-            check_output([zpool, 'destroy', pool1], ssh=ssh)
+            run([zpool, 'destroy', pool1], ssh=ssh)
         except sp.CalledProcessError as err:
             logger.error(err)
 
