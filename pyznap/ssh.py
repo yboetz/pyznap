@@ -24,19 +24,19 @@ class SSH:
 
     Attributes
     ------
-    logger : logging.logger
+    logger : {logging.logger}
         logger to use
-    user : str
+    user : {str}
         User to use
-    host : str
+    host : {str}
         Host to connect to
-    key : str
+    key : {str}
         Path to keyfile
     port : {int}
         Port number to connect to
-    socket : str
+    socket : {str}
         Path to socket file (used with '-o ControlPath')
-    cmd : list of str
+    cmd : {list of str}
         ssh command to use with subprocess
     """
 
@@ -45,11 +45,11 @@ class SSH:
 
         Parameters
         ----------
-        user : str
+        user : {str}
             User to use
-        host : str
+        host : {str}
             Host to connect to
-        key : str, optional
+        key : {str}, optional
             Path to keyfile (the default is None, meaning the standard location
             '~/.ssh/id_rsa' will be checked)
         port : {int}, optional
@@ -97,8 +97,7 @@ class SSH:
         try:
             sp.check_output(self.cmd + ['-O', 'exit'], timeout=5, stderr=sp.PIPE)
         except (sp.CalledProcessError, TimeoutError):
-            self.logger.warning('Error while closing {:s}@{:s}. This should not be a problem though...'
-                                .format(self.user, self.host))
+            pass
 
     def __del__(self):
         self.close()
