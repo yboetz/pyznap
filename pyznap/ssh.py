@@ -80,15 +80,18 @@ class SSH:
                     '-o', 'ControlPath={:s}'.format(self.socket), '-p', str(self.port), 
                     '{:s}@{:s}'.format(self.user, self.host)]
 
+        # try to connect to set up ssh connection
         try:
             sp.check_output(self.cmd + ['ls'], timeout=10, stderr=sp.PIPE)
         except sp.CalledProcessError as err:
             self.logger.error('Error while connecting to {:s}@{:s}: {}...'
                               .format(self.user, self.host, err.stderr.decode()))
+            self.close()
             raise SSHException(err.stderr.decode())
-        except TimeoutError as err:
+        except sp.TimeoutExpired as err:
             self.logger.error('Error while connecting to {:s}@{:s}: {}...'
                               .format(self.user, self.host, err))
+            self.close()
             raise SSHException(err)
 
     def close(self):
@@ -96,7 +99,7 @@ class SSH:
 
         try:
             sp.check_output(self.cmd + ['-O', 'exit'], timeout=5, stderr=sp.PIPE)
-        except (sp.CalledProcessError, TimeoutError):
+        except (sp.CalledProcessError, sp.TimeoutExpired):
             pass
 
     def __del__(self):
