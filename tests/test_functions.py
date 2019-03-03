@@ -92,7 +92,8 @@ class TestUtils(object):
             file.write('hourly = 12\n')
             file.write('monthly = 0\n')
             file.write('clean = no\n')
-            file.write('dest = backup/data, tank/data, rpool/data\n\n')
+            file.write('dest = backup/data, tank/data, rpool/data\n')
+            file.write('send_compress = lzop, pigz, gzip\n\n')
 
             file.write('[rpool]\n')
             file.write('frequent = 4\n')
@@ -139,6 +140,7 @@ class TestUtils(object):
             assert conf1['clean'] == False
             assert conf1['dest'] == ['backup/data', 'tank/data', 'rpool/data']
             assert conf1['dest_keys'] == None
+            assert conf1['send_compress'] == ['lzop', 'pigz', 'gzip']
 
             assert conf2['name'] == 'rpool/data_2'
             assert conf2['key'] == None

@@ -337,7 +337,7 @@ class TestSending(object):
         zfs.create('{:s}/sub3/efg'.format(fs0.name))
         fs0.snapshot('snap8', recursive=True)
         fs0.snapshot('snap9', recursive=True)
-        config = [{'name': fs0.name, 'dest': ['ssh:{:d}:{}'.format(PORT, fs1)], 'dest_keys': [KEY]}]
+        config = [{'name': fs0.name, 'dest': ['ssh:{:d}:{}'.format(PORT, fs1)], 'dest_keys': [KEY], 'send_compress': None}]
         send_config(config)
 
         fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
@@ -356,7 +356,7 @@ class TestSending(object):
         fs0.snapshot('snap0', recursive=True)
         zfs.create('{:s}/sub1'.format(fs0.name))
         fs0.snapshot('snap1', recursive=True)
-        config = [{'name': fs0.name, 'dest': ['ssh:{:d}:{}'.format(PORT, fs1)], 'dest_keys': [KEY]}]
+        config = [{'name': fs0.name, 'dest': ['ssh:{:d}:{}'.format(PORT, fs1)], 'dest_keys': [KEY], 'send_compress': None}]
         send_config(config)
         fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
         fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'], ssh=ssh)[1:]]
@@ -364,7 +364,7 @@ class TestSending(object):
 
         zfs.create('{:s}/sub2'.format(fs0.name))
         fs0.snapshot('snap2', recursive=True)
-        config = [{'name': fs0.name, 'dest': ['ssh:{:d}:{}'.format(PORT, fs1)], 'dest_keys': [KEY]}]
+        config = [{'name': fs0.name, 'dest': ['ssh:{:d}:{}'.format(PORT, fs1)], 'dest_keys': [KEY], 'send_compress': None}]
         send_config(config)
         fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
         fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'], ssh=ssh)[1:]]
@@ -372,7 +372,7 @@ class TestSending(object):
 
         zfs.create('{:s}/sub3'.format(fs0.name))
         fs0.snapshot('snap3', recursive=True)
-        config = [{'name': fs0.name, 'dest': ['ssh:{:d}:{}'.format(PORT, fs1)], 'dest_keys': [KEY]}]
+        config = [{'name': fs0.name, 'dest': ['ssh:{:d}:{}'.format(PORT, fs1)], 'dest_keys': [KEY], 'send_compress': None}]
         send_config(config)
         fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
         fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'], ssh=ssh)[1:]]
@@ -387,7 +387,7 @@ class TestSending(object):
         # Delete recent snapshots on dest
         fs1.snapshots()[-1].destroy(force=True)
         fs1.snapshots()[-1].destroy(force=True)
-        config = [{'name': fs0.name, 'dest': ['ssh:{:d}:{}'.format(PORT, fs1)], 'dest_keys': [KEY]}]
+        config = [{'name': fs0.name, 'dest': ['ssh:{:d}:{}'.format(PORT, fs1)], 'dest_keys': [KEY], 'send_compress': None}]
         send_config(config)
         fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
         fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'], ssh=ssh)[1:]]
@@ -398,7 +398,7 @@ class TestSending(object):
         send_config(config)
         fs0.snapshots()[-1].destroy(force=True)
         fs0.snapshot('snap5', recursive=True)
-        config = [{'name': fs0.name, 'dest': ['ssh:{:d}:{}'.format(PORT, fs1)], 'dest_keys': [KEY]}]
+        config = [{'name': fs0.name, 'dest': ['ssh:{:d}:{}'.format(PORT, fs1)], 'dest_keys': [KEY], 'send_compress': None}]
         send_config(config)
         fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
         fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'], ssh=ssh)[1:]]
@@ -416,7 +416,7 @@ class TestSending(object):
         fs0.snapshot('snap6', recursive=True)
         sub2 = fs1.filesystems()[-1]
         sub2.destroy(force=True)
-        config = [{'name': fs0.name, 'dest': ['ssh:{:d}:{}'.format(PORT, fs1)], 'dest_keys': [KEY]}]
+        config = [{'name': fs0.name, 'dest': ['ssh:{:d}:{}'.format(PORT, fs1)], 'dest_keys': [KEY], 'send_compress': None}]
         send_config(config)
         fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
         fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'], ssh=ssh)[1:]]
@@ -431,7 +431,7 @@ class TestSending(object):
         # Delete old snapshot on source
         fs0.snapshots()[0].destroy(force=True)
         fs0.snapshot('snap7', recursive=True)
-        config = [{'name': fs0.name, 'dest': ['ssh:{:d}:{}'.format(PORT, fs1)], 'dest_keys': [KEY]}]
+        config = [{'name': fs0.name, 'dest': ['ssh:{:d}:{}'.format(PORT, fs1)], 'dest_keys': [KEY], 'send_compress': None}]
         send_config(config)
         fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
         fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'], ssh=ssh)[1:]]
