@@ -13,6 +13,8 @@ import subprocess as sp
 import sys
 import os
 import logging
+import random
+import string
 from subprocess import Popen, PIPE
 from tempfile import NamedTemporaryFile
 from datetime import datetime, timedelta
@@ -29,9 +31,14 @@ logger = logging.getLogger(__name__)
 
 assert exists('faketime')
 
+def randomword(length):
+    letters = string.ascii_lowercase
+    return ''.join(random.choice(letters) for i in range(length))
+
 ZPOOL = '/sbin/zpool'
-POOL0 = 'pyznap_test_source'
-POOL1 = 'pyznap_test_dest'
+_word = randomword(8)
+POOL0 = 'pyznap_source_' + _word
+POOL1 = 'pyznap_dest_' + _word
 
 N_FREQUENT = 30
 N_HOURLY = 24
@@ -343,15 +350,15 @@ class TestCycle(object):
                 assert len(snapshots['monthly']) == SNAPSHOTS_REF['monthly']
 
 
-    def test_100_years(self, zpools, config):
-        """Tests pyznap over 100 years and checks if the correct amount of 'frequent', 'hourly',
+    def test_50_years(self, zpools, config):
+        """Tests pyznap over 50 years and checks if the correct amount of 'frequent', 'hourly',
         'daily', 'weekly', 'monthly' & 'yearly' snapshots are taken"""
 
         fs, _ = zpools
         fs.destroy(force=True)
 
         # have to start at 1969 as faketime only goes from 1969 to 2068
-        dates = [datetime(1969 + i, 1, 1) for i in range(100)]
+        dates = [datetime(1969 + i, 1, 1) for i in range(50)]
 
         for n,date in enumerate(dates):
             faketime = ['faketime', date.strftime('%y-%m-%d %H:%M:%S')]

@@ -22,12 +22,14 @@ import pytest
 
 import pyznap.pyzfs as zfs
 from pyznap.utils import open_ssh, exists
+from pyznap.ssh import SSH
 from pyznap.process import check_output, DatasetNotFoundError
 
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s',
                     datefmt='%b %d %H:%M:%S')
 logger = logging.getLogger(__name__)
+logging.getLogger("paramiko").setLevel(logging.ERROR)
 
 assert exists('faketime')
 
@@ -42,8 +44,9 @@ PORT = 22
 KEY = None
 
 ZPOOL = '/sbin/zpool'
-POOL0 = 'pyznap_test_source'
-POOL1 = 'pyznap_test_dest'
+_word = randomword(8)
+POOL0 = 'pyznap_source_' + _word
+POOL1 = 'pyznap_dest_' + _word
 
 N_FREQUENT = 30
 N_HOURLY = 24
@@ -64,8 +67,10 @@ def zpools():
     sftp_filename = '/tmp/' + randomword(10)
 
     # ssh arguments for zfs functions
-    ssh = open_ssh(USER, HOST, port=PORT, key=KEY)
-    sftp = ssh.open_sftp()
+    ssh = SSH(USER, HOST, port=PORT, key=KEY)
+    # need paramiko for sftp file
+    sshclient = open_ssh(USER, HOST, port=PORT, key=KEY)
+    sftp = sshclient.open_sftp()
 
     # Create temporary file on which the source zpool is created. Manually create sftp file
     with NamedTemporaryFile() as file0, sftp.open(sftp_filename, 'w') as file1:
@@ -376,15 +381,16 @@ class TestCycle(object):
                 assert len(snapshots['monthly']) == SNAPSHOTS_REF['monthly']
 
 
-    def test_100_years(self, zpools, config):
-        """Tests pyznap over 100 years and checks if the correct amount of 'frequent', 'hourly',
+    def test_50_years(self, zpools, config):
+        """Tests pyznap over 50 years and checks if the correct amount of 'frequent', 'hourly',
         'daily', 'weekly', 'monthly' & 'yearly' snapshots are taken"""
 
         _, fs = zpools
         fs.destroy(force=True)
 
-        # have to start at 1969 as faketime only goes from 1969 to 2068
-        dates = [datetime(1969 + i, 1, 1) for i in range(100)]
+        # have to start at 1971 as faketime only goes from 1969 to 2068 and ssh does not like
+        # dates before 1971
+        dates = [datetime(1971 + i, 1, 1) for i in range(50)]
 
         for n,date in enumerate(dates):
             faketime = ['faketime', date.strftime('%y-%m-%d %H:%M:%S')]
@@ -432,8 +438,9 @@ class TestSend(object):
         fs1.destroy(force=True)
         zfs.create('{:s}/sub1'.format(fs0.name))
 
-        # have to start at 1969 as faketime only goes from 1969 to 2068
-        dates = [datetime(1969 + i, 1, 1) for i in range(50)]
+        # have to start at 1971 as faketime only goes from 1969 to 2068 and ssh does not like
+        # dates before 1971
+        dates = [datetime(1971 + i, 1, 1) for i in range(50)]
 
         for n,date in enumerate(dates):
             faketime = ['faketime', date.strftime('%y-%m-%d %H:%M:%S')]
@@ -488,8 +495,9 @@ class TestSend(object):
         fs0.destroy(force=True)
         fs1.destroy(force=True)
 
-        # have to start at 1969 as faketime only goes from 1969 to 2068
-        dates = [datetime(1969 + i, 1, 1) for i in range(10)]
+        # have to start at 1971 as faketime only goes from 1969 to 2068 and ssh does not like
+        # dates before 1971
+        dates = [datetime(1971 + i, 1, 1) for i in range(10)]
 
         for n,date in enumerate(dates):
             # at every step create a new subfilesystem
