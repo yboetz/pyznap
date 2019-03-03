@@ -13,6 +13,8 @@ import subprocess as sp
 import sys
 import os
 import logging
+import random
+import string
 from tempfile import NamedTemporaryFile
 from datetime import datetime
 import pytest
@@ -29,14 +31,19 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(mes
                     datefmt='%b %d %H:%M:%S')
 logger = logging.getLogger(__name__)
 
+def randomword(length):
+    letters = string.ascii_lowercase
+    return ''.join(random.choice(letters) for i in range(length))
+
 @pytest.fixture(scope='module')
 def zpools():
     """Creates two temporary zpools to be called from test functions. Yields the two pool names
     and destroys them after testing."""
 
     zpool = '/sbin/zpool'
-    pool0 = 'pyznap_test_source'
-    pool1 = 'pyznap_test_dest'
+    _word = randomword(8)
+    pool0 = 'pyznap_source_' + _word
+    pool1 = 'pyznap_dest_' + _word
 
     # Create temporary files on which the zpools are created
     with NamedTemporaryFile() as file0, NamedTemporaryFile() as file1:

@@ -31,6 +31,7 @@ from pyznap.process import run, DatasetNotFoundError
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s',
                     datefmt='%b %d %H:%M:%S')
 logger = logging.getLogger(__name__)
+logging.getLogger("paramiko").setLevel(logging.ERROR)
 
 def randomword(length):
    letters = string.ascii_lowercase
@@ -48,8 +49,9 @@ def zpools():
     remote ssh location. Yields the two pool names and destroys them after testing."""
 
     zpool = '/sbin/zpool'
-    pool0 = 'pyznap_test_source'
-    pool1 = 'pyznap_test_dest'
+    _word = randomword(8)
+    pool0 = 'pyznap_source_' + _word
+    pool1 = 'pyznap_dest_' + _word
 
     sftp_filename = '/tmp/' + randomword(10)
 
