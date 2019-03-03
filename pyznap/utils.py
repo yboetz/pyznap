@@ -27,7 +27,7 @@ from paramiko.ssh_exception import (AuthenticationException, BadAuthenticationTy
                                     ProxyCommandFailure)
 
 
-def exists(executable=''):
+def exists(executable='', ssh=None):
     """Tests if an executable exists on the system.
 
     Parameters:
@@ -41,11 +41,24 @@ def exists(executable=''):
         True if executable exists, False if not
     """
 
+    logger = logging.getLogger(__name__)
+    name_log = '{:s}@{:s}'.format(ssh.user, ssh.host) if ssh else 'localhost'
+
     assert isinstance(executable, str), "Input must be string."
     cmd = ['which', executable]
-    out, _ = Popen(cmd, stdout=PIPE, stderr=PIPE).communicate()
 
-    return bool(out)
+    try:
+        out = run(cmd, stdout=PIPE, stderr=PIPE, timeout=5, universal_newlines=True, ssh=ssh).stdout
+    except (TimeoutExpired, SSHException) as err:
+        logger.error('Error while checking if {:s} exists on {:s}: \'{}\'...'
+                     .format(executable, name_log, err))
+        return False
+    except CalledProcessError as err:
+        logger.error('Error while checking if {:s} exists on {:s}: \'{:s}\'...'
+                     .format(executable, name_log, err.stderr.decode()))
+        return False
+    else:
+        return bool(out)
 
 
 def open_ssh(user, host, key=None, port=22):
