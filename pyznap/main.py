@@ -61,6 +61,8 @@ def _main():
                              dest='dest', help='destination filesystem')
     parser_send.add_argument('-i', '--key', action="store",
                              dest='key', help='ssh key for destination')
+    parser_send.add_argument('-c', '--compress', action="store",
+                             dest='compress', help='compression to use for ssh transfer. default is lzop')
 
     if len(sys.argv)==1:
         parser.print_help(sys.stderr)
@@ -93,7 +95,9 @@ def _main():
     elif args.command == 'send':
         if args.source and args.dest:
             key = [args.key] if args.key else None
-            send_config([{'name': args.source, 'dest': [args.dest], 'dest_keys': key}])
+            compress = [args.compress] if args.compress else None
+            send_config([{'name': args.source, 'dest': [args.dest], 'dest_keys': key, 
+                          'send_compress': compress}])
         elif args.source and not args.dest:
             logger.error('Missing dest...')
         elif args.dest and not args.source:

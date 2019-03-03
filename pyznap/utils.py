@@ -55,7 +55,7 @@ def exists(executable='', ssh=None):
         return False
     except CalledProcessError as err:
         logger.error('Error while checking if {:s} exists on {:s}: \'{:s}\'...'
-                     .format(executable, name_log, err.stderr.decode()))
+                     .format(executable, name_log, err.stderr.rstrip()))
         return False
     else:
         return bool(out)
@@ -156,7 +156,7 @@ def read_config(path):
 
     config = []
     options = ['key', 'frequent', 'hourly', 'daily', 'weekly', 'monthly', 'yearly', 'snap', 'clean',
-               'dest', 'dest_keys']
+               'dest', 'dest_keys', 'send_compress']
 
     for section in parser.sections():
         dic = {}
@@ -175,7 +175,7 @@ def read_config(path):
                     dic[option] = int(value)
                 elif option in ['snap', 'clean']:
                     dic[option] = {'yes': True, 'no': False}.get(value.lower(), None)
-                elif option in ['dest']:
+                elif option in ['dest', 'send_compress']:
                     dic[option] = [i.strip() for i in value.split(',')]
                 elif option in ['dest_keys']:
                     dic[option] = [i.strip() if os.path.isfile(i.strip()) else None
@@ -296,7 +296,7 @@ def check_recv(fsname, ssh=None):
         return True
     except CalledProcessError as err:
         logger.error('Error while checking \'zfs receive\' on {:s}: \'{:s}\'...'
-                     .format(fsname_log, err.stderr.decode()))
+                     .format(fsname_log, err.stderr.rstrip()))
         return True
     else:
         match = re.search(r'zfs (receive|recv).*({:s})(?=\n)'.format(fsname), out)
