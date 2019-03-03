@@ -19,15 +19,15 @@ from .process import DatasetBusyError, DatasetNotFoundError, DatasetExistsError
 
 # Use mbuffer if installed on the system
 if exists('mbuffer'):
-    MBUFFER = ['mbuffer', '-q', '-s', '128K', '-m', '512M']
+    MBUFFER = ['mbuffer', '-q', '-s', '128K', '-m', '256M']
 else:
-    MBUFFER = ['cat']
+    MBUFFER = None
 
 # Use pv if installed on the system
 if exists('pv'):
     PV = lambda size: ['pv', '-w', '100', '-s', str(size)]
 else:
-    PV = lambda _: ['cat']
+    PV = None
 
 
 def send_snap(snapshot, dest_name, base=None, ssh=None):
@@ -56,16 +56,25 @@ def send_snap(snapshot, dest_name, base=None, ssh=None):
     stream_size = snapshot.stream_size(base=base)
 
     try:
-        with snapshot.send(base=base, intermediates=True) as send:
-            with Popen(MBUFFER, stdin=send.stdout, stdout=PIPE) as mbuffer:
-                with Popen(PV(stream_size), stdin=mbuffer.stdout, stdout=PIPE) as pv:
-                    with zfs.receive(name=dest_name, stdin=pv.stdout, ssh=ssh, force=True, nomount=True) as receive:
-                        receive.communicate()
+        # put together send/recv command
+        cmd = snapshot.send_cmd(base=base, intermediates=True) + ['|']
+        if MBUFFER:
+            cmd += MBUFFER + ['|']
+        if PV:
+             cmd += PV(stream_size) + ['|']
+        if ssh:
+            cmd += ssh.cmd_compress
+
+        cmd += zfs.receive_cmd(name=dest_name, force=True, nomount=True)
+
+        # invoke popen with shell=True s.t. all pipes work
+        with Popen(' '.join(cmd), shell=True) as proc:
+            proc.communicate()
     except (DatasetNotFoundError, DatasetExistsError, DatasetBusyError, OSError, EOFError) as err:
         logger.error('Error while sending to {:s}: {}...'.format(dest_name_log, err))
         return 1
     except CalledProcessError as err:
-        logger.error('Error while sending to {:s}: {}...'.format(dest_name_log, err.stderr.decode()))
+        logger.error('Error while sending to {:s}: {}...'.format(dest_name_log, err.stderr.rstrip()))
         return 1
     except KeyboardInterrupt:
         logger.error('KeyboardInterrupt while sending to {:s}...'.format(dest_name_log))
@@ -125,7 +134,7 @@ def send_filesystem(source_fs, dest_name, ssh=None):
         common = set()
     except CalledProcessError as err:
         logger.error('Error while opening dest {:s}: \'{:s}\'...'
-                     .format(dest_name_log, err.stderr.decode()))
+                     .format(dest_name_log, err.stderr.rstrip()))
         return 1
     else:
         dest_snapnames = [snap.name.split('@')[1] for snap in dest_fs.snapshots()]
@@ -189,7 +198,7 @@ def send_config(config):
             continue
         except CalledProcessError as err:
             logger.error('Error while opening source {:s}: \'{:s}\'...'
-                         .format(source_name, err.stderr.decode()))
+                         .format(source_name, err.stderr.rstrip()))
             continue
 
         # Send to every backup destination
@@ -202,8 +211,9 @@ def send_config(config):
 
             if _type == 'ssh':
                 dest_key = conf['dest_keys'].pop(0) if conf['dest_keys'] else None
+                compress = conf['send_compress'].pop(0) if conf['send_compress'] else 'lzop'
                 try:
-                    ssh = SSH(user, host, port=port, key=dest_key)
+                    ssh = SSH(user, host, port=port, key=dest_key, compress=compress)
                 except (FileNotFoundError, SSHException):
                     continue
                 dest_name_log = '{:s}@{:s}:{:s}'.format(user, host, dest_name)
@@ -222,7 +232,7 @@ def send_config(config):
                 continue
             except CalledProcessError as err:
                 logger.error('Error while opening dest {:s}: \'{:s}\'...'
-                             .format(dest_name_log, err.stderr.decode()))
+                             .format(dest_name_log, err.stderr.rstrip()))
                 continue
             else:
                 # Match children on source to children on dest
