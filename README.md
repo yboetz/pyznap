@@ -71,20 +71,23 @@ config for your system might look like this (remove the comments):
     clean = yes                           # Delete old snapshots on this filesystem
     dest = backup/filesystem              # Backup this filesystem on this location
 
-Then set up a cronjob by opening your `crontab` file
+Then set up a cronjob by creating a file under `/etc/cron.d/`
 
-    nano /etc/crontab
+    nano /etc/cron.d/pyznap
 
-and let pyznap run regularly by adding the following line
+and let pyznap run regularly by adding the following lines
 
-    */15 * * * *   root    /path/to/pyznap snap >> /var/log/pyznap.log
+    SHELL=/bin/sh
+    PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+    */15 * * * *   root    /path/to/pyznap snap >> /var/log/pyznap.log 2>&1
 
 This will run pyznap every quarter hour to take and delete snapshots. 'frequent' snapshots can be
 taken up to once per minute, so adjust your cronjob accordingly.
 
-If you also want to send your filesystems to another location you can create a cronjob with
+If you also want to send your filesystems to another location you can add a line
 
-    0 0 * * *   root    /path/to/pyznap send >> /var/log/pyznap.log
+    0 0 * * *   root    /path/to/pyznap send >> /var/log/pyznap.log 2>&1
 
 This will backup your data once per day at 12pm.
 
