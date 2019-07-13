@@ -81,19 +81,23 @@ class SSH:
                     '-o', 'ControlPath={:s}'.format(self.socket), '-p', str(self.port), 
                     '{:s}@{:s}'.format(self.user, self.host)]
 
-        # try to connect to set up ssh connection
+        # setup ControlMaster. Process will hang if we call Popen with stderr=sp.PIPE, see
+        # https://lists.mindrot.org/pipermail/openssh-unix-dev/2014-January/031976.html
         try:
-            sp.check_output(self.cmd + ['ls'], timeout=10, stderr=sp.PIPE)
-        except sp.CalledProcessError as err:
+            sp.check_output(self.cmd + ['exit'], timeout=10)
+        except (sp.CalledProcessError, sp.TimeoutExpired):
+            pass
+
+        # check if ssh connection is up
+        try:
+            sp.check_output(self.cmd + ['ls'], timeout=5, stderr=sp.PIPE)
+        except (sp.CalledProcessError, sp.TimeoutExpired) as err:
+            message = err.stderr.rstrip().decode() if hasattr(err, 'stderr') else err
+
             self.logger.error('Error while connecting to {:s}@{:s}: {}...'
-                              .format(self.user, self.host, err.stderr.rstrip()))
+                              .format(self.user, self.host, message))
             self.close()
-            raise SSHException(err.stderr.rstrip())
-        except sp.TimeoutExpired as err:
-            self.logger.error('Error while connecting to {:s}@{:s}: {}...'
-                              .format(self.user, self.host, err))
-            self.close()
-            raise SSHException(err)
+            raise SSHException(message)
 
         # set up compression
         self.setup_compress(compress)
