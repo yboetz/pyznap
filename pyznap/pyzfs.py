@@ -122,28 +122,6 @@ def create(name, ssh=None, type='filesystem', props={}, force=False):
     return ZFSFilesystem(name, ssh=ssh)
 
 
-def receive_cmd(name, append_name=False, append_path=False, force=False, nomount=False):
-    """Returns only the command for zfs receive"""
-
-    cmd = ['zfs', 'receive']
-
-    # cmd.append('-v')
-
-    if append_name:
-        cmd.append('-e')
-    elif append_path:
-        cmd.append('-d')
-
-    if force:
-        cmd.append('-F')
-    if nomount:
-        cmd.append('-u')
-
-    cmd.append(name)
-
-    return cmd
-
-
 def receive(name, stdin, ssh=None, append_name=False, append_path=False, force=False, nomount=False):
     """Returns Popen instance for zfs receive"""
 
@@ -162,6 +140,9 @@ def receive(name, stdin, ssh=None, append_name=False, append_path=False, force=F
         cmd.append('-u')
 
     cmd.append(name)
+
+    if ssh and ssh.compress:
+        cmd = ssh.decompress + ['|'] + cmd
 
     if ssh:
         cmd = ssh.cmd + cmd
@@ -317,34 +298,6 @@ class ZFSSnapshot(ZFSDataset):
     # note: force means create missing parent filesystems
     def clone(self, name, props={}, force=False):
         raise NotImplementedError()
-
-    def send_cmd(self, base=None, intermediates=False, replicate=False,
-             properties=False, deduplicate=False):
-        if self.ssh:
-            raise NotImplementedError()
-
-        cmd = ['zfs', 'send']
-
-        # cmd.append('-v')
-        # cmd.append('-P')
-
-        if replicate:
-            cmd.append('-R')
-        if properties:
-            cmd.append('-p')
-        if deduplicate:
-            cmd.append('-D')
-
-        if base is not None:
-            if intermediates:
-                cmd.append('-I')
-            else:
-                cmd.append('-i')
-            cmd.append(base.name)
-
-        cmd.append(self.name)
-
-        return cmd
 
     def send(self, base=None, intermediates=False, replicate=False,
              properties=False, deduplicate=False):

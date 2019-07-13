@@ -100,8 +100,7 @@ class SSH:
 
 
     def setup_compress(self, _type):
-        """Checks if compression algo is available on source and dest, creates cmd_compress command 
-        to use for send/recv.
+        """Checks if compression algo is available on source and dest.
 
         Parameters
         ----------
@@ -109,16 +108,17 @@ class SSH:
             Type of compression to use
         """
 
-        self.compression = None
-        self.cmd_compress = self.cmd
+        self.compress, self.decompress = None, None
 
         if _type == None:
             return
 
-        algos = ['gzip', 'lzop', 'bzip2', 'pigz', 'xz']
-        compress_cmd = {'gzip': 'gzip', 'lzop': 'lzop', 'bzip2': 'bzip2', 'pigz': 'pigz', 'xz': 'xz'}
-        decompress_cmd = {'gzip': 'gzip -d', 'lzop': 'lzop -d', 'bzip2': 'bzip2 -d', 'pigz': 'pigz -d', 
-                          'xz': 'xz -d'}
+        # compress/decompress commands of different compression tools
+        algos = {'gzip': (['gzip'], ['gzip', '-d']),
+                 'lzop': (['lzop'], ['lzop', '-d']),
+                 'bzip2': (['bzip2'], ['bzip2', '-d']),
+                 'pigz': (['pigz'], ['pigz', '-d']),
+                 'xz': (['xz'], ['xz', '-d'])}
 
         if _type not in algos:
             self.logger.warning('Compression method {:s} not supported. Will continue without...'.format(_type))
@@ -126,16 +126,15 @@ class SSH:
 
         # check if compression is available on source and dest
         if not exists(_type):
-            self.logger.warning('Compression algo {:s} does not exist, continuing without compression...'
-                           .format(_type))
+            self.logger.warning('{:s} does not exist, continuing without compression...'
+                                .format(_type))
             return
         if not exists(_type, ssh=self):
-            self.logger.warning('Compression algo {:s} does not exist on {:s}@{:s}, continuing'
-                        'without compression...'.format(_type, self.user, self.host))
+            self.logger.warning('{:s} does not exist on {:s}@{:s}, continuing without compression...'
+                                .format(_type, self.user, self.host))
             return
 
-        self.compression = _type
-        self.cmd_compress = [compress_cmd[_type]] + ['|'] + self.cmd + [decompress_cmd[_type]] + ['|']
+        self.compress, self.decompress = algos[_type]
 
 
     def close(self):

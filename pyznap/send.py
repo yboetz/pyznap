@@ -56,20 +56,22 @@ def send_snap(snapshot, dest_name, base=None, ssh=None):
     stream_size = snapshot.stream_size(base=base)
 
     try:
-        # put together send/recv command
-        cmd = snapshot.send_cmd(base=base, intermediates=True) + ['|']
+        # create list of all processes connected with a pipe
+        processes = [snapshot.send(base=base, intermediates=True)]
+
         if MBUFFER:
-            cmd += MBUFFER + ['|']
+            processes.append(Popen(MBUFFER, stdin=processes[-1].stdout, stdout=PIPE))
+
         if PV:
-             cmd += PV(stream_size) + ['|']
-        if ssh:
-            cmd += ssh.cmd_compress
+            processes.append(Popen(PV(stream_size), stdin=processes[-1].stdout, stdout=PIPE))
 
-        cmd += zfs.receive_cmd(name=dest_name, force=True, nomount=True)
+        if ssh and ssh.compress:
+            processes.append(Popen(ssh.compress, stdin=processes[-1].stdout, stdout=PIPE))
 
-        # invoke popen with shell=True s.t. all pipes work
-        with Popen(' '.join(cmd), shell=True) as proc:
-            proc.communicate()
+        processes.append(zfs.receive(name=dest_name, stdin=processes[-1].stdout, ssh=ssh, force=True, nomount=True))
+
+        processes[-1].communicate()
+
     except (DatasetNotFoundError, DatasetExistsError, DatasetBusyError, OSError, EOFError) as err:
         logger.error('Error while sending to {:s}: {}...'.format(dest_name_log, err))
         return 1
