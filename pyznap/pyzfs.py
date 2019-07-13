@@ -323,7 +323,7 @@ class ZFSSnapshot(ZFSDataset):
         if self.ssh:
             raise NotImplementedError()
 
-        cmd = ['zfs', 'send', '-nP']
+        cmd = ['zfs', 'send', '-nPv']
 
         if base is not None:
             cmd.append('-I')
