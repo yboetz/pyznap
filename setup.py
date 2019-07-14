@@ -5,7 +5,7 @@
 
     pyznap installation using setuptools.
 
-    :copyright: (c) 2018 by Yannick Boetzel.
+    :copyright: (c) 2018-2019 by Yannick Boetzel.
     :license: GPLv3, see LICENSE for more details.
 """
 

@@ -4,9 +4,23 @@ All notable changes to pyznap will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+## [1.2.0] - 2019-07-14
+### Added
+- pyznap now uses compression for sending over ssh. Current supported methods are `none`, `lzop`
+(default), `lz4`, `gzip`, `pigz`, `bzip2` and `xz`. There is a new config option (e.g. `compress = none`)
+and a new flag `-c` for `pyznap send`.
+- `mbuffer` is now also used on the dest when sending over ssh.
+
+### Changed
+- Rewrote how commands are executed over ssh: Implemented own SSH class, removed paramiko dependency.
+- General code cleanup.
+
+
 ## [1.1.3] - 2019-07-14
 ### Fixed
 - Send would fail on FreeBSD due to missing stream_size.
+
 
 ## [1.1.2] - 2018-11-27
 ### Added
@@ -14,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Code cleanup.
+
 
 ## [1.1.1] - 2018-11-17
 ### Changed
@@ -25,6 +40,7 @@ are taken can be controlled by cronjob. This allows users to take snapshots at d
 ### Fixed
 - Fixed pv width to 100 chars.
 
+
 ## [1.1.0] - 2018-10-15
 ### Added
 - pyznap now uses `pv` to show progress of zfs send operations.
@@ -33,12 +49,14 @@ are taken can be controlled by cronjob. This allows users to take snapshots at d
 ### Fixed
 - Changed readme to only mention python 3.5+.
 
+
 ## [1.0.2] - 2018-08-15
 ### Added
 - More verbose error messages when CalledProcessError is raised.
 
 ### Fixed
 - Send over ssh would fail with OSError if dataset has no space left.
+
 
 ## [1.0.1] - 2018-08-13
 ### Added
@@ -48,6 +66,7 @@ are taken can be controlled by cronjob. This allows users to take snapshots at d
 
 ### Fixed
 - Fixed bug where ssh connection would be opened but not closed if dataset does not exist.
+
 
 ## [1.0.0] - 2018-08-10
 ### Added
@@ -61,9 +80,11 @@ are taken can be controlled by cronjob. This allows users to take snapshots at d
 ### Fixed
 - Fixed multilne ZFS errors not being matched.
 
+
 ## [0.9.1] - 2018-08-08
 ### Fixed 
 - Logging was writing to stderr instead of stdout.
+
 
 ## [0.9.0] - 2018-08-07
 ### Added
