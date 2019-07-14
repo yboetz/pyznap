@@ -142,7 +142,8 @@ If that is not the case just run
 
     Send snapshots to backup locations according to policy.
 
-  + -s SOURCE -d DESTINATION [-i KEYFILE]
+  + -s SOURCE -d DESTINATION [-i KEYFILE] [-c COMPRESSION]
 
     Send source filesystem to destination filesystem. If destination is a ssh location you can
-    specify a keyfile with the `-i` flag.
+    specify a keyfile with the `-i` flag and a compression algo with the `-c` flag.
+
