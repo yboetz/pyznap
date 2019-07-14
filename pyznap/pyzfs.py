@@ -11,6 +11,7 @@
 
 import subprocess as sp
 from .process import check_output, DatasetNotFoundError, DatasetBusyError
+from .utils import exists
 
 
 def find(path=None, ssh=None, max_depth=None, types=[]):
@@ -118,11 +119,13 @@ def create(name, ssh=None, type='filesystem', props={}, force=False):
     cmd.append(name)
 
     check_output(cmd, ssh=ssh)
+
     return ZFSFilesystem(name, ssh=ssh)
 
 
-def receive(name, stdin, ssh=None, append_name=False, append_path=False,
-            force=False, nomount=False):
+def receive(name, stdin, ssh=None, append_name=False, append_path=False, force=False, nomount=False):
+    """Returns Popen instance for zfs receive"""
+
     cmd = ['zfs', 'receive']
 
     # cmd.append('-v')
@@ -139,7 +142,16 @@ def receive(name, stdin, ssh=None, append_name=False, append_path=False,
 
     cmd.append(name)
 
-    return check_output(cmd, stdin=stdin, ssh=ssh)
+    if ssh:
+        if ssh.compress:
+            cmd = ssh.decompress + ['|'] + cmd
+
+        if ssh.mbuffer:
+            cmd = ssh.mbuffer + ['|'] + cmd
+
+        cmd = ssh.cmd + cmd
+
+    return sp.Popen(cmd, stdin=stdin, stderr=sp.PIPE)
 
 
 class ZFSDataset(object):
@@ -332,9 +344,8 @@ class ZFSSnapshot(ZFSDataset):
         cmd.append(self.name)
 
         try:
-            out = check_output(cmd)
-        except (DatasetNotFoundError, DatasetBusyError,
-                sp.CalledProcessError):
+            out = check_output(cmd) # don't forget ssh here
+        except (DatasetNotFoundError, DatasetBusyError, sp.CalledProcessError):
             return 0
 
         try:

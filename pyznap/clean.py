@@ -11,8 +11,8 @@
 import logging
 from datetime import datetime
 from subprocess import CalledProcessError
-from paramiko.ssh_exception import SSHException
-from .utils import open_ssh, parse_name
+from .ssh import SSH, SSHException
+from .utils import parse_name
 import pyznap.pyzfs as zfs
 from .process import DatasetBusyError, DatasetNotFoundError
 
@@ -35,7 +35,7 @@ def clean_snap(snap):
         logger.error(err)
     except CalledProcessError as err:
         logger.error('Error while deleting snapshot {}: \'{:s}\'...'
-                     .format(snap, err.stderr.rstrip()))
+                     .format(snap, err.stderr.rstrip().decode()))
     except KeyboardInterrupt:
         logger.error('KeyboardInterrupt while cleaning snapshot {}...'
                      .format(snap))
@@ -117,7 +117,7 @@ def clean_config(config):
 
         if _type == 'ssh':
             try:
-                ssh = open_ssh(user, host, port=port, key=conf['key'])
+                ssh = SSH(user, host, port=port, key=conf['key'])
             except (FileNotFoundError, SSHException):
                 continue
             name_log = '{:s}@{:s}:{:s}'.format(user, host, fsname)
@@ -136,7 +136,7 @@ def clean_config(config):
             continue
         except CalledProcessError as err:
             logger.error('Error while opening {:s}: \'{:s}\'...'
-                         .format(name_log, err.stderr.rstrip()))
+                         .format(name_log, err.stderr.rstrip().decode()))
         else:
             # Clean snapshots of parent filesystem
             clean_filesystem(children[0], conf)

@@ -11,8 +11,8 @@
 import logging
 from datetime import datetime
 from subprocess import Popen, PIPE, CalledProcessError
-from paramiko.ssh_exception import SSHException
-from .utils import open_ssh, parse_name, exists, check_recv, bytes_fmt
+from .ssh import SSH, SSHException
+from .utils import parse_name, exists, check_recv, bytes_fmt
 import pyznap.pyzfs as zfs
 from .process import DatasetBusyError, DatasetNotFoundError, DatasetExistsError
 
@@ -21,13 +21,13 @@ from .process import DatasetBusyError, DatasetNotFoundError, DatasetExistsError
 if exists('mbuffer'):
     MBUFFER = ['mbuffer', '-q', '-s', '128K', '-m', '512M']
 else:
-    MBUFFER = ['cat']
+    MBUFFER = None
 
 # Use pv if installed on the system
 if exists('pv'):
     PV = lambda size: ['pv', '-w', '100', '-s', str(size)]
 else:
-    PV = lambda _: ['cat']
+    PV = None
 
 
 def send_snap(snapshot, dest_name, base=None, ssh=None):
@@ -41,7 +41,7 @@ def send_snap(snapshot, dest_name, base=None, ssh=None):
         Name of the location to send snapshot
     base : {ZFSSnapshot}, optional
         Base snapshot for incremental stream (the default is None, meaning a full stream)
-    ssh : {paramiko.SSHClient}, optional
+    ssh : {ssh.SSH}, optional
         Open ssh connection for remote backup (the default is None, meaning local backup)
 
     Returns
@@ -56,15 +56,30 @@ def send_snap(snapshot, dest_name, base=None, ssh=None):
     stream_size = snapshot.stream_size(base=base)
 
     try:
-        with snapshot.send(base=base, intermediates=True) as send:
-            with Popen(MBUFFER, stdin=send.stdout, stdout=PIPE) as mbuffer:
-                with Popen(PV(stream_size), stdin=mbuffer.stdout, stdout=PIPE) as pv:
-                    zfs.receive(name=dest_name, stdin=pv.stdout, ssh=ssh, force=True, nomount=True)
+        # create list of all processes connected with a pipe
+        processes = [snapshot.send(base=base, intermediates=True)]
+
+        if MBUFFER:
+            logger.debug("Using mbuffer: '{:s}'...".format(' '.join(MBUFFER)))
+            processes.append(Popen(MBUFFER, stdin=processes[-1].stdout, stdout=PIPE))
+
+        if PV:
+            logger.debug("Using pv: '{:s}'...".format(' '.join(PV(stream_size))))
+            processes.append(Popen(PV(stream_size), stdin=processes[-1].stdout, stdout=PIPE))
+
+        if ssh and ssh.compress:
+            logger.debug("Using compression: '{:s}'...".format(' '.join(ssh.compress)))
+            processes.append(Popen(ssh.compress, stdin=processes[-1].stdout, stdout=PIPE))
+
+        processes.append(zfs.receive(name=dest_name, stdin=processes[-1].stdout, ssh=ssh, force=True, nomount=True))
+
+        processes[-1].communicate()
+
     except (DatasetNotFoundError, DatasetExistsError, DatasetBusyError, OSError, EOFError) as err:
         logger.error('Error while sending to {:s}: {}...'.format(dest_name_log, err))
         return 1
     except CalledProcessError as err:
-        logger.error('Error while sending to {:s}: {}...'.format(dest_name_log, err.stderr.rstrip()))
+        logger.error('Error while sending to {:s}: {}...'.format(dest_name_log, err.stderr.rstrip().decode()))
         return 1
     except KeyboardInterrupt:
         logger.error('KeyboardInterrupt while sending to {:s}...'.format(dest_name_log))
@@ -84,7 +99,7 @@ def send_filesystem(source_fs, dest_name, ssh=None):
         Source zfs filesystem from where to send
     dest_name : {str}
         Name of the location to send to
-    ssh : {paramiko.SSHClient}, optional
+    ssh : {ssh.SSH}, optional
         Open ssh connection for remote backup (the default is None, meaning local backup)
 
     Returns
@@ -98,10 +113,10 @@ def send_filesystem(source_fs, dest_name, ssh=None):
 
     logger.debug('Sending {} to {:s}...'.format(source_fs, dest_name_log))
 
-    # Check if ssh session still active
-    if ssh and not ssh.get_transport().is_active():
-        logger.error('Error while sending to {:s}: ssh session not active...'.format(dest_name_log))
-        return 1
+    # # Check if ssh session still active
+    # if ssh and not ssh.get_transport().is_active():
+    #     logger.error('Error while sending to {:s}: ssh session not active...'.format(dest_name_log))
+    #     return 1
 
     # Check if dest already has a 'zfs receive' ongoing
     if check_recv(dest_name, ssh=ssh):
@@ -124,7 +139,7 @@ def send_filesystem(source_fs, dest_name, ssh=None):
         common = set()
     except CalledProcessError as err:
         logger.error('Error while opening dest {:s}: \'{:s}\'...'
-                     .format(dest_name_log, err.stderr.rstrip()))
+                     .format(dest_name_log, err.stderr.rstrip().decode()))
         return 1
     else:
         dest_snapnames = [snap.name.split('@')[1] for snap in dest_fs.snapshots()]
@@ -188,7 +203,7 @@ def send_config(config):
             continue
         except CalledProcessError as err:
             logger.error('Error while opening source {:s}: \'{:s}\'...'
-                         .format(source_name, err.stderr.rstrip()))
+                         .format(source_name, err.stderr.rstrip().decode()))
             continue
 
         # Send to every backup destination
@@ -201,8 +216,9 @@ def send_config(config):
 
             if _type == 'ssh':
                 dest_key = conf['dest_keys'].pop(0) if conf['dest_keys'] else None
+                compress = conf['compress'].pop(0) if conf['compress'] else 'lzop'
                 try:
-                    ssh = open_ssh(user, host, port=port, key=dest_key)
+                    ssh = SSH(user, host, port=port, key=dest_key, compress=compress)
                 except (FileNotFoundError, SSHException):
                     continue
                 dest_name_log = '{:s}@{:s}:{:s}'.format(user, host, dest_name)
@@ -221,7 +237,7 @@ def send_config(config):
                 continue
             except CalledProcessError as err:
                 logger.error('Error while opening dest {:s}: \'{:s}\'...'
-                             .format(dest_name_log, err.stderr.rstrip()))
+                             .format(dest_name_log, err.stderr.rstrip().decode()))
                 continue
             else:
                 # Match children on source to children on dest

@@ -9,11 +9,9 @@
 """
 
 import re
-import shutil
 import errno as _errno
 import subprocess as sp
 import socket
-from paramiko import SSHException
 
 PIPE = sp.PIPE
 
@@ -72,10 +70,8 @@ class CompletedProcess(sp.CompletedProcess):
         super(CompletedProcess, self).check_returncode()
 
 
-# ssh is a connected instance of paramiko.client.SSHClient
 def check_output(*popenargs, timeout=None, ssh=None, **kwargs):
     """Run command with arguments and return its output. Works over ssh.
-
     Parameters:
     ----------
     *popenargs : {}
@@ -85,14 +81,12 @@ def check_output(*popenargs, timeout=None, ssh=None, **kwargs):
     timeout : {float}, optional
         Timeout in seconds, if process takes too long TimeoutExpired will be raised (the default is
         None, meaning no timeout)
-    ssh : {paramiko.SSHClient}, optional
+    ssh : {ssh.SSH}, optional
         Open ssh connection for remote execution (the default is None)
-
     Raises
     ------
     ValueError
         Raise ValueError for forbidden kwargs
-
     Returns
     -------
     None or list of lists
@@ -116,7 +110,6 @@ def check_output(*popenargs, timeout=None, ssh=None, **kwargs):
 
 def run(*popenargs, timeout=None, check=False, ssh=None, **kwargs):
     """Run command with ZFS arguments and return a CompletedProcess instance. Works over ssh.
-
     Parameters:
     ----------
     *popenargs : {}
@@ -128,48 +121,35 @@ def run(*popenargs, timeout=None, check=False, ssh=None, **kwargs):
         None, meaning no timeout)
     check : {bool}, optional
         Check return code (the default is False, meaning return code will not be checked)
-    ssh : {paramiko.SSHClient}, optional
+    ssh : {ssh.SSH}, optional
         Open ssh connection for remote execution (the default is None)
-
     Raises
     ------
     sp.TimeoutExpired
         Raised if process takes longer than given timeout
     sp.CalledProcessError
         Raised if check=True and return code != 0
-
     Returns
     -------
     subprocess.CompletedProcess
         Return instance of CompletedProcess with given return code, stdout and stderr
     """
 
-    if ssh is None:
-        with sp.Popen(*popenargs, **kwargs) as process:
-            try:
-                stdout, stderr = process.communicate(timeout=timeout)
-            except sp.TimeoutExpired:
-                process.kill()
-                stdout, stderr = process.communicate()
-                raise sp.TimeoutExpired(process.args, timeout, output=stdout, stderr=stderr)
-            except:
-                process.kill()
-                process.wait()
-                raise
-            retcode = process.poll()
-    else:
-        args = ' '.join(popenargs[0]) if not isinstance(popenargs[0], str) else popenargs[0]
+    if ssh:
+        popenargs = (ssh.cmd + popenargs[0], *popenargs[1:])
 
+    with sp.Popen(*popenargs, **kwargs) as process:
         try:
-            stdin, stdout, stderr = ssh.exec_command(args, *popenargs[1:], timeout=timeout)
-            if kwargs.get('stdin', None):
-                shutil.copyfileobj(kwargs['stdin'], stdin, 128*1024)
-            stdin.close()
-            retcode = stdout.channel.recv_exit_status()
-            stdout, stderr = ''.join(stdout.readlines()), ''.join(stderr.readlines())
-        except socket.timeout:
-            stdout, stderr = None, None
-            raise sp.TimeoutExpired(popenargs[0], timeout, output=stdout, stderr=stderr)
+            stdout, stderr = process.communicate(timeout=timeout)
+        except sp.TimeoutExpired:
+            process.kill()
+            stdout, stderr = process.communicate()
+            raise sp.TimeoutExpired(process.args, timeout, output=stdout, stderr=stderr)
+        except:
+            process.kill()
+            process.wait()
+            raise
+        retcode = process.poll()
 
     if check and retcode:
         raise sp.CalledProcessError(retcode, popenargs[0], output=stdout, stderr=stderr)
