@@ -40,7 +40,7 @@ def take_snap(filesystem, _type):
         logger.error(err)
     except CalledProcessError as err:
         logger.error('Error while taking snapshot {}@{:s}: \'{:s}\'...'
-                     .format(filesystem, snapname(_type), err.stderr.rstrip()))
+                     .format(filesystem, snapname(_type), err.stderr.rstrip().decode()))
     except KeyboardInterrupt:
         logger.error('KeyboardInterrupt while taking snapshot {}@{:s}...'
                      .format(filesystem, snapname(_type)))
@@ -152,7 +152,7 @@ def take_config(config):
             continue
         except CalledProcessError as err:
             logger.error('Error while opening {:s}: \'{:s}\'...'
-                         .format(name_log, err.stderr.rstrip()))
+                         .format(name_log, err.stderr.rstrip().decode()))
             continue
         else:
             # Take recursive snapshot of parent filesystem

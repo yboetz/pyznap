@@ -231,7 +231,7 @@ def check_recv(fsname, ssh=None):
         return True
     except CalledProcessError as err:
         logger.error('Error while checking \'zfs receive\' on {:s}: \'{:s}\'...'
-                     .format(fsname_log, err.stderr.rstrip()))
+                     .format(fsname_log, err.stderr.rstrip().decode()))
         return True
     else:
         match = re.search(r'zfs (receive|recv).*({:s})(?=\n)'.format(fsname), out)

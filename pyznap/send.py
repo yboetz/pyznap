@@ -79,7 +79,7 @@ def send_snap(snapshot, dest_name, base=None, ssh=None):
         logger.error('Error while sending to {:s}: {}...'.format(dest_name_log, err))
         return 1
     except CalledProcessError as err:
-        logger.error('Error while sending to {:s}: {}...'.format(dest_name_log, err.stderr.rstrip()))
+        logger.error('Error while sending to {:s}: {}...'.format(dest_name_log, err.stderr.rstrip().decode()))
         return 1
     except KeyboardInterrupt:
         logger.error('KeyboardInterrupt while sending to {:s}...'.format(dest_name_log))
@@ -139,7 +139,7 @@ def send_filesystem(source_fs, dest_name, ssh=None):
         common = set()
     except CalledProcessError as err:
         logger.error('Error while opening dest {:s}: \'{:s}\'...'
-                     .format(dest_name_log, err.stderr.rstrip()))
+                     .format(dest_name_log, err.stderr.rstrip().decode()))
         return 1
     else:
         dest_snapnames = [snap.name.split('@')[1] for snap in dest_fs.snapshots()]
@@ -203,7 +203,7 @@ def send_config(config):
             continue
         except CalledProcessError as err:
             logger.error('Error while opening source {:s}: \'{:s}\'...'
-                         .format(source_name, err.stderr.rstrip()))
+                         .format(source_name, err.stderr.rstrip().decode()))
             continue
 
         # Send to every backup destination
@@ -237,7 +237,7 @@ def send_config(config):
                 continue
             except CalledProcessError as err:
                 logger.error('Error while opening dest {:s}: \'{:s}\'...'
-                             .format(dest_name_log, err.stderr.rstrip()))
+                             .format(dest_name_log, err.stderr.rstrip().decode()))
                 continue
             else:
                 # Match children on source to children on dest
