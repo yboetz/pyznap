@@ -91,7 +91,7 @@ class SSH:
 
         # check if ssh connection is up
         try:
-            run(self.cmd + ['ls'], timeout=5, check=True, stderr=sp.PIPE, ssh=self)
+            run(['ls'], timeout=5, check=True, stderr=sp.PIPE, ssh=self)
         except (sp.CalledProcessError, sp.TimeoutExpired) as err:
             message = err.stderr.rstrip().decode() if hasattr(err, 'stderr') else err
 
