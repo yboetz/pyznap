@@ -118,10 +118,10 @@ class SSH:
             return
 
         # compress/decompress commands of different compression tools
-        algos = {'gzip': (['gzip'], ['gzip', '-d']),
-                 'lzop': (['lzop'], ['lzop', '-d']),
-                 'bzip2': (['bzip2'], ['bzip2', '-d']),
-                 'pigz': (['pigz'], ['pigz', '-d']),
+        algos = {'gzip': (['gzip', '-3'], ['gzip', '-dc']),
+                 'lzop': (['lzop'], ['lzop', '-dfc']),
+                 'bzip2': (['bzip2'], ['bzip2', '-dfc']),
+                 'pigz': (['pigz'], ['pigz', '-dc']),
                  'xz': (['xz'], ['xz', '-d'])}
 
         if _type not in algos:
