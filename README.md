@@ -23,20 +23,21 @@ source and the destination.
 pyznap is written in python 3.5+ and requires the following packages:
 
     configparser
-    paramiko
 
 For developing and running the tests you additionally need:
 
     pytest
     pytest-dependency
+    paramiko
 
 You also need the `faketime` program for some tests to simulate pyznap running over time.
 
 I suggest installing [virtualenv & virtualenvwrapper](http://docs.python-guide.org/en/latest/dev/virtualenvs/),
 so you don't clutter your system python installation with additional packages.
 
-pyznap uses `mbuffer` to speed up zfs send/recv and `pv` to show progress, but also works if they
-are not installed.
+pyznap uses `mbuffer` and `lzop` (by default) to speed up zfs send/recv, and `pv` to show progress, 
+but also works if they are not installed. Other supported compression methods are: `none`, `lz4`, 
+`gzip`, `pigz`, `bzip2` and `xz`.
 
 Note that ZFS needs root access to run commands. Due to this you should install pyznap under your
 root user.
@@ -103,6 +104,7 @@ A sample config which backs up a filesystem to a remote location looks like
     clean = yes
     dest = ssh:22:user@host:backup/data   # Specify ssh destination
     dest_keys = /home/user/.ssh/id_rsa    # Provide key for ssh login. If none given, look in home dir
+    compress = gzip
 
 I would also suggest making sure that root has ownership for all files, s.t. no user can modify them.
 If that is not the case just run
@@ -148,5 +150,7 @@ If that is not the case just run
   + -s SOURCE -d DESTINATION [-i KEYFILE] [-c COMPRESSION]
 
     Send source filesystem to destination filesystem. If destination is a ssh location you can
-    specify a keyfile with the `-i` flag and a compression algo with the `-c` flag.
+    specify a keyfile with the `-i` flag. You can also turn on compression with the `-c` flag. 
+    Currently supported options are: `none`, `lzop`, `lz4`, `gzip`, `pigz`, `bzip2` and `xz`. If
+    no option is given, `lzop` is used if available.
 
