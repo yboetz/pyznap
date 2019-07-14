@@ -11,8 +11,9 @@
 import os
 import logging
 import subprocess as sp
-from datetime import datetime
 import pyznap.utils
+from datetime import datetime
+from .process import run
 
 
 class SSHException(Exception):
@@ -84,13 +85,13 @@ class SSH:
         # setup ControlMaster. Process will hang if we call Popen with stderr=sp.PIPE, see
         # https://lists.mindrot.org/pipermail/openssh-unix-dev/2014-January/031976.html
         try:
-            sp.check_output(self.cmd + ['exit'], timeout=10)
+            run(['exit'], timeout=10, ssh=self)
         except (sp.CalledProcessError, sp.TimeoutExpired):
             pass
 
         # check if ssh connection is up
         try:
-            sp.check_output(self.cmd + ['ls'], timeout=5, stderr=sp.PIPE)
+            run(self.cmd + ['ls'], timeout=5, check=True, stderr=sp.PIPE, ssh=self)
         except (sp.CalledProcessError, sp.TimeoutExpired) as err:
             message = err.stderr.rstrip().decode() if hasattr(err, 'stderr') else err
 
@@ -100,22 +101,25 @@ class SSH:
             raise SSHException(message)
 
         # set up compression
-        self.setup_compress(compress)
+        self.compress, self.decompress = self.compression(compress)
 
 
-    def setup_compress(self, _type):
+    def compression(self, _type):
         """Checks if compression algo is available on source and dest.
 
         Parameters
         ----------
         _type : {str}
             Type of compression to use
+
+        Returns
+        -------
+        tuple(List)
+            Tuple of compress/decompress commands to use, (None, None) if compression is not available
         """
 
-        self.compress, self.decompress = None, None
-
         if _type == None:
-            return
+            return None, None
 
         # compress/decompress commands of different compression tools
         algos = {'gzip': (['gzip', '-3'], ['gzip', '-dc']),
@@ -127,27 +131,27 @@ class SSH:
 
         if _type not in algos:
             self.logger.warning('Compression method {:s} not supported. Will continue without...'.format(_type))
-            return
+            return None, None
 
         from pyznap.utils import exists
         # check if compression is available on source and dest
         if not exists(_type):
             self.logger.warning('{:s} does not exist, continuing without compression...'
                                 .format(_type))
-            return
+            return None, None
         if not exists(_type, ssh=self):
             self.logger.warning('{:s} does not exist on {:s}@{:s}, continuing without compression...'
                                 .format(_type, self.user, self.host))
-            return
+            return None, None
 
-        self.compress, self.decompress = algos[_type]
+        return algos[_type]
 
 
     def close(self):
         """Closes the ssh connection by invoking '-O exit' (deletes socket file)"""
 
         try:
-            sp.check_output(self.cmd + ['-O', 'exit'], timeout=5, stderr=sp.PIPE)
+            run(['-O', 'exit'], timeout=5, stderr=sp.PIPE, ssh=self)
         except (sp.CalledProcessError, sp.TimeoutExpired):
             pass
 
