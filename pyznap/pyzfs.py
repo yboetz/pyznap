@@ -11,6 +11,7 @@
 
 import subprocess as sp
 from .process import check_output, DatasetNotFoundError, DatasetBusyError
+from .utils import exists
 
 
 def find(path=None, ssh=None, max_depth=None, types=[]):
@@ -141,10 +142,13 @@ def receive(name, stdin, ssh=None, append_name=False, append_path=False, force=F
 
     cmd.append(name)
 
-    if ssh and ssh.compress:
-        cmd = ssh.decompress + ['|'] + cmd
-
     if ssh:
+        if ssh.compress:
+            cmd = ssh.decompress + ['|'] + cmd
+
+        if ssh.mbuffer:
+            cmd = ssh.mbuffer + ['|'] + cmd
+
         cmd = ssh.cmd + cmd
 
     return sp.Popen(cmd, stdin=stdin, stderr=sp.PIPE)

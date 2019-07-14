@@ -101,10 +101,12 @@ class SSH:
             raise SSHException(message)
 
         # set up compression
-        self.compress, self.decompress = self.compression(compress)
+        self.compress, self.decompress = self.check_compression(compress)
+        # set up mbuffer
+        self.mbuffer = self.check_mbuffer()
 
 
-    def compression(self, _type):
+    def check_compression(self, _type):
         """Checks if compression algo is available on source and dest.
 
         Parameters
@@ -114,7 +116,7 @@ class SSH:
 
         Returns
         -------
-        tuple(List)
+        tuple(List(str))
             Tuple of compress/decompress commands to use, (None, None) if compression is not available
         """
 
@@ -145,6 +147,22 @@ class SSH:
             return None, None
 
         return algos[_type]
+
+
+    def check_mbuffer(self):
+        """Checks if mbuffer is available on dest
+
+        Returns
+        -------
+        List(str)
+            mbuffer command to use on dest
+        """
+        from pyznap.utils import exists
+
+        if not exists('mbuffer', ssh=self):
+            return None
+        else:
+            return ['mbuffer', '-q', '-s', '128K', '-m', '512M']
 
 
     def close(self):

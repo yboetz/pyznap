@@ -19,7 +19,7 @@ from .process import DatasetBusyError, DatasetNotFoundError, DatasetExistsError
 
 # Use mbuffer if installed on the system
 if exists('mbuffer'):
-    MBUFFER = ['mbuffer', '-q', '-s', '128K', '-m', '256M']
+    MBUFFER = ['mbuffer', '-q', '-s', '128K', '-m', '512M']
 else:
     MBUFFER = None
 
