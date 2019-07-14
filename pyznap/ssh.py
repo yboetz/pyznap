@@ -12,7 +12,7 @@ import os
 import logging
 import subprocess as sp
 from datetime import datetime
-from .utils import exists
+import pyznap.utils
 
 
 class SSHException(Exception):
@@ -122,12 +122,14 @@ class SSH:
                  'lzop': (['lzop'], ['lzop', '-dfc']),
                  'bzip2': (['bzip2'], ['bzip2', '-dfc']),
                  'pigz': (['pigz'], ['pigz', '-dc']),
-                 'xz': (['xz'], ['xz', '-d'])}
+                 'xz': (['xz'], ['xz', '-d']),
+                 'lz4': (['lz4'], ['lz4', '-dc'])}
 
         if _type not in algos:
             self.logger.warning('Compression method {:s} not supported. Will continue without...'.format(_type))
             return
 
+        from pyznap.utils import exists
         # check if compression is available on source and dest
         if not exists(_type):
             self.logger.warning('{:s} does not exist, continuing without compression...'
