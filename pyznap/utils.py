@@ -13,18 +13,12 @@ import re
 import logging
 from subprocess import Popen, PIPE, TimeoutExpired, CalledProcessError
 from .process import run
+from .ssh import SSHException
 
 from datetime import datetime
 from configparser import (ConfigParser, NoOptionError, MissingSectionHeaderError,
                           DuplicateSectionError, DuplicateOptionError)
-from socket import timeout, gaierror
 from pkg_resources import resource_string
-
-import paramiko as pm
-from paramiko.ssh_exception import (AuthenticationException, BadAuthenticationType,
-                                    BadHostKeyException, ChannelException, NoValidConnectionsError,
-                                    PasswordRequiredException, SSHException, PartialAuthentication,
-                                    ProxyCommandFailure)
 
 
 def exists(executable='', ssh=None):
@@ -34,6 +28,8 @@ def exists(executable='', ssh=None):
     ----------
     executable : {str}, optional
         Name of the executable to test (the default is an empty string)
+    ssh : {SSH}, optional
+        Open ssh connection (the default is None, which means check is done locally)
 
     Returns
     -------
@@ -44,7 +40,7 @@ def exists(executable='', ssh=None):
     logger = logging.getLogger(__name__)
     name_log = '{:s}@{:s}'.format(ssh.user, ssh.host) if ssh else 'localhost'
 
-    assert isinstance(executable, str), "Input must be string."
+    # assert isinstance(executable, str), "Input must be string."
     cmd = ['which', executable]
 
     try:
@@ -55,71 +51,10 @@ def exists(executable='', ssh=None):
         return False
     except CalledProcessError as err:
         logger.error('Error while checking if {:s} exists on {:s}: \'{:s}\'...'
-                     .format(executable, name_log, err.stderr.rstrip()))
+                     .format(executable, name_log, err.stderr.rstrip().decode()))
         return False
     else:
         return bool(out)
-
-
-def open_ssh(user, host, key=None, port=22):
-    """Opens an ssh connection to host.
-
-    Parameters:
-    ----------
-    user : {str}
-        Username to use
-    host : {str}
-        Host to connect to
-    key : {str}, optional
-        Path to ssh keyfile (the default is None, meaning the standard location
-        '~/.ssh/id_rsa' will be checked)
-    port : {int}, optional
-        Port number to connect to (the default is 22)
-
-    Raises
-    ------
-    FileNotFoundError
-        If keyfile does not exist
-    SSHException
-        General exception raised if anything goes wrong during ssh connection
-
-    Returns
-    -------
-    paramiko.SSHClient
-        Open ssh connection.
-    """
-
-    logger = logging.getLogger(__name__)
-
-    if not key:
-        key = os.path.expanduser('~/.ssh/id_rsa')
-    if not os.path.isfile(key):
-        logger.error('{} is not a valid ssh key file...'.format(key))
-        raise FileNotFoundError(key)
-
-    ssh = pm.SSHClient()
-    # Append username & hostname attributes to ssh class
-    ssh.user, ssh.host = user, host
-    try:
-        ssh.load_system_host_keys(os.path.expanduser('~/.ssh/known_hosts'))
-    except (IOError, FileNotFoundError):
-        ssh.load_system_host_keys()
-    ssh.set_missing_host_key_policy(pm.WarningPolicy())
-
-    try:
-        ssh.connect(hostname=host, port=port, username=user, key_filename=key, timeout=5,
-                    look_for_keys=False)
-        # Test connection
-        ssh.exec_command('ls', timeout=5)
-    except (AuthenticationException, BadAuthenticationType,
-            BadHostKeyException, ChannelException, NoValidConnectionsError,
-            PasswordRequiredException, SSHException, PartialAuthentication,
-            ProxyCommandFailure, timeout, gaierror) as err:
-        logger.error('Could not connect to host {:s}: {}...'.format(host, err))
-        # Raise general exception to be catched outside
-        raise SSHException(err)
-
-    return ssh
 
 
 def read_config(path):
@@ -274,7 +209,7 @@ def check_recv(fsname, ssh=None):
     ----------
     fsname : str
         Name of the dataset
-    ssh : paramiko.SSHClient, optional
+    ssh : SSH, optional
         Open ssh connection (the default is None, which means check is done locally)
 
     Returns
