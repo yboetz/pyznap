@@ -439,3 +439,31 @@ class TestSending(object):
         # Assert that snap0 was not deleted from fs1
         for child in set(fs1_children) - set(fs0_children):
             assert child.endswith('snap0')
+
+    @pytest.mark.dependency()
+    def test_send_compress(self, zpools):
+        """Checks if send_snap totally replicates a filesystem"""
+        fs0, fs1 = zpools
+        ssh = fs1.ssh
+
+        fs0.destroy(force=True)
+        fs1.destroy(force=True)
+
+        fs0.snapshot('snap0')
+        zfs.create('{:s}/sub1'.format(fs0.name))
+        fs0.snapshot('snap1', recursive=True)
+        zfs.create('{:s}/sub2'.format(fs0.name))
+        fs0.snapshot('snap2', recursive=True)
+        fs0.snapshot('snap3', recursive=True)
+        zfs.create('{:s}/sub2/abc'.format(fs0.name))
+        fs0.snapshot('snap4', recursive=True)
+        fs0.snapshot('snap5', recursive=True)
+
+        for compression in ['lzop', 'gzip', 'pigz', 'bzip2', 'xz']:
+            fs1.destroy(force=True)
+            config = [{'name': fs0.name, 'dest': ['ssh:{:d}:{}'.format(PORT, fs1)], 'dest_keys': [KEY], 'send_compress': [compression]}]
+            send_config(config)
+
+            fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
+            fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'], ssh=ssh)[1:]]
+            assert set(fs0_children) == set(fs1_children)
