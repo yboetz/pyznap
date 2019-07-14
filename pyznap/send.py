@@ -60,12 +60,15 @@ def send_snap(snapshot, dest_name, base=None, ssh=None):
         processes = [snapshot.send(base=base, intermediates=True)]
 
         if MBUFFER:
+            logger.debug("Using mbuffer: '{:s}'...".format(' '.join(MBUFFER)))
             processes.append(Popen(MBUFFER, stdin=processes[-1].stdout, stdout=PIPE))
 
         if PV:
+            logger.debug("Using pv: '{:s}'...".format(' '.join(PV(stream_size))))
             processes.append(Popen(PV(stream_size), stdin=processes[-1].stdout, stdout=PIPE))
 
         if ssh and ssh.compress:
+            logger.debug("Using compression: '{:s}'...".format(' '.join(ssh.compress)))
             processes.append(Popen(ssh.compress, stdin=processes[-1].stdout, stdout=PIPE))
 
         processes.append(zfs.receive(name=dest_name, stdin=processes[-1].stdout, ssh=ssh, force=True, nomount=True))
