@@ -91,7 +91,7 @@ def read_config(path):
 
     config = []
     options = ['key', 'frequent', 'hourly', 'daily', 'weekly', 'monthly', 'yearly', 'snap', 'clean',
-               'dest', 'dest_keys', 'send_compress']
+               'dest', 'dest_keys', 'compress']
 
     for section in parser.sections():
         dic = {}
@@ -110,7 +110,7 @@ def read_config(path):
                     dic[option] = int(value)
                 elif option in ['snap', 'clean']:
                     dic[option] = {'yes': True, 'no': False}.get(value.lower(), None)
-                elif option in ['dest', 'send_compress']:
+                elif option in ['dest', 'compress']:
                     dic[option] = [i.strip() for i in value.split(',')]
                 elif option in ['dest_keys']:
                     dic[option] = [i.strip() if os.path.isfile(i.strip()) else None

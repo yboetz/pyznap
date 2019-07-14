@@ -216,7 +216,7 @@ def send_config(config):
 
             if _type == 'ssh':
                 dest_key = conf['dest_keys'].pop(0) if conf['dest_keys'] else None
-                compress = conf['send_compress'].pop(0) if conf['send_compress'] else 'lzop'
+                compress = conf['compress'].pop(0) if conf['compress'] else 'lzop'
                 try:
                     ssh = SSH(user, host, port=port, key=dest_key, compress=compress)
                 except (FileNotFoundError, SSHException):

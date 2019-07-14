@@ -97,7 +97,7 @@ def _main():
             key = [args.key] if args.key else None
             compress = [args.compress] if args.compress else None
             send_config([{'name': args.source, 'dest': [args.dest], 'dest_keys': key, 
-                          'send_compress': compress}])
+                          'compress': compress}])
         elif args.source and not args.dest:
             logger.error('Missing dest...')
         elif args.dest and not args.source:
