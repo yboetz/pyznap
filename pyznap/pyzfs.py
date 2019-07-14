@@ -147,7 +147,7 @@ def receive(name, stdin, ssh=None, append_name=False, append_path=False, force=F
     if ssh:
         cmd = ssh.cmd + cmd
 
-    return sp.Popen(cmd, stdin=stdin)
+    return sp.Popen(cmd, stdin=stdin, stderr=sp.PIPE)
 
 
 class ZFSDataset(object):
