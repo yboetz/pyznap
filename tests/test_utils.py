@@ -4,7 +4,7 @@
 
     Helper functions for tests.
 
-    :copyright: (c) 2019 by Yannick Boetzel.
+    :copyright: (c) 2018-2019 by Yannick Boetzel.
     :license: GPLv3, see LICENSE for more details.
 """
 
@@ -13,6 +13,7 @@ import os
 import logging
 
 import paramiko as pm
+from socket import timeout, gaierror
 from paramiko.ssh_exception import (AuthenticationException, BadAuthenticationType,
                                     BadHostKeyException, ChannelException, NoValidConnectionsError,
                                     PasswordRequiredException, SSHException, PartialAuthentication,

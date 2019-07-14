@@ -4,7 +4,7 @@
 
     Catch ZFS subprocess errors, forked from https://bitbucket.org/stevedrake/weir/.
 
-    :copyright: (c) 2015-2018 by Stephen Drake, Yannick Boetzel.
+    :copyright: (c) 2015-2019 by Stephen Drake, Yannick Boetzel.
     :license: GPLv3, see LICENSE for more details.
 """
 
