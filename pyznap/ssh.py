@@ -120,7 +120,7 @@ class SSH:
             Tuple of compress/decompress commands to use, (None, None) if compression is not available
         """
 
-        if _type == None:
+        if _type == None or _type.lower() == 'none':
             return None, None
 
         # compress/decompress commands of different compression tools
