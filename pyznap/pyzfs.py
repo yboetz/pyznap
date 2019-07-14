@@ -323,7 +323,7 @@ class ZFSSnapshot(ZFSDataset):
         if self.ssh:
             raise NotImplementedError()
 
-        cmd = ['zfs', 'send', '-nP']
+        cmd = ['zfs', 'send', '-nvP']
 
         if base is not None:
             cmd.append('-I')
@@ -339,10 +339,9 @@ class ZFSSnapshot(ZFSDataset):
 
         try:
             out = out[-1][-1]
-        except IndexError:
+            return int(out.split(' ')[-1])
+        except (IndexError, ValueError):
             return 0
-
-        return int(out.split(' ')[-1])
 
     def hold(self, tag, recursive=False):
         cmd = ['zfs', 'hold']
