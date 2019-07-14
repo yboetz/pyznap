@@ -91,7 +91,7 @@ class SSH:
 
         # check if ssh connection is up
         try:
-            run(['ls'], timeout=5, check=True, stderr=sp.PIPE, ssh=self)
+            run(['exit'], timeout=5, check=True, stdout=sp.PIPE, stderr=sp.PIPE, ssh=self)
         except (sp.CalledProcessError, sp.TimeoutExpired) as err:
             message = err.stderr.rstrip().decode() if hasattr(err, 'stderr') else err
 
@@ -157,6 +157,7 @@ class SSH:
         List(str)
             mbuffer command to use on dest
         """
+
         from pyznap.utils import exists
 
         if not exists('mbuffer', ssh=self):
