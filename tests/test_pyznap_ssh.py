@@ -21,7 +21,8 @@ from datetime import datetime, timedelta
 import pytest
 
 import pyznap.pyzfs as zfs
-from pyznap.utils import open_ssh, exists
+from pyznap.utils import exists
+from test_utils import open_ssh
 from pyznap.ssh import SSH
 from pyznap.process import check_output, DatasetNotFoundError
 

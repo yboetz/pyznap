@@ -20,7 +20,8 @@ from datetime import datetime
 import pytest
 
 import pyznap.pyzfs as zfs
-from pyznap.utils import open_ssh, read_config, parse_name
+from pyznap.utils import read_config, parse_name
+from test_utils import open_ssh
 from pyznap.ssh import SSH
 from pyznap.clean import clean_config
 from pyznap.take import take_config
@@ -459,7 +460,7 @@ class TestSending(object):
         fs0.snapshot('snap4', recursive=True)
         fs0.snapshot('snap5', recursive=True)
 
-        for compression in ['lzop', 'gzip', 'pigz', 'bzip2', 'xz']:
+        for compression in ['lzop', 'gzip', 'pigz', 'bzip2', 'xz', 'lz4']:
             fs1.destroy(force=True)
             config = [{'name': fs0.name, 'dest': ['ssh:{:d}:{}'.format(PORT, fs1)], 'dest_keys': [KEY], 'send_compress': [compression]}]
             send_config(config)
