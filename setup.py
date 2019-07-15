@@ -35,8 +35,9 @@ setup(
     license='GPLv3',
     packages=['pyznap'],
     include_package_data=True,
+    # Python 3.7 includes configparser, but is available as a backport for 3.6 and lower.
     install_requires=[
-        'configparser>=3.5.0',
+        'configparser>=3.5.0;python_version<="3.6"',
     ],
     extras_require={
         'dev': [
