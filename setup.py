@@ -35,6 +35,7 @@ setup(
     license='GPLv3',
     packages=['pyznap'],
     include_package_data=True,
+    python_requires='>=3.5',
     extras_require={
         'dev': [
             'pytest==3.3.0',
@@ -53,6 +54,7 @@ setup(
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
         'Topic :: System :: Archiving :: Backup',
         'Topic :: System :: Filesystems',
     ],
