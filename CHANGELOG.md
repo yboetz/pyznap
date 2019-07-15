@@ -5,6 +5,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.2.1] - 2019-07-15
+### Fixed
+- Removed `configparser` dependency.
+
+
 ## [1.2.0] - 2019-07-14
 ### Added
 - pyznap now uses compression for sending over ssh. Current supported methods are `none`, `lzop`
@@ -78,7 +83,7 @@ are taken can be controlled by cronjob. This allows users to take snapshots at d
 - Extended Readme.
 
 ### Fixed
-- Fixed multilne ZFS errors not being matched.
+- Fixed multiline ZFS errors not being matched.
 
 
 ## [0.9.1] - 2018-08-08
