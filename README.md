@@ -20,11 +20,8 @@ source and the destination.
 
 #### Requirements ####
 
-pyznap is written in python 3.5+ and requires the following packages:
-
-    configparser
-
-For developing and running the tests you additionally need:
+pyznap is written in python 3.5+ and has no dependencies. For developing and running the tests you
+need:
 
     pytest
     pytest-dependency
