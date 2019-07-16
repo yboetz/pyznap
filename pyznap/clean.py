@@ -56,10 +56,12 @@ def clean_filesystem(filesystem, conf):
     logger = logging.getLogger(__name__)
     logger.debug('Cleaning snapshots on {}...'.format(filesystem))
 
+    prefix = conf.get('prefix', 'pyznap')
+
     snapshots = {'frequent': [], 'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
     for snap in filesystem.snapshots():
         # Ignore snapshots not taken with pyznap or sanoid
-        if not snap.name.split('@')[1].startswith(('pyznap', 'autosnap')):
+        if not snap.name.split('@')[1].startswith(('pyznap', 'autosnap', prefix)):
             continue
         snap_type = snap.name.split('_')[-1]
 

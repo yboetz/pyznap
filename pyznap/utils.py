@@ -91,7 +91,7 @@ def read_config(path):
 
     config = []
     options = ['key', 'frequent', 'hourly', 'daily', 'weekly', 'monthly', 'yearly', 'snap', 'clean',
-               'dest', 'dest_keys', 'compress', 'date_format', 'time_format']
+               'dest', 'dest_keys', 'compress', 'prefix', 'date_format', 'time_format']
 
     for section in parser.sections():
         dic = {}
@@ -115,6 +115,8 @@ def read_config(path):
                 elif option in ['dest_keys']:
                     dic[option] = [i.strip() if os.path.isfile(i.strip()) else None
                                    for i in value.split(',')]
+                elif option in ['prefix']:
+                    dic[option] = value.strip().replace('_', '')
                 elif option in ['date_format', 'time_format']:
                     dic[option] = value.strip()
     # Pass through values recursively
@@ -125,7 +127,7 @@ def read_config(path):
             child_parent = '/'.join(child['name'].split('/')[:-1])  # get parent of child filesystem
             if child_parent.startswith(parent['name']):
                 for option in ['key', 'frequent', 'hourly', 'daily', 'weekly', 'monthly', 'yearly',
-                               'snap', 'clean', 'date_format', 'time_format']:
+                               'snap', 'clean', 'prefix', 'date_format', 'time_format']:
                     child[option] = child[option] if child[option] is not None else parent[option]
     # Sort by pathname
     config = sorted(config, key=lambda entry: entry['name'].split('/'))
