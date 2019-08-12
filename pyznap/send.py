@@ -73,6 +73,8 @@ def send_snap(snapshot, dest_name, base=None, ssh=None):
 
         processes.append(zfs.receive(name=dest_name, stdin=processes[-1].stdout, ssh=ssh, force=True, nomount=True))
 
+        for process in processes[:-1]:
+            process.stdout.close()
         processes[-1].communicate()
 
     except (DatasetNotFoundError, DatasetExistsError, DatasetBusyError, OSError, EOFError) as err:
