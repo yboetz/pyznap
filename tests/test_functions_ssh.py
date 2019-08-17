@@ -483,19 +483,19 @@ class TestSendingPull(object):
         fs1.destroy(force=True)
 
         fs0.snapshot('snap0')
-        zfs.create('{:s}/sub1'.format(fs0.name))
+        zfs.create('{:s}/sub1'.format(fs0.name), ssh=ssh)
         fs0.snapshot('snap1', recursive=True)
-        zfs.create('{:s}/sub2'.format(fs0.name))
+        zfs.create('{:s}/sub2'.format(fs0.name), ssh=ssh)
         fs0.snapshot('snap2', recursive=True)
-        zfs.create('{:s}/sub3'.format(fs0.name))
+        zfs.create('{:s}/sub3'.format(fs0.name), ssh=ssh)
         fs0.snapshot('snap3', recursive=True)
         fs0.snapshot('snap4', recursive=True)
         fs0.snapshot('snap5', recursive=True)
-        zfs.create('{:s}/sub3/abc'.format(fs0.name))
+        zfs.create('{:s}/sub3/abc'.format(fs0.name), ssh=ssh)
         fs0.snapshot('snap6', recursive=True)
-        zfs.create('{:s}/sub3/abc_abc'.format(fs0.name))
+        zfs.create('{:s}/sub3/abc_abc'.format(fs0.name), ssh=ssh)
         fs0.snapshot('snap7', recursive=True)
-        zfs.create('{:s}/sub3/efg'.format(fs0.name))
+        zfs.create('{:s}/sub3/efg'.format(fs0.name), ssh=ssh)
         fs0.snapshot('snap8', recursive=True)
         fs0.snapshot('snap9', recursive=True)
         config = [{'name': 'ssh:{:d}:{}'.format(PORT, fs0), 'key': KEY, 'dest': [fs1.name], 'compress': None}]
@@ -515,7 +515,7 @@ class TestSendingPull(object):
         fs1.destroy(force=True)
 
         fs0.snapshot('snap0', recursive=True)
-        zfs.create('{:s}/sub1'.format(fs0.name))
+        zfs.create('{:s}/sub1'.format(fs0.name), ssh=ssh)
         fs0.snapshot('snap1', recursive=True)
         config = [{'name': 'ssh:{:d}:{}'.format(PORT, fs0), 'key': KEY, 'dest': [fs1.name], 'compress': None}]
         send_config(config)
@@ -523,7 +523,7 @@ class TestSendingPull(object):
         fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
         assert set(fs0_children) == set(fs1_children)
 
-        zfs.create('{:s}/sub2'.format(fs0.name))
+        zfs.create('{:s}/sub2'.format(fs0.name), ssh=ssh)
         fs0.snapshot('snap2', recursive=True)
         config = [{'name': 'ssh:{:d}:{}'.format(PORT, fs0), 'key': KEY, 'dest': [fs1.name], 'compress': None}]
         send_config(config)
@@ -531,7 +531,7 @@ class TestSendingPull(object):
         fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
         assert set(fs0_children) == set(fs1_children)
 
-        zfs.create('{:s}/sub3'.format(fs0.name))
+        zfs.create('{:s}/sub3'.format(fs0.name), ssh=ssh)
         fs0.snapshot('snap3', recursive=True)
         config = [{'name': 'ssh:{:d}:{}'.format(PORT, fs0), 'key': KEY, 'dest': [fs1.name], 'compress': None}]
         send_config(config)
@@ -611,12 +611,12 @@ class TestSendingPull(object):
         fs1.destroy(force=True)
 
         fs0.snapshot('snap0')
-        zfs.create('{:s}/sub1'.format(fs0.name))
+        zfs.create('{:s}/sub1'.format(fs0.name), ssh=ssh)
         fs0.snapshot('snap1', recursive=True)
-        zfs.create('{:s}/sub2'.format(fs0.name))
+        zfs.create('{:s}/sub2'.format(fs0.name), ssh=ssh)
         fs0.snapshot('snap2', recursive=True)
         fs0.snapshot('snap3', recursive=True)
-        zfs.create('{:s}/sub2/abc'.format(fs0.name))
+        zfs.create('{:s}/sub2/abc'.format(fs0.name), ssh=ssh)
         fs0.snapshot('snap4', recursive=True)
         fs0.snapshot('snap5', recursive=True)
 
