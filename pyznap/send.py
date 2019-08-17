@@ -17,19 +17,6 @@ import pyznap.pyzfs as zfs
 from .process import DatasetBusyError, DatasetNotFoundError, DatasetExistsError
 
 
-# Use mbuffer if installed on the system
-if exists('mbuffer'):
-    MBUFFER = ['mbuffer', '-q', '-s', '128K', '-m', '512M']
-else:
-    MBUFFER = None
-
-# Use pv if installed on the system
-if exists('pv'):
-    PV = lambda size: ['pv', '-w', '100', '-s', str(size)]
-else:
-    PV = None
-
-
 def send_snap(snapshot, dest_name, base=None, ssh=None):
     """Sends snapshot to destination, incrementally and over ssh if specified.
 
@@ -53,29 +40,12 @@ def send_snap(snapshot, dest_name, base=None, ssh=None):
     logger = logging.getLogger(__name__)
     dest_name_log = '{:s}@{:s}:{:s}'.format(ssh.user, ssh.host, dest_name) if ssh else dest_name
 
-    stream_size = snapshot.stream_size(base=base)
-
     try:
-        # create list of all processes connected with a pipe
-        processes = [snapshot.send(base=base, intermediates=True)]
+        send = snapshot.send(ssh_dest=ssh, base=base, intermediates=True)
+        recv = zfs.receive(name=dest_name, stdin=send.stdout, ssh=ssh, force=True, nomount=True)
 
-        if MBUFFER:
-            logger.debug("Using mbuffer: '{:s}'...".format(' '.join(MBUFFER)))
-            processes.append(Popen(MBUFFER, stdin=processes[-1].stdout, stdout=PIPE))
-
-        if PV:
-            logger.debug("Using pv: '{:s}'...".format(' '.join(PV(stream_size))))
-            processes.append(Popen(PV(stream_size), stdin=processes[-1].stdout, stdout=PIPE))
-
-        if ssh and ssh.compress:
-            logger.debug("Using compression: '{:s}'...".format(' '.join(ssh.compress)))
-            processes.append(Popen(ssh.compress, stdin=processes[-1].stdout, stdout=PIPE))
-
-        processes.append(zfs.receive(name=dest_name, stdin=processes[-1].stdout, ssh=ssh, force=True, nomount=True))
-
-        for process in processes[:-1]:
-            process.stdout.close()
-        processes[-1].communicate()
+        send.stdout.close()
+        recv.communicate()
 
     except (DatasetNotFoundError, DatasetExistsError, DatasetBusyError, OSError, EOFError) as err:
         logger.error('Error while sending to {:s}: {}...'.format(dest_name_log, err))
@@ -114,11 +84,6 @@ def send_filesystem(source_fs, dest_name, ssh=None):
     dest_name_log = '{:s}@{:s}:{:s}'.format(ssh.user, ssh.host, dest_name) if ssh else dest_name
 
     logger.debug('Sending {} to {:s}...'.format(source_fs, dest_name_log))
-
-    # # Check if ssh session still active
-    # if ssh and not ssh.get_transport().is_active():
-    #     logger.error('Error while sending to {:s}: ssh session not active...'.format(dest_name_log))
-    #     return 1
 
     # Check if dest already has a 'zfs receive' ongoing
     if check_recv(dest_name, ssh=ssh):

@@ -9,9 +9,23 @@
 """
 
 
+import logging
 import subprocess as sp
 from .process import check_output, DatasetNotFoundError, DatasetBusyError
 from .utils import exists
+
+
+# Use mbuffer if installed on the system
+if exists('mbuffer'):
+    MBUFFER = lambda mem: ['mbuffer', '-q', '-s', '128K', '-m', '{:d}M'.format(mem)]
+else:
+    MBUFFER = None
+
+# Use pv if installed on the system
+if exists('pv'):
+    PV = lambda size: ['pv', '-w', '100', '-s', str(size)]
+else:
+    PV = None
 
 
 def find(path=None, ssh=None, max_depth=None, types=[]):
@@ -303,11 +317,17 @@ class ZFSSnapshot(ZFSDataset):
     def clone(self, name, props={}, force=False):
         raise NotImplementedError()
 
-    def send(self, base=None, intermediates=False, replicate=False,
+    def send(self, ssh_dest = None, base=None, intermediates=False, replicate=False,
              properties=False, deduplicate=False):
         if self.ssh:
             raise NotImplementedError()
 
+        logger = logging.getLogger(__name__)
+
+        stream_size = self.stream_size(base=base)
+        mbuff_size = min(max(stream_size // 1024**2, 1), 256 if (self.ssh or ssh_dest) else 512) # use maximal mbuffer size of 512 (256 over ssh)
+
+        # construct zfs send command
         cmd = ['zfs', 'send']
 
         # cmd.append('-v')
@@ -329,7 +349,25 @@ class ZFSSnapshot(ZFSDataset):
 
         cmd.append(self.name)
 
-        return sp.Popen(cmd, stdout=sp.PIPE)
+        # create list of all processes connected with a pipe
+        processes = [sp.Popen(cmd, stdout=sp.PIPE)] # zfs send process
+
+        if MBUFFER and stream_size >= 1024**2:
+            logger.debug("Using mbuffer: '{:s}'...".format(' '.join(MBUFFER(mbuff_size))))
+            processes.append(sp.Popen(MBUFFER(mbuff_size), stdin=processes[-1].stdout, stdout=sp.PIPE))
+
+        if PV and stream_size >= 1024**2:
+            logger.debug("Using pv: '{:s}'...".format(' '.join(PV(stream_size))))
+            processes.append(sp.Popen(PV(stream_size), stdin=processes[-1].stdout, stdout=sp.PIPE))
+
+        if ssh_dest and ssh_dest.compress:
+            logger.debug("Using compression: '{:s}'...".format(' '.join(ssh_dest.compress)))
+            processes.append(sp.Popen(ssh_dest.compress, stdin=processes[-1].stdout, stdout=sp.PIPE))
+
+        for process in processes[:-1]:
+            process.stdout.close()
+
+        return processes[-1]
 
     def stream_size(self, base=None):
         if self.ssh:
