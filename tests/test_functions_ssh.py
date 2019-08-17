@@ -468,3 +468,163 @@ class TestSending(object):
             fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]]
             fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'], ssh=ssh)[1:]]
             assert set(fs0_children) == set(fs1_children)
+
+
+class TestSendingPull(object):
+    """Checks if snapshots can be pulled from a remote source"""
+
+    @pytest.mark.dependency()
+    def test_send_full(self, zpools):
+        """Checks if send_snap totally replicates a filesystem"""
+        fs1, fs0 = zpools # here fs0 is the remote pool
+        ssh = fs0.ssh
+
+        fs0.destroy(force=True)
+        fs1.destroy(force=True)
+
+        fs0.snapshot('snap0')
+        zfs.create('{:s}/sub1'.format(fs0.name))
+        fs0.snapshot('snap1', recursive=True)
+        zfs.create('{:s}/sub2'.format(fs0.name))
+        fs0.snapshot('snap2', recursive=True)
+        zfs.create('{:s}/sub3'.format(fs0.name))
+        fs0.snapshot('snap3', recursive=True)
+        fs0.snapshot('snap4', recursive=True)
+        fs0.snapshot('snap5', recursive=True)
+        zfs.create('{:s}/sub3/abc'.format(fs0.name))
+        fs0.snapshot('snap6', recursive=True)
+        zfs.create('{:s}/sub3/abc_abc'.format(fs0.name))
+        fs0.snapshot('snap7', recursive=True)
+        zfs.create('{:s}/sub3/efg'.format(fs0.name))
+        fs0.snapshot('snap8', recursive=True)
+        fs0.snapshot('snap9', recursive=True)
+        config = [{'name': 'ssh:{:d}:{}'.format(PORT, fs0), 'key': KEY, 'dest': [fs1.name], 'compress': None}]
+        send_config(config)
+
+        fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'], ssh=ssh)[1:]]
+        fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
+        assert set(fs0_children) == set(fs1_children)
+
+
+    @pytest.mark.dependency(depends=['test_send_full'])
+    def test_send_incremental(self, zpools):
+        fs1, fs0 = zpools # here fs0 is the remote pool
+        ssh = fs0.ssh
+
+        fs0.destroy(force=True)
+        fs1.destroy(force=True)
+
+        fs0.snapshot('snap0', recursive=True)
+        zfs.create('{:s}/sub1'.format(fs0.name))
+        fs0.snapshot('snap1', recursive=True)
+        config = [{'name': 'ssh:{:d}:{}'.format(PORT, fs0), 'key': KEY, 'dest': [fs1.name], 'compress': None}]
+        send_config(config)
+        fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'], ssh=ssh)[1:]]
+        fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
+        assert set(fs0_children) == set(fs1_children)
+
+        zfs.create('{:s}/sub2'.format(fs0.name))
+        fs0.snapshot('snap2', recursive=True)
+        config = [{'name': 'ssh:{:d}:{}'.format(PORT, fs0), 'key': KEY, 'dest': [fs1.name], 'compress': None}]
+        send_config(config)
+        fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'], ssh=ssh)[1:]]
+        fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
+        assert set(fs0_children) == set(fs1_children)
+
+        zfs.create('{:s}/sub3'.format(fs0.name))
+        fs0.snapshot('snap3', recursive=True)
+        config = [{'name': 'ssh:{:d}:{}'.format(PORT, fs0), 'key': KEY, 'dest': [fs1.name], 'compress': None}]
+        send_config(config)
+        fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'], ssh=ssh)[1:]]
+        fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
+        assert set(fs0_children) == set(fs1_children)
+
+
+    @pytest.mark.dependency(depends=['test_send_incremental'])
+    def test_send_delete_snapshot(self, zpools):
+        fs1, fs0 = zpools # here fs0 is the remote pool
+        ssh = fs0.ssh
+
+        # Delete recent snapshots on dest
+        fs1.snapshots()[-1].destroy(force=True)
+        fs1.snapshots()[-1].destroy(force=True)
+        config = [{'name': 'ssh:{:d}:{}'.format(PORT, fs0), 'key': KEY, 'dest': [fs1.name], 'compress': None}]
+        send_config(config)
+        fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'], ssh=ssh)[1:]]
+        fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
+        assert set(fs0_children) == set(fs1_children)
+
+        # Delete recent snapshot on source
+        fs0.snapshot('snap4', recursive=True)
+        send_config(config)
+        fs0.snapshots()[-1].destroy(force=True)
+        fs0.snapshot('snap5', recursive=True)
+        config = [{'name': 'ssh:{:d}:{}'.format(PORT, fs0), 'key': KEY, 'dest': [fs1.name], 'compress': None}]
+        send_config(config)
+        fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'], ssh=ssh)[1:]]
+        fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
+        assert set(fs0_children) == set(fs1_children)
+
+
+    @pytest.mark.dependency(depends=['test_send_delete_snapshot'])
+    def test_send_delete_sub(self, zpools):
+        fs1, fs0 = zpools # here fs0 is the remote pool
+        ssh = fs0.ssh
+
+        # Delete subfilesystems
+        sub3 = fs1.filesystems()[-1]
+        sub3.destroy(force=True)
+        fs0.snapshot('snap6', recursive=True)
+        sub2 = fs1.filesystems()[-1]
+        sub2.destroy(force=True)
+        config = [{'name': 'ssh:{:d}:{}'.format(PORT, fs0), 'key': KEY, 'dest': [fs1.name], 'compress': None}]
+        send_config(config)
+        fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'], ssh=ssh)[1:]]
+        fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
+        assert set(fs0_children) == set(fs1_children)
+
+
+    @pytest.mark.dependency(depends=['test_send_delete_sub'])
+    def test_send_delete_old(self, zpools):
+        fs1, fs0 = zpools # here fs0 is the remote pool
+        ssh = fs0.ssh
+
+        # Delete old snapshot on source
+        fs0.snapshots()[0].destroy(force=True)
+        fs0.snapshot('snap7', recursive=True)
+        config = [{'name': 'ssh:{:d}:{}'.format(PORT, fs0), 'key': KEY, 'dest': [fs1.name], 'compress': None}]
+        send_config(config)
+        fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'], ssh=ssh)[1:]]
+        fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
+        assert not (set(fs0_children) == set(fs1_children))
+        # Assert that snap0 was not deleted from fs1
+        for child in set(fs1_children) - set(fs0_children):
+            assert child.endswith('snap0')
+
+    @pytest.mark.dependency()
+    def test_send_compress(self, zpools):
+        """Checks if send_snap totally replicates a filesystem"""
+        fs1, fs0 = zpools # here fs0 is the remote pool
+        ssh = fs0.ssh
+
+        fs0.destroy(force=True)
+        fs1.destroy(force=True)
+
+        fs0.snapshot('snap0')
+        zfs.create('{:s}/sub1'.format(fs0.name))
+        fs0.snapshot('snap1', recursive=True)
+        zfs.create('{:s}/sub2'.format(fs0.name))
+        fs0.snapshot('snap2', recursive=True)
+        fs0.snapshot('snap3', recursive=True)
+        zfs.create('{:s}/sub2/abc'.format(fs0.name))
+        fs0.snapshot('snap4', recursive=True)
+        fs0.snapshot('snap5', recursive=True)
+
+        for compression in ['none', 'abc', 'lzop', 'gzip', 'pigz', 'bzip2', 'xz', 'lz4']:
+            fs1.destroy(force=True)
+            config = [{'name': 'ssh:{:d}:{}'.format(PORT, fs0), 'key': KEY, 'dest': [fs1.name], 'compress': [compression]}]
+            send_config(config)
+
+            fs0_children = [child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'], ssh=ssh)[1:]]
+            fs1_children = [child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]]
+            assert set(fs0_children) == set(fs1_children)
