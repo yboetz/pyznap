@@ -107,7 +107,7 @@ def send_filesystem(source_fs, dest_name, ssh_dest=None):
         common = set()
     except CalledProcessError as err:
         logger.error('Error while opening dest {:s}: \'{:s}\'...'
-                     .format(dest_name_log, err.stderr.rstrip().decode()))
+                     .format(dest_name_log, err.stderr.rstrip()))
         return 1
     else:
         dest_snapnames = [snap.name.split('@')[1] for snap in dest_fs.snapshots()]

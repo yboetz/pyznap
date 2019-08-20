@@ -51,7 +51,7 @@ def exists(executable='', ssh=None):
         return False
     except CalledProcessError as err:
         logger.error('Error while checking if {:s} exists on {:s}: \'{:s}\'...'
-                     .format(executable, name_log, err.stderr.rstrip().decode()))
+                     .format(executable, name_log, err.stderr.rstrip()))
         return False
     else:
         return bool(out)
@@ -231,7 +231,7 @@ def check_recv(fsname, ssh=None):
         return True
     except CalledProcessError as err:
         logger.error('Error while checking \'zfs receive\' on {:s}: \'{:s}\'...'
-                     .format(fsname_log, err.stderr.rstrip().decode()))
+                     .format(fsname_log, err.stderr.rstrip()))
         return True
     else:
         match = re.search(r'zfs (receive|recv).*({:s})(?=\n)'.format(fsname), out)

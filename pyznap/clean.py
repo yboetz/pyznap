@@ -35,7 +35,7 @@ def clean_snap(snap):
         logger.error(err)
     except CalledProcessError as err:
         logger.error('Error while deleting snapshot {}: \'{:s}\'...'
-                     .format(snap, err.stderr.rstrip().decode()))
+                     .format(snap, err.stderr.rstrip()))
     except KeyboardInterrupt:
         logger.error('KeyboardInterrupt while cleaning snapshot {}...'
                      .format(snap))
@@ -136,7 +136,7 @@ def clean_config(config):
             continue
         except CalledProcessError as err:
             logger.error('Error while opening {:s}: \'{:s}\'...'
-                         .format(name_log, err.stderr.rstrip().decode()))
+                         .format(name_log, err.stderr.rstrip()))
         else:
             # Clean snapshots of parent filesystem
             clean_filesystem(children[0], conf)
