@@ -27,3 +27,4 @@ clean:
 	rm -f -r tests/__pycache__
 	rm -f -r pyznap.egg-info/
 	rm -f -r .pytest_cache/
+	rm -f -r .cache/
