@@ -33,11 +33,9 @@ def _main():
         Exit code
     """
 
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s',
-                        datefmt='%b %d %H:%M:%S', stream=sys.stdout)
-    logger = logging.getLogger(__name__)
-
     parser = ArgumentParser(prog='pyznap', description='ZFS snapshot tool written in python')
+    parser.add_argument('-v', '--verbose', action="store_true",
+                        dest="verbose", help='print more verbose output')
     parser.add_argument('--config', action="store",
                         dest="config", help='path to config file')
     subparsers = parser.add_subparsers(dest='command')
@@ -59,10 +57,12 @@ def _main():
                              dest='source', help='source filesystem')
     parser_send.add_argument('-d', '--dest', action="store",
                              dest='dest', help='destination filesystem')
-    parser_send.add_argument('-i', '--dest-key', action="store",
-                             dest='dest_key', help='ssh key for destination')
+    parser_send.add_argument('-i', '--key', action="store",
+                             dest='key', help='ssh key if only source or dest is remote')
     parser_send.add_argument('-j', '--source-key', action="store",
-                             dest='source_key', help='ssh key for source')
+                             dest='source_key', help='ssh key for source if both are remote')
+    parser_send.add_argument('-k', '--dest-key', action="store",
+                             dest='dest_key', help='ssh key for dest if both are remote')
     parser_send.add_argument('-c', '--compress', action="store",
                              dest='compress', help='compression to use for ssh transfer. default is lzop')
 
@@ -70,6 +70,11 @@ def _main():
         parser.print_help(sys.stderr)
         sys.exit(1)
     args = parser.parse_args()
+
+    loglevel = logging.DEBUG if args.verbose else logging.INFO
+    logging.basicConfig(level=loglevel, format='%(asctime)s %(levelname)s: %(message)s',
+                        datefmt='%b %d %H:%M:%S', stream=sys.stdout)
+    logger = logging.getLogger(__name__)
 
     logger.info('Starting pyznap...')
 
@@ -96,8 +101,16 @@ def _main():
 
     elif args.command == 'send':
         if args.source and args.dest:
-            dest_key = [args.dest_key] if args.dest_key else None
-            source_key = args.source_key if args.source_key else None
+            # use args.key if either source or dest is remote
+            source_key, dest_key = None, None
+            if args.dest.startswith('ssh'):
+                dest_key = [args.key] if args.key else None
+            elif args.source.startswith('ssh'):
+                source_key = args.key if args.key else None
+            # if source_key and dest_key are given, overwrite previous value
+            source_key = args.source_key if args.source_key else source_key
+            dest_key = [args.dest_key] if args.dest_key else dest_key
+
             compress = [args.compress] if args.compress else None
             send_config([{'name': args.source, 'dest': [args.dest], 'key': source_key,
                           'dest_keys': dest_key, 'compress': compress}])
