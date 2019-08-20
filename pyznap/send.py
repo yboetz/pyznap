@@ -42,8 +42,8 @@ def send_snap(snapshot, dest_name, base=None, ssh_dest=None):
 
     try:
         ssh_source = snapshot.ssh
-        send = snapshot.send(ssh_dest=ssh_dest, base=base, intermediates=True)
-        recv = zfs.receive(name=dest_name, stdin=send.stdout, ssh_source=ssh_source, ssh_dest=ssh_dest, force=True, nomount=True)
+        send, stream_size = snapshot.send(ssh_dest=ssh_dest, base=base, intermediates=True)
+        recv = zfs.receive(name=dest_name, stdin=send.stdout, ssh=ssh_dest, ssh_source=ssh_source, force=True, nomount=True, stream_size=stream_size)
 
         send.stdout.close()
         recv.communicate()
