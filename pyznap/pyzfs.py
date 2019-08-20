@@ -9,6 +9,7 @@
 """
 
 
+import sys
 import logging
 import subprocess as sp
 from .process import check_output, DatasetNotFoundError, DatasetBusyError
@@ -137,8 +138,12 @@ def create(name, ssh=None, type='filesystem', props={}, force=False):
     return ZFSFilesystem(name, ssh=ssh)
 
 
-def receive(name, stdin, ssh=None, append_name=False, append_path=False, force=False, nomount=False):
+def receive(name, stdin, ssh_source=None, ssh_dest=None, append_name=False, append_path=False, force=False, nomount=False):
     """Returns Popen instance for zfs receive"""
+    logger = logging.getLogger(__name__)
+
+    stream_size = 0
+    mbuff_size = min(max(stream_size // 1024**2, 1), 256 if (ssh_source or ssh_dest) else 512) # use maximal mbuffer size of 512 (256 over ssh)
 
     cmd = ['zfs', 'receive']
 
@@ -156,16 +161,37 @@ def receive(name, stdin, ssh=None, append_name=False, append_path=False, force=F
 
     cmd.append(name)
 
-    if ssh:
-        if ssh.compress:
-            cmd = ssh.decompress + ['|'] + cmd
+    if ssh_source and not ssh_dest:
+        # create list of all processes connected with a pipe
+        processes = []
 
-        if ssh.mbuffer:
-            cmd = ssh.mbuffer + ['|'] + cmd
+        if ssh_source.compress:
+            logger.debug("Using compression on dest: '{:s}'...".format(' '.join(ssh_source.decompress)))
+            processes.append(sp.Popen(ssh_source.decompress, stdin=stdin, stdout=sp.PIPE))
+            stdin = processes[-1].stdout
 
-        cmd = ssh.cmd + cmd
+        if MBUFFER:# and stream_size >= 1024**2:
+            logger.debug("Using mbuffer on dest: '{:s}'...".format(' '.join(MBUFFER(mbuff_size))))
+            processes.append(sp.Popen(MBUFFER(mbuff_size), stdin=stdin, stdout=sp.PIPE))
+            stdin = processes[-1].stdout
 
-    return sp.Popen(cmd, stdin=stdin, stderr=sp.PIPE)
+        processes.append(sp.Popen(cmd, stdin=stdin, stderr=sp.PIPE))
+
+    elif ssh_dest:
+        if ssh_dest.compress:
+            logger.debug("Using compression on dest: '{:s}'...".format(' '.join(ssh_dest.decompress)))
+            cmd = ssh_dest.decompress + ['|'] + cmd
+
+        if ssh_dest.mbuffer:# and stream_size >= 1024**2:
+            logger.debug("Using mbuffer on dest: '{:s}'...".format(' '.join(MBUFFER(mbuff_size))))
+            cmd = ssh_dest.mbuffer(mbuff_size) + ['|'] + cmd
+
+        cmd = ssh_dest.cmd + cmd
+        processes =[sp.Popen(cmd, stdin=stdin, stderr=sp.PIPE)] # zfs receive
+
+    for process in processes[:-1]:
+            process.stdout.close()
+    return processes[-1]
 
 
 class ZFSDataset(object):
@@ -317,11 +343,8 @@ class ZFSSnapshot(ZFSDataset):
     def clone(self, name, props={}, force=False):
         raise NotImplementedError()
 
-    def send(self, ssh_dest = None, base=None, intermediates=False, replicate=False,
+    def send(self, ssh_dest=None, base=None, intermediates=False, replicate=False,
              properties=False, deduplicate=False):
-        if self.ssh:
-            raise NotImplementedError()
-
         logger = logging.getLogger(__name__)
 
         stream_size = self.stream_size(base=base)
@@ -349,30 +372,45 @@ class ZFSSnapshot(ZFSDataset):
 
         cmd.append(self.name)
 
-        # create list of all processes connected with a pipe
-        processes = [sp.Popen(cmd, stdout=sp.PIPE)] # zfs send process
+        if not self.ssh:
+            # create list of all processes connected with a pipe
+            processes = [sp.Popen(cmd, stdout=sp.PIPE)] # zfs send process
 
-        if MBUFFER and stream_size >= 1024**2:
-            logger.debug("Using mbuffer: '{:s}'...".format(' '.join(MBUFFER(mbuff_size))))
-            processes.append(sp.Popen(MBUFFER(mbuff_size), stdin=processes[-1].stdout, stdout=sp.PIPE))
+            if MBUFFER and stream_size >= 1024**2:
+                logger.debug("Using mbuffer on source: '{:s}'...".format(' '.join(MBUFFER(mbuff_size))))
+                processes.append(sp.Popen(MBUFFER(mbuff_size), stdin=processes[-1].stdout, stdout=sp.PIPE))
 
-        if PV and stream_size >= 1024**2:
-            logger.debug("Using pv: '{:s}'...".format(' '.join(PV(stream_size))))
-            processes.append(sp.Popen(PV(stream_size), stdin=processes[-1].stdout, stdout=sp.PIPE))
+            if PV and stream_size >= 1024**2:
+                logger.debug("Using pv on source: '{:s}'...".format(' '.join(PV(stream_size))))
+                processes.append(sp.Popen(PV(stream_size), stdin=processes[-1].stdout, stdout=sp.PIPE))
 
-        if ssh_dest and ssh_dest.compress:
-            logger.debug("Using compression: '{:s}'...".format(' '.join(ssh_dest.compress)))
-            processes.append(sp.Popen(ssh_dest.compress, stdin=processes[-1].stdout, stdout=sp.PIPE))
+            if ssh_dest and ssh_dest.compress:
+                logger.debug("Using compression on source: '{:s}'...".format(' '.join(ssh_dest.compress)))
+                processes.append(sp.Popen(ssh_dest.compress, stdin=processes[-1].stdout, stdout=sp.PIPE))
+
+        else:
+            cmd = self.ssh.cmd + cmd
+
+            if self.ssh.mbuffer:# and stream_size >= 1024**2:
+                logger.debug("Using mbuffer on source: '{:s}'...".format(' '.join(self.ssh.mbuffer(mbuff_size))))
+                cmd += ['|'] + self.ssh.mbuffer(mbuff_size)
+
+            if self.ssh.pv:# and stream_size >= 1024**2:
+                logger.debug("Using pv on source: '{:s}'...".format(' '.join(self.ssh.pv(stream_size))))
+                cmd += ['|'] + self.ssh.pv(stream_size)
+
+            if self.ssh.compress:
+                logger.debug("Using compression on source: '{:s}'...".format(' '.join(self.ssh.compress)))
+                cmd += ['|'] + self.ssh.compress
+
+            processes = [sp.Popen(cmd, stdout=sp.PIPE)] # zfs send process
 
         for process in processes[:-1]:
-            process.stdout.close()
-
+                process.stdout.close()
         return processes[-1]
 
-    def stream_size(self, base=None):
-        if self.ssh:
-            raise NotImplementedError()
 
+    def stream_size(self, base=None):
         cmd = ['zfs', 'send', '-nvP']
 
         if base is not None:
@@ -382,7 +420,7 @@ class ZFSSnapshot(ZFSDataset):
         cmd.append(self.name)
 
         try:
-            out = check_output(cmd) # don't forget ssh here
+            out = check_output(cmd, ssh=self.ssh) # don't forget ssh here
         except (DatasetNotFoundError, DatasetBusyError, sp.CalledProcessError):
             return 0
 
