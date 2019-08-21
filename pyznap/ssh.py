@@ -85,7 +85,7 @@ class SSH:
         # setup ControlMaster. Process will hang if we call Popen with stderr=sp.PIPE, see
         # https://lists.mindrot.org/pipermail/openssh-unix-dev/2014-January/031976.html
         try:
-            run(['exit'], timeout=10, ssh=self)
+            run(['exit'], timeout=10, ssh=self, stderr=sp.DEVNULL)
         except (sp.CalledProcessError, sp.TimeoutExpired):
             pass
 
