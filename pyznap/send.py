@@ -155,16 +155,17 @@ def send_config(config):
         if not conf.get('dest', None):
             continue
 
-        source = conf['name']
+        backup_source = conf['name']
         try:
-            _type, source_name, user, host, port = parse_name(source)
+            _type, source_name, user, host, port = parse_name(backup_source)
         except ValueError as err:
-            logger.error('Could not parse {:s}: {}...'.format(source, err))
+            logger.error('Could not parse {:s}: {}...'.format(backup_source, err))
             continue
 
+        # if source is remote, open ssh connection
         if _type == 'ssh':
             key = conf['key'] if conf['key'] else None
-            compress = conf['compress'][0] if conf['compress'] else 'lzop'
+            compress = conf['compress'].pop(0) if conf['compress'] else 'lzop'
             try:
                 ssh_source = SSH(user, host, port=port, key=key, compress=compress)
             except (FileNotFoundError, SSHException):
@@ -196,9 +197,13 @@ def send_config(config):
                 logger.error('Could not parse {:s}: {}...'.format(backup_dest, err))
                 continue
 
+            # if dest is remote, open ssh connection
             if _type == 'ssh':
                 dest_key = conf['dest_keys'].pop(0) if conf['dest_keys'] else None
-                compress = conf['compress'].pop(0) if conf['compress'] else 'lzop'
+                # if 'ssh_source' is set, then 'compress' is already set and we use same compression for both source and dest
+                # if not then we take the next entry in config
+                if not ssh_source:
+                    compress = conf['compress'].pop(0) if conf['compress'] else 'lzop'
                 try:
                     ssh_dest = SSH(user, host, port=port, key=dest_key, compress=compress)
                 except (FileNotFoundError, SSHException):
@@ -226,8 +231,8 @@ def send_config(config):
                 dest_children_names = [child.name.replace(source_name, dest_name) for
                                        child in source_children]
                 # Send all children to corresponding children on dest
-                for source, dest in zip(source_children, dest_children_names):
-                    send_filesystem(source, dest, ssh_dest=ssh_dest)
+                for source_fs, dest_name in zip(source_children, dest_children_names):
+                    send_filesystem(source_fs, dest_name, ssh_dest=ssh_dest)
             finally:
                 if ssh_dest:
                     ssh_dest.close()
