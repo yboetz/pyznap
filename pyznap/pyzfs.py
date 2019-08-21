@@ -16,7 +16,7 @@ from .process import check_output, DatasetNotFoundError, DatasetBusyError
 from .utils import exists
 
 
-SHELL = ['/bin/sh', '-c']
+SHELL = ['sh', '-c']
 
 # Use mbuffer if installed on the system
 if exists('mbuffer'):
@@ -187,7 +187,7 @@ def receive(name, stdin, ssh=None, ssh_source=None, append_name=False, append_pa
             logger.debug("Using compression on dest: '{:s}'...".format(' '.join(decompress)))
             cmd = decompress + ['|'] + cmd
 
-        if mbuffer and stream_size >= 1024**2:
+        if mbuffer and stream_size >= 1024**2: # don't use mbuffer if stream size is too small
             logger.debug("Using mbuffer on dest: '{:s}'...".format(' '.join(mbuffer(mbuff_size))))
             cmd = mbuffer(mbuff_size) + ['|'] + cmd
 
@@ -394,11 +394,11 @@ class ZFSSnapshot(ZFSDataset):
         cmd.append(quote(self.name)) # use shlex to quote the name
 
         # add additional commands
-        if mbuffer and stream_size >= 1024**2:
+        if mbuffer and stream_size >= 1024**2: # don't use mbuffer if stream size is too small
             logger.debug("Using mbuffer on source: '{:s}'...".format(' '.join(mbuffer(mbuff_size))))
             cmd += ['|'] + mbuffer(mbuff_size)
 
-        if pv and stream_size >= 1024**2:
+        if pv and stream_size >= 1024**2: # don't use pv if stream size is too small
             logger.debug("Using pv on source: '{:s}'...".format(' '.join(pv(stream_size))))
             cmd += ['|'] + pv(stream_size)
 
@@ -422,7 +422,7 @@ class ZFSSnapshot(ZFSDataset):
         cmd.append(self.name)
 
         try:
-            out = check_output(cmd, ssh=self.ssh) # don't forget ssh here
+            out = check_output(cmd, ssh=self.ssh)
         except (DatasetNotFoundError, DatasetBusyError, sp.CalledProcessError):
             return 0
 
