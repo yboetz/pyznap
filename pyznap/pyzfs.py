@@ -181,15 +181,14 @@ def receive(name, stdin, ssh=None, ssh_source=None, append_name=False, append_pa
 
     cmd.append(quote(name)) # use shlex to quote the name
 
-    # if send is over ssh, use mbuffer and maybe compression
-    if ssh_source or ssh:
-        if decompress:
-            logger.debug("Using compression on dest: '{:s}'...".format(' '.join(decompress)))
-            cmd = decompress + ['|'] + cmd
-
-        if mbuffer and stream_size >= 1024**2: # don't use mbuffer if stream size is too small
-            logger.debug("Using mbuffer on dest: '{:s}'...".format(' '.join(mbuffer(mbuff_size))))
-            cmd = mbuffer(mbuff_size) + ['|'] + cmd
+    # add additional commands
+    if decompress:
+        logger.debug("Using compression on dest: '{:s}'...".format(' '.join(decompress)))
+        cmd = decompress + ['|'] + cmd
+    # only use mbuffer at recv if send is over ssh
+    if (ssh_source or ssh) and mbuffer and stream_size >= 1024**2: # don't use mbuffer if stream size is too small
+        logger.debug("Using mbuffer on dest: '{:s}'...".format(' '.join(mbuffer(mbuff_size))))
+        cmd = mbuffer(mbuff_size) + ['|'] + cmd
 
     # execute command with shell (sh or ssh)
     cmd = shell + [' '.join(cmd)]
@@ -409,10 +408,18 @@ class ZFSSnapshot(ZFSDataset):
         # execute command with shell (sh or ssh)
         cmd = shell + [' '.join(cmd)]
 
-        return sp.Popen(cmd, stdout=sp.PIPE), stream_size # return zfs send process and stream size info
+        return sp.Popen(cmd, stdout=sp.PIPE) # return zfs send process
 
 
     def stream_size(self, base=None):
+        # cache stream sizes
+        if not hasattr(self, 'stream_cache'):
+            self.stream_cache = {}
+        elif str(base) in self.stream_cache:
+            return self.stream_cache[str(base)]
+        else:
+            self.stream_cache[str(base)] = 0
+
         cmd = ['zfs', 'send', '-nvP']
 
         if base is not None:
@@ -428,7 +435,9 @@ class ZFSSnapshot(ZFSDataset):
 
         try:
             out = out[-1][-1]
-            return int(out.split(' ')[-1])
+            size = int(out.split(' ')[-1])
+            self.stream_cache[str(base)] = size
+            return size
         except (IndexError, ValueError):
             return 0
 
