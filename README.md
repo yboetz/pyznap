@@ -89,7 +89,7 @@ If you also want to send your filesystems to another location you can add a line
 
 This will backup your data once per day at 12pm.
 
-You can also manage and send to remote ssh locations. Always specify ssh locations with
+You can also manage, send to and pull from remote ssh locations. Always specify ssh locations with
 
     ssh:port:user@host:rpool/data
 
@@ -103,6 +103,13 @@ A sample config which backs up a filesystem to a remote location looks like
     dest_keys = /home/user/.ssh/id_rsa    # Provide key for ssh login. If none given, look in home dir
     compress = gzip
 
+To pull a filesystem from a remote location use
+
+    [ssh::user@host:rpool/data]
+    key = /home/user/.ssh/id_rsa          # Provide key for ssh login. If none given, look in home dir
+    dest = tank/data
+    compress = lz4
+
 I would also suggest making sure that root has ownership for all files, s.t. no user can modify them.
 If that is not the case just run
 
@@ -111,9 +118,15 @@ If that is not the case just run
 
 #### Command line options ####
 
+Run `pyznap -h` to see all available options.
+
 + --config
 
   Specify config file. Default is `/etc/pyznap/pyznap.conf`.
+
++ -v, --versbose
+
+  Print more verbose output.
 
 + setup [-p PATH]
 
@@ -144,10 +157,45 @@ If that is not the case just run
 
     Send snapshots to backup locations according to policy.
 
-  + -s SOURCE -d DESTINATION [-i KEYFILE] [-c COMPRESSION]
+  + -s SOURCE -d DESTINATION [-c COMPRESSION] [-i KEYFILE] [-j SOURCE_KEY] [-k DEST_KEY]
 
-    Send source filesystem to destination filesystem. If destination is a ssh location you can
-    specify a keyfile with the `-i` flag. You can also turn on compression with the `-c` flag. 
-    Currently supported options are: `none`, `lzop`, `lz4`, `gzip`, `pigz`, `bzip2` and `xz`. If
-    no option is given, `lzop` is used if available.
+    Send source filesystem to destination filesystem. If either source OR dest is a remote location,
+    you can specify the keyfile with the `-i` flag. If both source AND dest are remote, you specify
+    the keyfiles with the flag `-j` for the source and `-k` for the dest. You can also turn on
+    compression with the `-c` flag. Currently supported options are: `none`, `lzop`, `lz4`, `gzip`,
+    `pigz`, `bzip2` and `xz`. If no option is given, `lzop` is used if available.
 
+
+#### Usage examples ####
+
++ Take snapshots according to policy in default config file:
+
+    `pyznap snap --take`
+
++ Clean snapshots according to policy in another config file:
+
+    `pyznap --config /etc/pyznap/data.conf snap --clean`
+
++ Take and clean snapshots according to policy in default config file:
+
+    `pyznap snap`
+
++ Backup snapshots according to policy in default config file:
+
+    `pyznap send`
+
++ Backup a single filesystem locally:
+
+    `pyznap send -s tank/data -d backup/data`
+
++ Send a single filesystem to a remote location, using `pigz` compression:
+
+    `pyznap send -s tank/data -d ssh:20022:root@example.com:backup/data -i /root/.ssh/id_rsa -c pigz`
+
++ Pull a single filesystem from a remote location:
+
+    `pyznap send -s ssh::root@example.com:tank/data -d backup/data -c lz4`
+
++ Pull a single filesystem from a remote location and send it to another remote location:
+
+    `pyznap send -s ssh::root@example1.com:tank/data -d ssh::root@example2.com:backup/data -j /root/.ssh/id_rsa_1 -k /root/.ssh/id_rsa_2`
