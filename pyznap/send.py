@@ -8,7 +8,10 @@
     :license: GPLv3, see LICENSE for more details.
 """
 
+
+import sys
 import logging
+from io import TextIOWrapper
 from datetime import datetime
 from subprocess import Popen, PIPE, CalledProcessError
 from .ssh import SSH, SSHException
@@ -28,7 +31,7 @@ def send_snap(snapshot, dest_name, base=None, ssh_dest=None):
         Name of the location to send snapshot
     base : {ZFSSnapshot}, optional
         Base snapshot for incremental stream (the default is None, meaning a full stream)
-    ssh : {ssh.SSH}, optional
+    ssh_dest : {ssh.SSH}, optional
         Open ssh connection for remote backup (the default is None, meaning local backup)
 
     Returns
@@ -46,6 +49,15 @@ def send_snap(snapshot, dest_name, base=None, ssh_dest=None):
 
         send = snapshot.send(ssh_dest=ssh_dest, base=base, intermediates=True)
         recv = zfs.receive(name=dest_name, stdin=send.stdout, ssh=ssh_dest, ssh_source=ssh_source, force=True, nomount=True, stream_size=stream_size)
+
+        # write pv output to stderr / stdout
+        for line in TextIOWrapper(send.stderr, newline='\r'):
+            if sys.stdout.isatty():
+                sys.stderr.write('  ' + line)
+                sys.stderr.flush()
+            elif line.rstrip():     # is stdout is redirected, write pv to stdout
+                sys.stdout.write('  ' + line.rstrip() + '\n')
+                sys.stdout.flush()
 
         send.stdout.close()
         recv.communicate()
@@ -74,7 +86,7 @@ def send_filesystem(source_fs, dest_name, ssh_dest=None):
         Source zfs filesystem from where to send
     dest_name : {str}
         Name of the location to send to
-    ssh : {ssh.SSH}, optional
+    ssh_dest : {ssh.SSH}, optional
         Open ssh connection for remote backup (the default is None, meaning local backup)
 
     Returns

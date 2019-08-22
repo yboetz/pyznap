@@ -9,6 +9,7 @@
 """
 
 
+import sys
 import logging
 import subprocess as sp
 from shlex import quote
@@ -26,7 +27,7 @@ else:
 
 # Use pv if installed on the system
 if exists('pv'):
-    PV = lambda size: ['pv', '-w', '100', '-s', str(size)]
+    PV = lambda size: ['pv', '-f', '-w', '100', '-s', str(size)]
 else:
     PV = None
 
@@ -398,8 +399,11 @@ class ZFSSnapshot(ZFSDataset):
             cmd += ['|'] + mbuffer(mbuff_size)
 
         if pv and stream_size >= 1024**2: # don't use pv if stream size is too small
-            logger.debug("Using pv on source: '{:s}'...".format(' '.join(pv(stream_size))))
-            cmd += ['|'] + pv(stream_size)
+            pv_cmd = pv(stream_size)
+            if not sys.stdout.isatty():
+                pv_cmd += ['-D', '60', '-i', '60'] # if stdout is redirected, only update pv every 60s
+            logger.debug("Using pv on source: '{:s}'...".format(' '.join(pv_cmd)))
+            cmd += ['|'] + pv_cmd
 
         if compress:
             logger.debug("Using compression on source: '{:s}'...".format(' '.join(compress)))
@@ -408,7 +412,7 @@ class ZFSSnapshot(ZFSDataset):
         # execute command with shell (sh or ssh)
         cmd = shell + [' '.join(cmd)]
 
-        return sp.Popen(cmd, stdout=sp.PIPE) # return zfs send process
+        return sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE) # return zfs send process
 
 
     def stream_size(self, base=None):
