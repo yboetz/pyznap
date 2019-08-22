@@ -5,6 +5,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.3.0] - 2019-08-22
+### Added
+- pyznap can now pull data over ssh, i.e. you can now send form local to local, local to remote,
+remote to local and remote to remote. Note that remote to remote is not direct, but via the local
+machine.
+- `pv` now outputs status once per minute when stdout is redirected (e.g. to a file).
+
+### Changed
+- Rewrote local/remote 'zfs send' commands in a more uniform manner.
+
+### Fixed
+- Enforce python>=3.5 in setup.py.
+
+
 ## [1.2.1] - 2019-07-15
 ### Fixed
 - Removed `configparser` dependency.
