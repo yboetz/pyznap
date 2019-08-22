@@ -620,7 +620,7 @@ class TestSendingPull(object):
         fs0.snapshot('snap4', recursive=True)
         fs0.snapshot('snap5', recursive=True)
 
-        for compression in ['none', 'abc', 'lzop', 'gzip', 'pigz', 'bzip2', 'xz', 'lz4']:
+        for compression in ['none', 'lzop', 'lz4']:
             fs1.destroy(force=True)
             config = [{'name': 'ssh:{:d}:{}'.format(PORT, fs0), 'key': KEY, 'dest': [fs1.name], 'compress': [compression]}]
             send_config(config)
