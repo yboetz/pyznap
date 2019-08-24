@@ -17,7 +17,7 @@ import pyznap.pyzfs as zfs
 from .process import DatasetBusyError, DatasetNotFoundError, DatasetExistsError
 
 
-def take_snap(filesystem, _type):
+def take_snap(filesystem, prefix, datetime_format, _type):
     """Takes a snapshot of type '_type'
 
     Parameters
@@ -31,7 +31,7 @@ def take_snap(filesystem, _type):
     logger = logging.getLogger(__name__)
     now = datetime.now
 
-    snapname = lambda _type: 'pyznap_{:s}_{:s}'.format(now().strftime('%Y-%m-%d_%H:%M:%S'), _type)
+    snapname = lambda _type: '{:s}_{:s}_{:s}'.format(prefix, now().strftime(datetime_format), _type)
 
     logger.info('Taking snapshot {}@{:s}...'.format(filesystem, snapname(_type)))
     try:
@@ -62,14 +62,20 @@ def take_filesystem(filesystem, conf):
     logger.debug('Taking snapshots on {}...'.format(filesystem))
     now = datetime.now
 
+    prefix = conf.get('prefix', 'pyznap')
+
+    date_format = conf.get('date_format', '%Y-%m-%d')
+    time_format = conf.get('time_format', '%H:%M:%S')
+    datetime_format = '{:s}_{:s}'.format(date_format, time_format)
+
     snapshots = {'frequent': [], 'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
     for snap in filesystem.snapshots():
         # Ignore snapshots not taken with pyznap or sanoid
-        if not snap.name.split('@')[1].startswith(('pyznap', 'autosnap')):
+        if not snap.name.split('@')[1].startswith(('pyznap', 'autosnap', prefix)):
             continue
         try:
             _date, _time, snap_type = snap.name.split('_')[-3:]
-            snap_time =  datetime.strptime('{:s}_{:s}'.format(_date, _time), '%Y-%m-%d_%H:%M:%S')
+            snap_time =  datetime.strptime('{:s}_{:s}'.format(_date, _time), datetime_format)
             snapshots[snap_type].append((snap, snap_time))
         except (ValueError, KeyError):
             continue
@@ -80,32 +86,32 @@ def take_filesystem(filesystem, conf):
 
     if conf['yearly'] and (not snapshots['yearly'] or
                            snapshots['yearly'][0][1].year != now().year):
-        take_snap(filesystem, 'yearly')
+        take_snap(filesystem, prefix, datetime_format, 'yearly')
 
     if conf['monthly'] and (not snapshots['monthly'] or
                             snapshots['monthly'][0][1].month != now().month or
                             now() - snapshots['monthly'][0][1] > timedelta(days=31)):
-        take_snap(filesystem, 'monthly')
+        take_snap(filesystem, prefix, datetime_format, 'monthly')
 
     if conf['weekly'] and (not snapshots['weekly'] or
                            snapshots['weekly'][0][1].isocalendar()[1] != now().isocalendar()[1] or
                            now() - snapshots['weekly'][0][1] > timedelta(days=7)):
-        take_snap(filesystem, 'weekly')
+        take_snap(filesystem, prefix, datetime_format, 'weekly')
 
     if conf['daily'] and (not snapshots['daily'] or
                           snapshots['daily'][0][1].day != now().day or
                           now() - snapshots['daily'][0][1] > timedelta(days=1)):
-        take_snap(filesystem, 'daily')
+        take_snap(filesystem, prefix, datetime_format, 'daily')
 
     if conf['hourly'] and (not snapshots['hourly'] or
                            snapshots['hourly'][0][1].hour != now().hour or
                            now() - snapshots['hourly'][0][1] > timedelta(hours=1)):
-        take_snap(filesystem, 'hourly')
+        take_snap(filesystem, prefix, datetime_format, 'hourly')
 
     if conf['frequent'] and (not snapshots['frequent'] or
                              snapshots['frequent'][0][1].minute != now().minute or
                              now() - snapshots['frequent'][0][1] > timedelta(minutes=1)):
-        take_snap(filesystem, 'frequent')
+        take_snap(filesystem, prefix, datetime_format, 'frequent')
 
 
 def take_config(config):
