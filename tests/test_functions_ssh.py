@@ -447,11 +447,12 @@ class TestSending(object):
     def test_send_exclude(self, zpools):
         """Checks if send_snap totally replicates a filesystem"""
         fs0, fs1 = zpools
+        ssh = fs1.ssh
         fs0.destroy(force=True)
         fs1.destroy(force=True)
 
         exclude = ['*/sub1', '*/sub3/abc', '*/sub3/efg']
-        config = [{'name': fs0.name, 'dest': [fs1.name], 'exclude': [exclude]}]
+        config = [{'name': fs0.name, 'dest': ['ssh:{:d}:{}'.format(PORT, fs1)], 'exclude': [exclude]}]
 
         zfs.create('{:s}/sub1'.format(fs0.name))
         zfs.create('{:s}/sub2'.format(fs0.name))
@@ -463,7 +464,7 @@ class TestSending(object):
         send_config(config)
 
         fs0_children = set([child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]])
-        fs1_children = set([child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]])
+        fs1_children = set([child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'], ssh=ssh)[1:]])
         # remove unwanted datasets/snapshots
         for match in exclude:
             fs0_children -= set(fnmatch.filter(fs0_children, match))
@@ -636,23 +637,24 @@ class TestSendingPull(object):
     @pytest.mark.dependency()
     def test_send_exclude(self, zpools):
         """Checks if send_snap totally replicates a filesystem"""
-        fs1, fs0 = zpools
+        fs1, fs0 = zpools # here fs0 is the remote pool
+        ssh = fs0.ssh
         fs0.destroy(force=True)
         fs1.destroy(force=True)
 
         exclude = ['*/sub1', '*/sub3/abc', '*/sub3/efg']
-        config = [{'name': fs0.name, 'dest': [fs1.name], 'exclude': [exclude]}]
+        config = [{'name': 'ssh:{:d}:{}'.format(PORT, fs0), 'dest': [fs1.name], 'exclude': [exclude]}]
 
-        zfs.create('{:s}/sub1'.format(fs0.name))
-        zfs.create('{:s}/sub2'.format(fs0.name))
-        zfs.create('{:s}/sub3'.format(fs0.name))
-        zfs.create('{:s}/sub3/abc'.format(fs0.name))
-        zfs.create('{:s}/sub3/abc_abc'.format(fs0.name))
-        zfs.create('{:s}/sub3/efg'.format(fs0.name))
+        zfs.create('{:s}/sub1'.format(fs0.name), ssh=ssh)
+        zfs.create('{:s}/sub2'.format(fs0.name), ssh=ssh)
+        zfs.create('{:s}/sub3'.format(fs0.name), ssh=ssh)
+        zfs.create('{:s}/sub3/abc'.format(fs0.name), ssh=ssh)
+        zfs.create('{:s}/sub3/abc_abc'.format(fs0.name), ssh=ssh)
+        zfs.create('{:s}/sub3/efg'.format(fs0.name), ssh=ssh)
         fs0.snapshot('snap', recursive=True)
         send_config(config)
 
-        fs0_children = set([child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]])
+        fs0_children = set([child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'], ssh=ssh)[1:]])
         fs1_children = set([child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]])
         # remove unwanted datasets/snapshots
         for match in exclude:
