@@ -15,6 +15,7 @@ import os
 import logging
 import random
 import string
+import fnmatch
 from tempfile import NamedTemporaryFile
 from datetime import datetime
 import pytest
@@ -109,11 +110,15 @@ class TestUtils(object):
             file.write('[rpool/data_2]\n')
             file.write('daily = 14\n')
             file.write('yearly = 0\n')
-            file.write('clean = yes\n')
+            file.write('clean = yes\n\n')
+
+            file.write('[tank]\n')
+            file.write('dest = backup/tank, rpool/tank, data/tank, zpool/tank\n')
+            file.write('exclude = , tank/media/* tank/data* tank/home/*, tank/media* tank/home*\n')
             file.seek(0)
 
             config = read_config(name)
-            conf0, conf1, conf2 = config
+            conf0, conf1, conf2, conf3 = config
 
             assert conf0['name'] == 'rpool'
             assert conf0['key'] == None
@@ -154,6 +159,11 @@ class TestUtils(object):
             assert conf2['clean'] == True
             assert conf2['dest'] == None
             assert conf2['dest_keys'] == None
+
+            assert conf3['name'] == 'tank'
+            assert conf3['dest'] == ['backup/tank', 'rpool/tank', 'data/tank', 'zpool/tank']
+            assert conf3['exclude'] == [None, ['tank/media/*', 'tank/data*', 'tank/home/*'], ['tank/media*', 'tank/home*']]
+
 
 
     def test_parse_name(self):
@@ -481,3 +491,31 @@ class TestSending(object):
         # Assert that snap0 was not deleted from fs1
         for child in set(fs1_children) - set(fs0_children):
             assert child.endswith('snap0')
+
+    @pytest.mark.dependency()
+    def test_send_exclude(self, zpools):
+        """Checks if send_snap totally replicates a filesystem"""
+        fs0, fs1 = zpools
+        fs0.destroy(force=True)
+        fs1.destroy(force=True)
+
+        exclude = ['*/sub1', '*/sub3/abc', '*/sub3/efg']
+        config = [{'name': fs0.name, 'dest': [fs1.name], 'exclude': [exclude]}]
+
+        zfs.create('{:s}/sub1'.format(fs0.name))
+        zfs.create('{:s}/sub2'.format(fs0.name))
+        zfs.create('{:s}/sub3'.format(fs0.name))
+        zfs.create('{:s}/sub3/abc'.format(fs0.name))
+        zfs.create('{:s}/sub3/abc_abc'.format(fs0.name))
+        zfs.create('{:s}/sub3/efg'.format(fs0.name))
+        fs0.snapshot('snap', recursive=True)
+        send_config(config)
+
+        fs0_children = set([child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]])
+        fs1_children = set([child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]])
+        # remove unwanted datasets/snapshots
+        for match in exclude:
+            fs0_children -= set(fnmatch.filter(fs0_children, match))
+            fs0_children -= set(fnmatch.filter(fs0_children, match + '@snap'))
+
+        assert set(fs0_children) == set(fs1_children)
