@@ -252,6 +252,7 @@ def send_config(config):
                 for source_fs, dest_name in zip(source_children, dest_children_names):
                     # exclude filesystems from rules
                     if any(fnmatch(source_fs.name, pattern) for pattern in exclude):
+                        logger.debug('Matched {} in exclude rules, not sending...'.format(source_fs))
                         continue
                     # send not excluded filesystems
                     send_filesystem(source_fs, dest_name, ssh_dest=ssh_dest)
