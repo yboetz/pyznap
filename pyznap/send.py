@@ -50,6 +50,7 @@ def send_snap(snapshot, dest_name, base=None, ssh_dest=None):
 
         send = snapshot.send(ssh_dest=ssh_dest, base=base, intermediates=True)
         recv = zfs.receive(name=dest_name, stdin=send.stdout, ssh=ssh_dest, ssh_source=ssh_source, force=True, nomount=True, stream_size=stream_size)
+        send.stdout.close()
 
         # write pv output to stderr / stdout
         for line in TextIOWrapper(send.stderr, newline='\r'):
@@ -59,15 +60,18 @@ def send_snap(snapshot, dest_name, base=None, ssh_dest=None):
             elif line.rstrip():     # is stdout is redirected, write pv to stdout
                 sys.stdout.write('  ' + line.rstrip() + '\n')
                 sys.stdout.flush()
+        send.stderr.close()
 
-        send.stdout.close()
-        recv.communicate()
+        stdout, stderr = recv.communicate()
+        # raise any error that occured
+        if recv.returncode:
+            raise CalledProcessError(returncode=recv.returncode, cmd=recv.args, output=stdout, stderr=stderr)
 
     except (DatasetNotFoundError, DatasetExistsError, DatasetBusyError, OSError, EOFError) as err:
         logger.error('Error while sending to {:s}: {}...'.format(dest_name_log, err))
         return 1
     except CalledProcessError as err:
-        logger.error('Error while sending to {:s}: {}...'.format(dest_name_log, err.stderr.rstrip().decode()))
+        logger.error('Error while sending to {:s}: {}...'.format(dest_name_log, err.stderr.rstrip().decode().replace('\n', ' - ')))
         return 1
     except KeyboardInterrupt:
         logger.error('KeyboardInterrupt while sending to {:s}...'.format(dest_name_log))
