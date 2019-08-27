@@ -68,6 +68,7 @@ config for your system might look like this (remove the comments):
     snap = yes                            # Take snapshots on this filesystem
     clean = yes                           # Delete old snapshots on this filesystem
     dest = backup/filesystem              # Backup this filesystem on this location
+    exclude = rpool/filesystem/data/*     # Exclude these datasets for pyznap send
 
 Then set up a cronjob by creating a file under `/etc/cron.d/`
 
@@ -93,7 +94,7 @@ You can also manage, send to and pull from remote ssh locations. Always specify 
 
     ssh:port:user@host:rpool/data
 
-A sample config which backs up a filesystem to a remote location looks like
+A sample config which backs up a filesystem to a remote location looks like:
 
     [rpool/data]
     hourly = 24
@@ -103,12 +104,22 @@ A sample config which backs up a filesystem to a remote location looks like
     dest_keys = /home/user/.ssh/id_rsa    # Provide key for ssh login. If none given, look in home dir
     compress = gzip
 
-To pull a filesystem from a remote location use
+To pull a filesystem from a remote location use:
 
     [ssh::user@host:rpool/data]
     key = /home/user/.ssh/id_rsa          # Provide key for ssh login. If none given, look in home dir
     dest = tank/data
     compress = lz4
+
+You can exclude datasets when sending using [Unix shell-style wildcards](https://docs.python.org/3/library/fnmatch.html):
+
+    [rpool]
+    dest = backup/rpool, tank/rpool
+    exclude = rpool/data rpool/home/*/documents rpool/home/user1, rpool/home*
+
+Note that exclude rules are separated by a `,` for the different dests, and you can specify multiple
+rules for a single dest by separating them with a space. Exclude rules thus cannot contain any comma
+or whitespace.
 
 I would also suggest making sure that root has ownership for all files, s.t. no user can modify them.
 If that is not the case just run
@@ -157,13 +168,16 @@ Run `pyznap -h` to see all available options.
 
     Send snapshots to backup locations according to policy.
 
-  + -s SOURCE -d DESTINATION [-c COMPRESSION] [-i KEYFILE] [-j SOURCE_KEY] [-k DEST_KEY]
+  + -s SOURCE -d DESTINATION [-c COMPRESSION] [-i KEYFILE] [-j SOURCE_KEY] [-k DEST_KEY] [-e EXCLUDE]
 
     Send source filesystem to destination filesystem. If either source OR dest is a remote location,
     you can specify the keyfile with the `-i` flag. If both source AND dest are remote, you specify
     the keyfiles with the flag `-j` for the source and `-k` for the dest. You can also turn on
     compression with the `-c` flag. Currently supported options are: `none`, `lzop`, `lz4`, `gzip`,
-    `pigz`, `bzip2` and `xz`. If no option is given, `lzop` is used if available.
+    `pigz`, `bzip2` and `xz`. If no option is given, `lzop` is used if available. You can specify
+    multiple (whitespace separated) wildcard exclude rules with the `-e` flag. Note that you should
+    probably pass these as strings or escape the wildcard (e.g. `-e '*/data'` or `-e \*/data`), else
+    your shell might expand the pattern.
 
 
 #### Usage examples ####
