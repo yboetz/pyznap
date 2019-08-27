@@ -91,7 +91,7 @@ def read_config(path):
 
     config = []
     options = ['key', 'frequent', 'hourly', 'daily', 'weekly', 'monthly', 'yearly', 'snap', 'clean',
-               'dest', 'dest_keys', 'compress']
+               'dest', 'dest_keys', 'compress', 'exclude']
 
     for section in parser.sections():
         dic = {}
@@ -115,6 +115,9 @@ def read_config(path):
                 elif option in ['dest_keys']:
                     dic[option] = [i.strip() if os.path.isfile(i.strip()) else None
                                    for i in value.split(',')]
+                elif option in ['exclude']:
+                    dic[option] = [[i.strip() for i in s.strip().split(' ')] if s.strip() else None
+                                    for s in value.split(',')]
     # Pass through values recursively
     for parent in config:
         for child in config:

@@ -14,6 +14,7 @@ import logging
 from io import TextIOWrapper
 from datetime import datetime
 from subprocess import Popen, PIPE, CalledProcessError
+from fnmatch import fnmatch
 from .ssh import SSH, SSHException
 from .utils import parse_name, exists, check_recv, bytes_fmt
 import pyznap.pyzfs as zfs
@@ -178,8 +179,8 @@ def send_config(config):
 
         # if source is remote, open ssh connection
         if _type == 'ssh':
-            key = conf['key'] if conf['key'] else None
-            compress = conf['compress'].pop(0) if conf['compress'] else 'lzop'
+            key = conf['key'] if conf.get('key', None) else None
+            compress = conf['compress'].pop(0) if conf.get('compress', None) else 'lzop'
             try:
                 ssh_source = SSH(user, host, port=port, key=key, compress=compress)
             except (FileNotFoundError, SSHException):
@@ -213,11 +214,11 @@ def send_config(config):
 
             # if dest is remote, open ssh connection
             if _type == 'ssh':
-                dest_key = conf['dest_keys'].pop(0) if conf['dest_keys'] else None
+                dest_key = conf['dest_keys'].pop(0) if conf.get('dest_keys', None) else None
                 # if 'ssh_source' is set, then 'compress' is already set and we use same compression for both source and dest
                 # if not then we take the next entry in config
                 if not ssh_source:
-                    compress = conf['compress'].pop(0) if conf['compress'] else 'lzop'
+                    compress = conf['compress'].pop(0) if conf.get('compress', None) else 'lzop'
                 try:
                     ssh_dest = SSH(user, host, port=port, key=dest_key, compress=compress)
                 except (FileNotFoundError, SSHException):
@@ -226,6 +227,9 @@ def send_config(config):
             else:
                 ssh_dest = None
                 dest_name_log = dest_name
+
+            # get exclude rules
+            exclude = conf['exclude'].pop(0) if conf.get('exclude', None) else []
 
             # Check if base destination filesystem exists, if not do not send
             try:
@@ -246,6 +250,10 @@ def send_config(config):
                                        child in source_children]
                 # Send all children to corresponding children on dest
                 for source_fs, dest_name in zip(source_children, dest_children_names):
+                    # exclude filesystems from rules
+                    if any(fnmatch(source_fs.name, pattern) for pattern in exclude):
+                        continue
+                    # send not excluded filesystems
                     send_filesystem(source_fs, dest_name, ssh_dest=ssh_dest)
             finally:
                 if ssh_dest:

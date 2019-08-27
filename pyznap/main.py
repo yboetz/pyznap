@@ -65,6 +65,8 @@ def _main():
                              dest='dest_key', help='ssh key for dest if both are remote')
     parser_send.add_argument('-c', '--compress', action="store",
                              dest='compress', help='compression to use for ssh transfer. default is lzop')
+    parser_send.add_argument('-e', '--exclude', nargs = '+',
+                             dest='exclude', help='datasets to exclude')
 
     if len(sys.argv)==1:
         parser.print_help(sys.stderr)
@@ -110,10 +112,12 @@ def _main():
             # if source_key and dest_key are given, overwrite previous value
             source_key = args.source_key if args.source_key else source_key
             dest_key = [args.dest_key] if args.dest_key else dest_key
+            # get exclude rules
+            exclude = [args.exclude] if args.exclude else None
 
             compress = [args.compress] if args.compress else None
             send_config([{'name': args.source, 'dest': [args.dest], 'key': source_key,
-                          'dest_keys': dest_key, 'compress': compress}])
+                          'dest_keys': dest_key, 'compress': compress, 'exclude': exclude}])
         elif args.source and not args.dest:
             logger.error('Missing dest...')
         elif args.dest and not args.source:
