@@ -109,9 +109,14 @@ def send_filesystem(source_fs, dest_name, ssh_dest=None):
     if check_recv(dest_name, ssh=ssh_dest):
         return 1
 
-    # Get snapshots on source
-    snapshots = source_fs.snapshots()[::-1]
+    # get snapshots on source, catch exception if dataset was destroyed since pyznap was started
+    try:
+        snapshots = source_fs.snapshots()[::-1]
+    except (DatasetNotFoundError, DatasetBusyError) as err:
+        logger.error('Error while opening source {}: {}...'.format(source_fs, err))
+        return 1
     snapnames = [snap.name.split('@')[1] for snap in snapshots]
+
     try:
         snapshot = snapshots[0]     # Most recent snapshot
         base = snapshots[-1]        # Oldest snapshot

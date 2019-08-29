@@ -57,15 +57,21 @@ def clean_filesystem(filesystem, conf):
     logger.debug('Cleaning snapshots on {}...'.format(filesystem))
 
     snapshots = {'frequent': [], 'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
-    for snap in filesystem.snapshots():
+    # catch exception if dataset was destroyed since pyznap was started
+    try:
+        fs_snapshots = filesystem.snapshots()
+    except (DatasetNotFoundError, DatasetBusyError) as err:
+        logger.error('Error while opening {}: {}...'.format(filesystem, err))
+        return 1
+    # categorize snapshots
+    for snap in fs_snapshots:
         # Ignore snapshots not taken with pyznap or sanoid
         if not snap.name.split('@')[1].startswith(('pyznap', 'autosnap')):
             continue
-        snap_type = snap.name.split('_')[-1]
-
         try:
+            snap_type = snap.name.split('_')[-1]
             snapshots[snap_type].append(snap)
-        except KeyError:
+        except (ValueError, KeyError):
             continue
 
     # Reverse sort by time taken
