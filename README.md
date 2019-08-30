@@ -94,7 +94,8 @@ You can also manage, send to and pull from remote ssh locations. Always specify 
 
     ssh:port:user@host:rpool/data
 
-A sample config which backs up a filesystem to a remote location looks like:
+If you omit the port (`ssh::user@host:...`) the default `22` is assumed. A sample config which backs
+up a filesystem to a remote location looks like:
 
     [rpool/data]
     hourly = 24
@@ -102,11 +103,11 @@ A sample config which backs up a filesystem to a remote location looks like:
     clean = yes
     dest = ssh:22:user@host:backup/data   # Specify ssh destination
     dest_keys = /home/user/.ssh/id_rsa    # Provide key for ssh login. If none given, look in home dir
-    compress = gzip
+    compress = gzip                       # Use gzip compression for sending over ssh
 
 To pull a filesystem from a remote location use:
 
-    [ssh::user@host:rpool/data]
+    [ssh::user@host:rpool/data]           # Specify ssh source
     key = /home/user/.ssh/id_rsa          # Provide key for ssh login. If none given, look in home dir
     dest = tank/data
     compress = lz4
@@ -213,3 +214,7 @@ Run `pyznap -h` to see all available options.
 + Pull a single filesystem from a remote location and send it to another remote location:
 
     `pyznap send -s ssh::root@example1.com:tank/data -d ssh::root@example2.com:backup/data -j /root/.ssh/id_rsa_1 -k /root/.ssh/id_rsa_2`
+
++ Backup a single filesystem and exclude some datasets:
+
+    `pyznap send -s tank -d backup/tank -e '/tank/data*' '/tank/home/user1*' '*/user2/docs'`
