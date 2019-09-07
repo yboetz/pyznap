@@ -40,21 +40,15 @@ def exists(executable='', ssh=None):
     logger = logging.getLogger(__name__)
     name_log = '{:s}@{:s}'.format(ssh.user, ssh.host) if ssh else 'localhost'
 
-    # assert isinstance(executable, str), "Input must be string."
     cmd = ['which', executable]
-
     try:
-        out = run(cmd, stdout=PIPE, stderr=PIPE, timeout=5, universal_newlines=True, ssh=ssh).stdout
+        retcode = run(cmd, stdout=PIPE, stderr=PIPE, timeout=5, universal_newlines=True, ssh=ssh).returncode
     except (TimeoutExpired, SSHException) as err:
         logger.error('Error while checking if {:s} exists on {:s}: \'{}\'...'
                      .format(executable, name_log, err))
         return False
-    except CalledProcessError as err:
-        logger.error('Error while checking if {:s} exists on {:s}: \'{:s}\'...'
-                     .format(executable, name_log, err.stderr.rstrip()))
-        return False
-    else:
-        return bool(out)
+
+    return not bool(retcode) # return False if retcode != 0
 
 
 def read_config(path):
