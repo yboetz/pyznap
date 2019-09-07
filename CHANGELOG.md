@@ -5,6 +5,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.4.3] - 2019-09-07
+### Fixed
+- pyznap would falsely assume executables such as 'pv' exist on SmartOS even when not present.
+
+
 ## [1.4.2] - 2019-08-30
 ### Fixed
 - Catch DatasetNotFoundError if dataset was destroyed after starting pyznap.
