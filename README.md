@@ -169,7 +169,7 @@ Run `pyznap -h` to see all available options.
 
     Send snapshots to backup locations according to policy.
 
-  + -s SOURCE -d DESTINATION [-c COMPRESSION] [-i KEYFILE] [-j SOURCE_KEY] [-k DEST_KEY] [-e EXCLUDE]
+  + -s SOURCE -d DESTINATION [-c COMPRESSION] [-i KEYFILE] [-j SOURCE_KEY] [-k DEST_KEY] [-e EXCLUDE] [-w]
 
     Send source filesystem to destination filesystem. If either source OR dest is a remote location,
     you can specify the keyfile with the `-i` flag. If both source AND dest are remote, you specify
@@ -178,7 +178,8 @@ Run `pyznap -h` to see all available options.
     `pigz`, `bzip2` and `xz`. If no option is given, `lzop` is used if available. You can specify
     multiple (whitespace separated) wildcard exclude rules with the `-e` flag. Note that you should
     probably pass these as strings or escape the wildcard (e.g. `-e '*/data'` or `-e \*/data`), else
-    your shell might expand the pattern.
+    your shell might expand the pattern. ZFS raw send can be enabled with the `-w` flag, in which case
+    compression will be disabled.
 
 
 #### Usage examples ####
