@@ -494,7 +494,7 @@ class TestSending(object):
 
     @pytest.mark.dependency()
     def test_send_exclude(self, zpools):
-        """Checks if send_snap totally replicates a filesystem"""
+        """Checks if exclude rules work"""
         fs0, fs1 = zpools
         fs0.destroy(force=True)
         fs1.destroy(force=True)
@@ -517,5 +517,29 @@ class TestSending(object):
         for match in exclude:
             fs0_children -= set(fnmatch.filter(fs0_children, match))
             fs0_children -= set(fnmatch.filter(fs0_children, match + '@snap'))
+
+        assert set(fs0_children) == set(fs1_children)
+
+    @pytest.mark.dependency()
+    def test_send_raw(self, zpools):
+        """Checks if raw_send works"""
+        fs0, fs1 = zpools
+        fs0.destroy(force=True)
+        fs1.destroy(force=True)
+
+        raw_send = ['yes']
+        config = [{'name': fs0.name, 'dest': [fs1.name], 'raw_send': raw_send}]
+
+        zfs.create('{:s}/sub1'.format(fs0.name), props={'compression':'gzip'})
+        zfs.create('{:s}/sub2'.format(fs0.name), props={'compression':'lz4'})
+        zfs.create('{:s}/sub3'.format(fs0.name), props={'compression':'gzip'})
+        zfs.create('{:s}/sub3/abc'.format(fs0.name))
+        zfs.create('{:s}/sub3/abc_abc'.format(fs0.name))
+        zfs.create('{:s}/sub3/efg'.format(fs0.name))
+        fs0.snapshot('snap', recursive=True)
+        send_config(config)
+
+        fs0_children = set([child.name.replace(fs0.name, '') for child in zfs.find(fs0.name, types=['all'])[1:]])
+        fs1_children = set([child.name.replace(fs1.name, '') for child in zfs.find(fs1.name, types=['all'])[1:]])
 
         assert set(fs0_children) == set(fs1_children)

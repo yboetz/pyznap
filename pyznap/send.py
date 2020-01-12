@@ -21,7 +21,7 @@ import pyznap.pyzfs as zfs
 from .process import DatasetBusyError, DatasetNotFoundError, DatasetExistsError
 
 
-def send_snap(snapshot, dest_name, base=None, ssh_dest=None):
+def send_snap(snapshot, dest_name, base=None, ssh_dest=None, raw=False):
     """Sends snapshot to destination, incrementally and over ssh if specified.
 
     Parameters:
@@ -48,8 +48,9 @@ def send_snap(snapshot, dest_name, base=None, ssh_dest=None):
         ssh_source = snapshot.ssh
         stream_size = snapshot.stream_size(base=base)
 
-        send = snapshot.send(ssh_dest=ssh_dest, base=base, intermediates=True)
-        recv = zfs.receive(name=dest_name, stdin=send.stdout, ssh=ssh_dest, ssh_source=ssh_source, force=True, nomount=True, stream_size=stream_size)
+        send = snapshot.send(ssh_dest=ssh_dest, base=base, intermediates=True, raw=raw)
+        recv = zfs.receive(name=dest_name, stdin=send.stdout, ssh=ssh_dest, ssh_source=ssh_source,
+                           force=True, nomount=True, stream_size=stream_size, raw=raw)
         send.stdout.close()
 
         # write pv output to stderr / stdout
@@ -80,7 +81,7 @@ def send_snap(snapshot, dest_name, base=None, ssh_dest=None):
         return 0
 
 
-def send_filesystem(source_fs, dest_name, ssh_dest=None):
+def send_filesystem(source_fs, dest_name, ssh_dest=None, raw=False):
     """Checks for common snapshots between source and dest.
     If none are found, send the oldest snapshot, then update with the most recent one.
     If there are common snaps, update destination with the most recent one.
@@ -146,7 +147,7 @@ def send_filesystem(source_fs, dest_name, ssh_dest=None):
         else:
             logger.info('No common snapshots on {:s}, sending oldest snapshot {} (~{:s})...'
                         .format(dest_name_log, base, bytes_fmt(base.stream_size())))
-            if send_snap(base, dest_name, base=None, ssh_dest=ssh_dest):
+            if send_snap(base, dest_name, base=None, ssh_dest=ssh_dest, raw=raw):
                 return 1
     else:
         # If there are common snapshots, get the most recent one
@@ -155,7 +156,7 @@ def send_filesystem(source_fs, dest_name, ssh_dest=None):
     if base.name != snapshot.name:
         logger.info('Updating {:s} with recent snapshot {} (~{:s})...'
                     .format(dest_name_log, snapshot, bytes_fmt(snapshot.stream_size(base))))
-        if send_snap(snapshot, dest_name, base=base, ssh_dest=ssh_dest):
+        if send_snap(snapshot, dest_name, base=base, ssh_dest=ssh_dest, raw=raw):
             return 1
 
     logger.info('{:s} is up to date...'.format(dest_name_log))
@@ -240,6 +241,9 @@ def send_config(config):
             # get exclude rules
             exclude = conf['exclude'].pop(0) if conf.get('exclude', None) else []
 
+            # check if raw send was requested
+            raw = conf['raw_send'].pop(0) if conf.get('raw_send', None) else False
+
             # Check if base destination filesystem exists, if not do not send
             try:
                 zfs.open(dest_name, ssh=ssh_dest)
@@ -264,7 +268,7 @@ def send_config(config):
                         logger.debug('Matched {} in exclude rules, not sending...'.format(source_fs))
                         continue
                     # send not excluded filesystems
-                    send_filesystem(source_fs, dest_name, ssh_dest=ssh_dest)
+                    send_filesystem(source_fs, dest_name, ssh_dest=ssh_dest, raw=raw)
             finally:
                 if ssh_dest:
                     ssh_dest.close()

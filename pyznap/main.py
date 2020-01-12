@@ -67,6 +67,8 @@ def _main():
                              dest='compress', help='compression to use for ssh transfer. default is lzop')
     parser_send.add_argument('-e', '--exclude', nargs = '+',
                              dest='exclude', help='datasets to exclude')
+    parser_send.add_argument('-w', '--raw', action="store_true",
+                             dest='raw', help='raw zfs send. default is false')
 
     if len(sys.argv)==1:
         parser.print_help(sys.stderr)
@@ -114,10 +116,13 @@ def _main():
             dest_key = [args.dest_key] if args.dest_key else dest_key
             # get exclude rules
             exclude = [args.exclude] if args.exclude else None
+            # check if raw send was requested
+            raw = [args.raw] if args.raw else None
 
             compress = [args.compress] if args.compress else None
             send_config([{'name': args.source, 'dest': [args.dest], 'key': source_key,
-                          'dest_keys': dest_key, 'compress': compress, 'exclude': exclude}])
+                          'dest_keys': dest_key, 'compress': compress, 'exclude': exclude,
+                          'raw_send': raw}])
         elif args.source and not args.dest:
             logger.error('Missing dest...')
         elif args.dest and not args.source:

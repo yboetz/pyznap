@@ -142,7 +142,7 @@ def create(name, ssh=None, type='filesystem', props={}, force=False):
 
 
 def receive(name, stdin, ssh=None, ssh_source=None, append_name=False, append_path=False,
-            force=False, nomount=False, stream_size=0):
+            force=False, nomount=False, stream_size=0, raw=False):
     """Returns Popen instance for zfs receive"""
     logger = logging.getLogger(__name__)
 
@@ -183,7 +183,7 @@ def receive(name, stdin, ssh=None, ssh_source=None, append_name=False, append_pa
     cmd.append(quote(name)) # use shlex to quote the name
 
     # add additional commands
-    if decompress:
+    if decompress and not raw: # disable compression for raw send
         logger.debug("Using compression on dest: '{:s}'...".format(' '.join(decompress)))
         cmd = decompress + ['|'] + cmd
     # only use mbuffer at recv if send is over ssh
@@ -347,7 +347,7 @@ class ZFSSnapshot(ZFSDataset):
         raise NotImplementedError()
 
     def send(self, ssh_dest=None, base=None, intermediates=False, replicate=False,
-             properties=False, deduplicate=False):
+             properties=False, deduplicate=False, raw=False):
         logger = logging.getLogger(__name__)
 
         # get the size of the snapshot to send
@@ -383,6 +383,9 @@ class ZFSSnapshot(ZFSDataset):
             cmd.append('-p')
         if deduplicate:
             cmd.append('-D')
+        if raw:
+            logger.debug("Using raw zfs send...")
+            cmd.append('-c')
 
         if base is not None:
             if intermediates:
@@ -405,7 +408,7 @@ class ZFSSnapshot(ZFSDataset):
             logger.debug("Using pv on source: '{:s}'...".format(' '.join(pv_cmd)))
             cmd += ['|'] + pv_cmd
 
-        if compress:
+        if compress and not raw: # disable compression for raw send
             logger.debug("Using compression on source: '{:s}'...".format(' '.join(compress)))
             cmd += ['|'] + compress
 
