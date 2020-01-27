@@ -88,7 +88,7 @@ If you also want to send your filesystems to another location you can add a line
 
     0 0 * * *   root    /path/to/pyznap send >> /var/log/pyznap.log 2>&1
 
-This will backup your data once per day at 12pm.
+This will backup your data once per day at 12am.
 
 You can also manage, send to and pull from remote ssh locations. Always specify ssh locations with
 
