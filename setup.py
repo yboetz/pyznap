@@ -38,8 +38,8 @@ setup(
     python_requires='>=3.5',
     extras_require={
         'dev': [
-            'pytest==3.3.0',
-            'pytest-dependency==0.2',
+            'pytest',
+            'pytest-dependency',
             'pytest-runner',
             'paramiko>=2.4.2',
         ]

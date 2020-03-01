@@ -200,7 +200,7 @@ class TestSnapshot(object):
             assert len(snaps) == 1
 
 
-    @pytest.mark.dependency(depends=['test_take_snapshot'])
+    @pytest.mark.dependency(depends=['TestSnapshot::test_take_snapshot'])
     def test_clean_snapshot(self, zpools):
         fs, _ = zpools
         config = [{'name': fs.name, 'frequent': 0, 'hourly': 0, 'daily': 0, 'weekly': 0,
@@ -216,7 +216,7 @@ class TestSnapshot(object):
             assert len(snaps) == config[0][snap_type]
 
 
-    @pytest.mark.dependency(depends=['test_clean_snapshot'])
+    @pytest.mark.dependency(depends=['TestSnapshot::test_clean_snapshot'])
     def test_take_snapshot_recursive(self, zpools):
         fs, _ = zpools
         fs.destroy(force=True)
@@ -270,7 +270,7 @@ class TestSnapshot(object):
             assert len(snaps) == config[0][snap_type]
 
 
-    @pytest.mark.dependency(depends=['test_take_snapshot_recursive'])
+    @pytest.mark.dependency(depends=['TestSnapshot::test_take_snapshot_recursive'])
     def test_clean_recursive(self, zpools):
         fs, _ = zpools
         fs.destroy(force=True)
@@ -405,7 +405,7 @@ class TestSending(object):
         assert set(fs0_children) == set(fs1_children)
 
 
-    @pytest.mark.dependency(depends=['test_send_full'])
+    @pytest.mark.dependency(depends=['TestSending::test_send_full'])
     def test_send_incremental(self, zpools):
         fs0, fs1 = zpools
         fs0.destroy(force=True)
@@ -435,7 +435,7 @@ class TestSending(object):
         assert set(fs0_children) == set(fs1_children)
 
 
-    @pytest.mark.dependency(depends=['test_send_incremental'])
+    @pytest.mark.dependency(depends=['TestSending::test_send_incremental'])
     def test_send_delete_snapshot(self, zpools):
         fs0, fs1 = zpools
         config = [{'name': fs0.name, 'dest': [fs1.name]}]
@@ -459,7 +459,7 @@ class TestSending(object):
         assert set(fs0_children) == set(fs1_children)
 
 
-    @pytest.mark.dependency(depends=['test_send_delete_snapshot'])
+    @pytest.mark.dependency(depends=['TestSending::test_send_delete_snapshot'])
     def test_send_delete_sub(self, zpools):
         fs0, fs1 = zpools
         config = [{'name': fs0.name, 'dest': [fs1.name]}]
@@ -476,7 +476,7 @@ class TestSending(object):
         assert set(fs0_children) == set(fs1_children)
 
 
-    @pytest.mark.dependency(depends=['test_send_delete_sub'])
+    @pytest.mark.dependency(depends=['TestSending::test_send_delete_sub'])
     def test_send_delete_old(self, zpools):
         fs0, fs1 = zpools
         config = [{'name': fs0.name, 'dest': [fs1.name]}]
