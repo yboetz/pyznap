@@ -385,7 +385,7 @@ class ZFSSnapshot(ZFSDataset):
             cmd.append('-D')
         if raw:
             logger.debug("Using raw zfs send...")
-            cmd.append('-c')
+            cmd.append('-w')
 
         if base is not None:
             if intermediates:
