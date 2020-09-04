@@ -74,6 +74,12 @@ def _main():
     parser_send.add_argument('--dest-auto-create', action="store_true",
                              dest='dest_auto_create',
                              help='create destination filesystem if not exists')
+    parser_send.add_argument('--retry', action="store", type=int,
+                             dest='retry', default=0,
+                             help='number of retries when have ssh connection error')
+    parser_send.add_argument('--retry-interval', action="store", type=int,
+                             dest='retry_interval', default=10,
+                             help='interval in seconds between retries')
 
     if len(sys.argv)==1:
         parser.print_help(sys.stderr)
@@ -126,10 +132,13 @@ def _main():
 
             compress = [args.compress] if args.compress else None
             resume = args.resume
+            retry = args.retry
+            retry_interval = args.retry_interval
             dest_auto_create = args.dest_auto_create
             send_config([{'name': args.source, 'dest': [args.dest], 'key': source_key,
                           'dest_keys': dest_key, 'compress': compress, 'exclude': exclude,
                           'raw_send': raw, 'resume': resume, 'dest_auto_create': dest_auto_create,
+                          'retry': retry, 'retry_interval': retry_interval,
                         }])
         elif args.source and not args.dest:
             logger.error('Missing dest...')

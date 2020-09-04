@@ -65,6 +65,10 @@ class CompletedProcess(sp.CompletedProcess):
                               HoldTagExistsError):
                     if reason == error.strerror:
                         raise error(dataset)
+        elif self.stderr.startswith('ssh:'):
+            # will have circular import problem if put this import at top
+            from .ssh import SSHConnectError
+            raise SSHConnectError(self.stderr)
 
         # did not match known errors, defer to superclass
         super(CompletedProcess, self).check_returncode()

@@ -20,6 +20,10 @@ class SSHException(Exception):
     """General ssh exception to be raised if anything fails"""
     pass
 
+class SSHConnectError(SSHException):
+    """General ssh exception to be raised if anything fails"""
+    pass
+
 
 class SSH:
     """SSH class.
@@ -42,7 +46,7 @@ class SSH:
         ssh command to use with subprocess
     """
 
-    def __init__(self, user, host, key=None, port=22, compress=None):
+    def __init__(self, user, host, key=None, port=22, compress=None, **kwargs):
         """Initializes SSH class.
 
         Parameters
@@ -62,7 +66,7 @@ class SSH:
         FileNotFoundError
             If keyfile does not exist
         SSHException
-            General exception raised if anything goes wrong during ssh connection        
+            General exception raised if anything goes wrong during ssh connection
         """
 
         self.logger = logging.getLogger(__name__)
@@ -70,7 +74,7 @@ class SSH:
         self.user = user
         self.host = host
         self.port = port
-        self.socket = '/tmp/pyznap_{:s}@{:s}:{:d}_{:s}'.format(self.user, self.host, self.port, 
+        self.socket = '/tmp/pyznap_{:s}@{:s}:{:d}_{:s}'.format(self.user, self.host, self.port,
                       datetime.now().strftime('%Y-%m-%d_%H:%M:%S'))
         self.key = key or os.path.expanduser('~/.ssh/id_rsa')
 
@@ -79,8 +83,15 @@ class SSH:
             raise FileNotFoundError(self.key)
 
         self.cmd = ['ssh', '-i', self.key, '-o', 'ControlMaster=auto', '-o', 'ControlPersist=1m',
-                    '-o', 'ControlPath={:s}'.format(self.socket), '-p', str(self.port), 
+                    '-o', 'ControlPath={:s}'.format(self.socket), '-p', str(self.port),
                     '{:s}@{:s}'.format(self.user, self.host)]
+
+        if kwargs.get("ServerAliveInterval"):
+            self.cmd.insert(1, '-o')
+            self.cmd.insert(2, 'ServerAliveInterval={}'.format(kwargs.get('ServerAliveInterval')))
+        if kwargs.get("ServerAliveCountMax"):
+            self.cmd.insert(1, '-o')
+            self.cmd.insert(2, 'ServerAliveCountMax={}'.format(kwargs.get('ServerAliveCountMax')))
 
         # setup ControlMaster. Process will hang if we call Popen with stderr=sp.PIPE, see
         # https://lists.mindrot.org/pipermail/openssh-unix-dev/2014-January/031976.html

@@ -15,7 +15,7 @@ from io import TextIOWrapper
 from datetime import datetime
 from subprocess import Popen, PIPE, CalledProcessError
 from fnmatch import fnmatch
-from .ssh import SSH, SSHException
+from .ssh import SSH, SSHException, SSHConnectError
 from .utils import parse_name, exists, check_recv, bytes_fmt
 import pyznap.pyzfs as zfs
 from .process import DatasetBusyError, DatasetNotFoundError, DatasetExistsError
@@ -65,10 +65,14 @@ def send_snap(snapshot, dest_name, base=None, ssh_dest=None, raw=False, resume=F
         send.stderr.close()
 
         stdout, stderr = recv.communicate()
+        if stderr.decode().startswith('cannot receive incremental stream'):
+            raise SSHConnectError(stderr)
         # raise any error that occured
         if recv.returncode:
             raise CalledProcessError(returncode=recv.returncode, cmd=recv.args, output=stdout, stderr=stderr)
 
+    except SSHConnectError as err:
+        raise
     except (DatasetNotFoundError, DatasetExistsError, DatasetBusyError, OSError, EOFError) as err:
         logger.error('Error while sending to {:s}: {}...'.format(dest_name_log, err))
         return 1
@@ -211,12 +215,22 @@ def send_config(config):
             logger.error('Could not parse {:s}: {}...'.format(backup_source, err))
             continue
 
+        retry = conf.get('retry', 0)
+        retry_interval = conf.get('retry_interval', 10)
+        if retry:
+            ssh_extra_options = {
+                'ServerAliveInterval': conf.get('ServerAliveInterval', 60),
+                'ServerAliveCountMax': conf.get('ServerAliveCountMax', 3),
+            }
+        else:
+            ssh_extra_options = {}
+
         # if source is remote, open ssh connection
         if _type == 'ssh':
             key = conf['key'] if conf.get('key', None) else None
             compress = conf['compress'].pop(0) if conf.get('compress', None) else 'lzop'
             try:
-                ssh_source = SSH(user, host, port=port, key=key, compress=compress)
+                ssh_source = SSH(user, host, port=port, key=key, compress=compress, **ssh_extra_options)
             except (FileNotFoundError, SSHException):
                 continue
             source_name_log = '{:s}@{:s}:{:s}'.format(user, host, source_name)
@@ -239,7 +253,6 @@ def send_config(config):
             logger.error('Error while opening source {:s}: \'{:s}\'...'
                          .format(source_name_log, err.stderr.rstrip()))
             continue
-
         # Send to every backup destination
         for backup_dest in conf['dest']:
             try:
@@ -256,7 +269,7 @@ def send_config(config):
                 if not ssh_source:
                     compress = conf['compress'].pop(0) if conf.get('compress', None) else 'lzop'
                 try:
-                    ssh_dest = SSH(user, host, port=port, key=dest_key, compress=compress)
+                    ssh_dest = SSH(user, host, port=port, key=dest_key, compress=compress, **ssh_extra_options)
                 except (FileNotFoundError, SSHException):
                     continue
                 dest_name_log = '{:s}@{:s}:{:s}'.format(user, host, dest_name)
