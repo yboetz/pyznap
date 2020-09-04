@@ -69,6 +69,11 @@ def _main():
                              dest='exclude', help='datasets to exclude')
     parser_send.add_argument('-w', '--raw', action="store_true",
                              dest='raw', help='raw zfs send. default is false')
+    parser_send.add_argument('-r', '--resume', action="store_true",
+                             dest='resume', help='use -s option in zfs receive, retry with network errors. default is false')
+    parser_send.add_argument('--dest-auto-create', action="store_true",
+                             dest='dest_auto_create',
+                             help='create destination filesystem if not exists')
 
     if len(sys.argv)==1:
         parser.print_help(sys.stderr)
@@ -120,9 +125,12 @@ def _main():
             raw = [args.raw] if args.raw else None
 
             compress = [args.compress] if args.compress else None
+            resume = args.resume
+            dest_auto_create = args.dest_auto_create
             send_config([{'name': args.source, 'dest': [args.dest], 'key': source_key,
                           'dest_keys': dest_key, 'compress': compress, 'exclude': exclude,
-                          'raw_send': raw}])
+                          'raw_send': raw, 'resume': resume, 'dest_auto_create': dest_auto_create,
+                        }])
         elif args.source and not args.dest:
             logger.error('Missing dest...')
         elif args.dest and not args.source:

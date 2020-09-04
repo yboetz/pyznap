@@ -19,9 +19,10 @@ from .ssh import SSH, SSHException
 from .utils import parse_name, exists, check_recv, bytes_fmt
 import pyznap.pyzfs as zfs
 from .process import DatasetBusyError, DatasetNotFoundError, DatasetExistsError
+import time
 
 
-def send_snap(snapshot, dest_name, base=None, ssh_dest=None, raw=False):
+def send_snap(snapshot, dest_name, base=None, ssh_dest=None, raw=False, resume=False, receive_resume_token=None):
     """Sends snapshot to destination, incrementally and over ssh if specified.
 
     Parameters:
@@ -38,7 +39,7 @@ def send_snap(snapshot, dest_name, base=None, ssh_dest=None, raw=False):
     Returns
     -------
     int
-        0 if success, 1 if not
+        0 if success, 1 if not, 2 if resume from last transfer
     """
 
     logger = logging.getLogger(__name__)
@@ -46,11 +47,11 @@ def send_snap(snapshot, dest_name, base=None, ssh_dest=None, raw=False):
 
     try:
         ssh_source = snapshot.ssh
-        stream_size = snapshot.stream_size(base=base)
+        stream_size = snapshot.stream_size(base=base, receive_resume_token=receive_resume_token)
 
-        send = snapshot.send(ssh_dest=ssh_dest, base=base, intermediates=True, raw=raw)
+        send = snapshot.send(ssh_dest=ssh_dest, base=base, intermediates=True, raw=raw, receive_resume_token=receive_resume_token)
         recv = zfs.receive(name=dest_name, stdin=send.stdout, ssh=ssh_dest, ssh_source=ssh_source,
-                           force=True, nomount=True, stream_size=stream_size, raw=raw)
+                           force=True, nomount=True, stream_size=stream_size, raw=raw, resume=resume)
         send.stdout.close()
 
         # write pv output to stderr / stdout
@@ -81,7 +82,7 @@ def send_snap(snapshot, dest_name, base=None, ssh_dest=None, raw=False):
         return 0
 
 
-def send_filesystem(source_fs, dest_name, ssh_dest=None, raw=False):
+def send_filesystem(source_fs, dest_name, ssh_dest=None, raw=False, resume=False):
     """Checks for common snapshots between source and dest.
     If none are found, send the oldest snapshot, then update with the most recent one.
     If there are common snaps, update destination with the most recent one.
@@ -125,6 +126,7 @@ def send_filesystem(source_fs, dest_name, ssh_dest=None, raw=False):
         logger.error('No snapshots on {}, cannot send...'.format(source_fs))
         return 1
 
+    receive_resume_token = None
     try:
         dest_fs = zfs.open(dest_name, ssh=ssh_dest)
     except DatasetNotFoundError:
@@ -139,28 +141,50 @@ def send_filesystem(source_fs, dest_name, ssh_dest=None, raw=False):
         # Find common snapshots between source & dest
         common = set(snapnames) & set(dest_snapnames)
 
+        if resume:
+            receive_resume_token = dest_fs.getprops().get('receive_resume_token', (None, None))[0]
+
     if not common:
         if dest_snapnames:
             logger.error('No common snapshots on {:s}, but snapshots exist. Not sending...'
                          .format(dest_name_log))
             return 1
         else:
-            logger.info('No common snapshots on {:s}, sending oldest snapshot {} (~{:s})...'
-                        .format(dest_name_log, base, bytes_fmt(base.stream_size())))
-            if send_snap(base, dest_name, base=None, ssh_dest=ssh_dest, raw=raw):
-                return 1
+            if receive_resume_token is not None:
+                logger.info('Resume last transfer of {:s} (~{:s})...'
+                            .format(dest_name_log,
+                                bytes_fmt(snapshot.stream_size(base, receive_resume_token=receive_resume_token))))
+                if send_snap(base, dest_name, base=None, ssh_dest=ssh_dest, raw=raw, resume=resume, receive_resume_token=receive_resume_token) == 1:
+                    return 1
+                receive_resume_token = None
+            else:
+                logger.info('No common snapshots on {:s}, sending oldest snapshot {} (~{:s})...'
+                            .format(dest_name_log, base, bytes_fmt(base.stream_size())))
+                if send_snap(base, dest_name, base=None, ssh_dest=ssh_dest, raw=raw, resume=resume):
+                    return 1
     else:
         # If there are common snapshots, get the most recent one
         base = next(filter(lambda x: x.name.split('@')[1] in common, snapshots), None)
 
-    if base.name != snapshot.name:
-        logger.info('Updating {:s} with recent snapshot {} (~{:s})...'
-                    .format(dest_name_log, snapshot, bytes_fmt(snapshot.stream_size(base))))
-        if send_snap(snapshot, dest_name, base=base, ssh_dest=ssh_dest, raw=raw):
+    if base.name != snapshot.name or receive_resume_token is not None:
+        if receive_resume_token is not None:
+            # zfs send with receive_resume_token will only resume transfer between town snapshots
+            # so we need update it again
+            logger.info('Resume last transfer of {:s} (~{:s}), then update again...'
+                        .format(dest_name_log,
+                            bytes_fmt(snapshot.stream_size(base, receive_resume_token=receive_resume_token))))
+        else:
+            logger.info('Updating {:s} with recent snapshot {} (~{:s})...'
+                        .format(dest_name_log, snapshot,
+                            bytes_fmt(snapshot.stream_size(base))))
+        if send_snap(snapshot, dest_name, base=base, ssh_dest=ssh_dest, raw=raw, resume=resume, receive_resume_token=receive_resume_token):
             return 1
 
-    logger.info('{:s} is up to date...'.format(dest_name_log))
-    return 0
+    if receive_resume_token is not None:
+        return 2
+    else:
+        logger.info('{:s} is up to date...'.format(dest_name_log))
+        return 0
 
 
 def send_config(config):
@@ -199,6 +223,8 @@ def send_config(config):
         else:
             ssh_source = None
             source_name_log = source_name
+
+        resume = conf.get('resume', False)
 
         try:
             # Children includes the base filesystem (named 'source_name')
@@ -244,22 +270,42 @@ def send_config(config):
             # check if raw send was requested
             raw = conf['raw_send'].pop(0) if conf.get('raw_send', None) else False
 
-            # Check if base destination filesystem exists, if not do not send
-            try:
-                zfs.open(dest_name, ssh=ssh_dest)
-            except DatasetNotFoundError:
-                logger.error('Destination {:s} does not exist...'.format(dest_name_log))
-                continue
-            except ValueError as err:
-                logger.error(err)
-                continue
-            except CalledProcessError as err:
-                logger.error('Error while opening dest {:s}: \'{:s}\'...'
-                             .format(dest_name_log, err.stderr.rstrip()))
-                continue
-            else:
+            # if dest_auto_create is set, create dest if it not exists, else log error message
+            if conf.get('dest_auto_create', False):
+                try:
+                    zfs.open(dest_name, ssh=ssh_dest)
+                except DatasetNotFoundError:
+                    logger.info('Destination {:s} does not exist...create'.format(dest_name_log))
+                    # only create its parent, the receive process will create itself automatically
+                    #   zfs create -p a/b/c can create all the non-existing parent datasets,
+                    #   but it will also auto-mount them, here we create them manually
+                    to_create = []
+                    sub_paths = dest_name.split('/')
+                    if len(sub_paths)>1: # no need to 'recreate' the dataset
+                        for depth in range(len(sub_paths), 1, -1): # get all non-exists parents
+                            _path = '/'.join(sub_paths[:depth]) # the first path is the parent of dest_name
+                            try:
+                                zfs.open(_path, ssh=ssh_dest)
+                            except DatasetNotFoundError:
+                                to_create.append(_path)
+                            else:
+                                break
+                        for each in to_create[::-1]:
+                            try:
+                                zfs.create(each, ssh=ssh_dest)
+                                logger.debug('Create {:s} at {:s}'.format(each, dest_name_log))
+                            except CalledProcessError as err:
+                                errmsg = err.stderr.rstrip()
+                                # filter this common error message, it's not a error
+                                if 'filesystem successfully created, but' not in errmsg:
+                                    logger.error('Error while create {} at {:s}: \'{:s}\'...'
+                                                 .format(each, dest_name_log, errmsg))
+                            except Exception as err:
+                                logger.error('Unknown Error while create {} at {:s}: \'{:s}\'...'
+                                             .format(each, dest_name_log, str(err)))
+                source_name_length = len(source_name)
                 # Match children on source to children on dest
-                dest_children_names = [child.name.replace(source_name, dest_name) for
+                dest_children_names = [dest_name+child.name[source_name_length:] for
                                        child in source_children]
                 # Send all children to corresponding children on dest
                 for source_fs, dest_name in zip(source_children, dest_children_names):
@@ -268,10 +314,56 @@ def send_config(config):
                         logger.debug('Matched {} in exclude rules, not sending...'.format(source_fs))
                         continue
                     # send not excluded filesystems
-                    send_filesystem(source_fs, dest_name, ssh_dest=ssh_dest, raw=raw)
-            finally:
+                    retries = 0
+                    while True: # retry when lose SSH connection
+                        try:
+                            status = send_filesystem(source_fs, dest_name, ssh_dest=ssh_dest, raw=raw, resume=resume)
+                            if status==2: # just resume from last transfer, do upate again
+                                send_filesystem(source_fs, dest_name, ssh_dest=ssh_dest, raw=raw, resume=resume)
+                            break
+                        except SSHConnectError as err:
+                            if not retry:
+                                logger.error("SSH connection error: {:s}, no retries allowed, exit".format(err))
+                                raise
+                            else:
+                                retries += 1
+                                if retries > retry:
+                                    logger.error("Reach max retry counts, exit".format(err))
+                                    raise
+                                else:
+                                    logger.warn("SSH connection lost, sleep {} and retry {}/{}".format(retry_interval, retries, retry))
+                                    time.sleep(retry_interval)
                 if ssh_dest:
                     ssh_dest.close()
+            else: # report error when dest not exists
+                # Check if base destination filesystem exists, if not do not send
+                try:
+                    zfs.open(dest_name, ssh=ssh_dest)
+                except DatasetNotFoundError:
+                    logger.error('Destination {:s} does not exist...'.format(dest_name_log))
+                    continue
+                except ValueError as err:
+                    logger.error(err)
+                    continue
+                except CalledProcessError as err:
+                    logger.error('Error while opening dest {:s}: \'{:s}\'...'
+                                 .format(dest_name_log, err.stderr.rstrip()))
+                    continue
+                else:
+                    # Match children on source to children on dest
+                    dest_children_names = [child.name.replace(source_name, dest_name) for
+                                           child in source_children]
+                    # Send all children to corresponding children on dest
+                    for source_fs, dest_name in zip(source_children, dest_children_names):
+                        # exclude filesystems from rules
+                        if any(fnmatch(source_fs.name, pattern) for pattern in exclude):
+                            logger.debug('Matched {} in exclude rules, not sending...'.format(source_fs))
+                            continue
+                        # send not excluded filesystems
+                        send_filesystem(source_fs, dest_name, ssh_dest=ssh_dest, raw=raw, resume=resume)
+                finally:
+                    if ssh_dest:
+                        ssh_dest.close()
 
         if ssh_source:
             ssh_source.close()
