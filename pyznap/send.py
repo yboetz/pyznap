@@ -39,7 +39,7 @@ def send_snap(snapshot, dest_name, base=None, ssh_dest=None, raw=False, resume=F
     Returns
     -------
     int
-        0 if success, 1 if not, 2 if resume from last transfer
+        0 if success, 1 if not
     """
 
     logger = logging.getLogger(__name__)
@@ -103,7 +103,7 @@ def send_filesystem(source_fs, dest_name, ssh_dest=None, raw=False, resume=False
     Returns
     -------
     int
-        0 if success, 1 if not
+        0 if success, 1 if not, 2 if resume from last transfer
     """
 
     logger = logging.getLogger(__name__)
