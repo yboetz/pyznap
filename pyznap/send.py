@@ -22,7 +22,7 @@ from .process import DatasetBusyError, DatasetNotFoundError, DatasetExistsError
 import time
 
 
-def send_snap(snapshot, dest_name, base=None, ssh_dest=None, raw=False, resume=False, receive_resume_token=None):
+def send_snap(snapshot, dest_name, base=None, ssh_dest=None, raw=False, resume=False, resume_token=None):
     """Sends snapshot to destination, incrementally and over ssh if specified.
 
     Parameters:
@@ -47,9 +47,9 @@ def send_snap(snapshot, dest_name, base=None, ssh_dest=None, raw=False, resume=F
 
     try:
         ssh_source = snapshot.ssh
-        stream_size = snapshot.stream_size(base=base, receive_resume_token=receive_resume_token)
+        stream_size = snapshot.stream_size(base=base, resume_token=resume_token)
 
-        send = snapshot.send(ssh_dest=ssh_dest, base=base, intermediates=True, raw=raw, receive_resume_token=receive_resume_token)
+        send = snapshot.send(ssh_dest=ssh_dest, base=base, intermediates=True, raw=raw, resume_token=resume_token)
         recv = zfs.receive(name=dest_name, stdin=send.stdout, ssh=ssh_dest, ssh_source=ssh_source,
                            force=True, nomount=True, stream_size=stream_size, raw=raw, resume=resume)
         send.stdout.close()
@@ -65,14 +65,10 @@ def send_snap(snapshot, dest_name, base=None, ssh_dest=None, raw=False, resume=F
         send.stderr.close()
 
         stdout, stderr = recv.communicate()
-        if stderr.decode().startswith('cannot receive incremental stream'):
-            raise SSHConnectError(stderr)
         # raise any error that occured
         if recv.returncode:
             raise CalledProcessError(returncode=recv.returncode, cmd=recv.args, output=stdout, stderr=stderr)
 
-    except SSHConnectError as err:
-        raise
     except (DatasetNotFoundError, DatasetExistsError, DatasetBusyError, OSError, EOFError) as err:
         logger.error('Error while sending to {:s}: {}...'.format(dest_name_log, err))
         return 1
@@ -130,7 +126,7 @@ def send_filesystem(source_fs, dest_name, ssh_dest=None, raw=False, resume=False
         logger.error('No snapshots on {}, cannot send...'.format(source_fs))
         return 1
 
-    receive_resume_token = None
+    resume_token = None
     try:
         dest_fs = zfs.open(dest_name, ssh=ssh_dest)
     except DatasetNotFoundError:
@@ -146,7 +142,7 @@ def send_filesystem(source_fs, dest_name, ssh_dest=None, raw=False, resume=False
         common = set(snapnames) & set(dest_snapnames)
 
         if resume:
-            receive_resume_token = dest_fs.getprops().get('receive_resume_token', (None, None))[0]
+            resume_token = dest_fs.getprops().get('receive_resume_token', (None, None))[0]
 
     if not common:
         if dest_snapnames:
@@ -154,13 +150,13 @@ def send_filesystem(source_fs, dest_name, ssh_dest=None, raw=False, resume=False
                          .format(dest_name_log))
             return 1
         else:
-            if receive_resume_token is not None:
+            if resume_token is not None:
                 logger.info('Resume last transfer of {:s} (~{:s})...'
                             .format(dest_name_log,
-                                bytes_fmt(snapshot.stream_size(base, receive_resume_token=receive_resume_token))))
-                if send_snap(base, dest_name, base=None, ssh_dest=ssh_dest, raw=raw, resume=resume, receive_resume_token=receive_resume_token) == 1:
+                                bytes_fmt(snapshot.stream_size(base, resume_token=resume_token))))
+                if send_snap(base, dest_name, base=None, ssh_dest=ssh_dest, raw=raw, resume=resume, resume_token=resume_token) == 1:
                     return 1
-                receive_resume_token = None
+                resume_token = None
             else:
                 logger.info('No common snapshots on {:s}, sending oldest snapshot {} (~{:s})...'
                             .format(dest_name_log, base, bytes_fmt(base.stream_size())))
@@ -170,21 +166,21 @@ def send_filesystem(source_fs, dest_name, ssh_dest=None, raw=False, resume=False
         # If there are common snapshots, get the most recent one
         base = next(filter(lambda x: x.name.split('@')[1] in common, snapshots), None)
 
-    if base.name != snapshot.name or receive_resume_token is not None:
-        if receive_resume_token is not None:
-            # zfs send with receive_resume_token will only resume transfer between town snapshots
+    if base.name != snapshot.name or resume_token is not None:
+        if resume_token is not None:
+            # zfs send with resume_token will only resume transfer between town snapshots
             # so we need update it again
             logger.info('Resume last transfer of {:s} (~{:s}), then update again...'
                         .format(dest_name_log,
-                            bytes_fmt(snapshot.stream_size(base, receive_resume_token=receive_resume_token))))
+                            bytes_fmt(snapshot.stream_size(base, resume_token=resume_token))))
         else:
             logger.info('Updating {:s} with recent snapshot {} (~{:s})...'
                         .format(dest_name_log, snapshot,
                             bytes_fmt(snapshot.stream_size(base))))
-        if send_snap(snapshot, dest_name, base=base, ssh_dest=ssh_dest, raw=raw, resume=resume, receive_resume_token=receive_resume_token):
+        if send_snap(snapshot, dest_name, base=base, ssh_dest=ssh_dest, raw=raw, resume=resume, resume_token=resume_token):
             return 1
 
-    if receive_resume_token is not None:
+    if resume_token is not None:
         return 2
     else:
         logger.info('{:s} is up to date...'.format(dest_name_log))
