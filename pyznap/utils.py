@@ -86,8 +86,7 @@ def read_config(path):
     config = []
     options = ['key', 'frequent', 'hourly', 'daily', 'weekly', 'monthly', 'yearly', 'snap', 'clean',
                'dest', 'dest_keys', 'compress', 'exclude', 'raw_send', 'resume', 'dest_auto_create',
-               'retry', 'retry_interval', 'ServerAliveInterval', 'ServerAliveCountMax',
-              ]
+               'retry', 'retry_interval']
 
     for section in parser.sections():
         dic = {}
@@ -102,12 +101,9 @@ def read_config(path):
             else:
                 if option in ['key']:
                     dic[option] = value if os.path.isfile(value) else None
-                elif option in [
-                    'frequent', 'hourly', 'daily', 'weekly', 'monthly', 'yearly',
-                    'retry', 'retry_interval', 'ServerAliveInterval', 'ServerAliveCountMax'
-                ]:
+                elif option in ['frequent', 'hourly', 'daily', 'weekly', 'monthly', 'yearly']:
                     dic[option] = int(value)
-                elif option in ['snap', 'clean', 'resume', 'dest_auto_create']:
+                elif option in ['snap', 'clean']:
                     dic[option] = {'yes': True, 'no': False}.get(value.lower(), None)
                 elif option in ['dest', 'compress']:
                     dic[option] = [i.strip() for i in value.split(',')]
@@ -117,9 +113,11 @@ def read_config(path):
                 elif option in ['exclude']:
                     dic[option] = [[i.strip() for i in s.strip().split(' ')] if s.strip() else None
                                     for s in value.split(',')]
-                elif option in ['raw_send']:
+                elif option in ['raw_send', 'resume', 'dest_auto_create']:
                     dic[option] = [{'yes': True, 'no': False}.get(i.strip().lower(), None)
                                    for i in value.split(',')]
+                elif option in ['retry', 'retry_interval']:
+                    dic[option] = [int(i) for i in value.split(',')]
     # Pass through values recursively
     for parent in config:
         for child in config:

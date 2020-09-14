@@ -129,17 +129,22 @@ def _main():
             exclude = [args.exclude] if args.exclude else None
             # check if raw send was requested
             raw = [args.raw] if args.raw else None
-
+            # compress ssh zfs send/receive
             compress = [args.compress] if args.compress else None
-            resume = args.resume
-            retry = args.retry
-            retry_interval = args.retry_interval
-            dest_auto_create = args.dest_auto_create
+            # use receive resume token
+            resume = [args.resume] if args.resume else None
+            # retry zfs send/receive
+            retry = [args.retry] if args.retry else None
+            # wait interval for retry
+            retry_interval = [args.retry_interval] if args.retry_interval else None
+            # automatically create dest dataset if it does not exist
+            dest_auto_create = [args.dest_auto_create] if args.dest_auto_create else None
+
             send_config([{'name': args.source, 'dest': [args.dest], 'key': source_key,
                           'dest_keys': dest_key, 'compress': compress, 'exclude': exclude,
                           'raw_send': raw, 'resume': resume, 'dest_auto_create': dest_auto_create,
-                          'retry': retry, 'retry_interval': retry_interval,
-                        }])
+                          'retry': retry, 'retry_interval': retry_interval}])
+
         elif args.source and not args.dest:
             logger.error('Missing dest...')
         elif args.dest and not args.source:
