@@ -86,7 +86,7 @@ def read_config(path):
     config = []
     options = ['key', 'frequent', 'hourly', 'daily', 'weekly', 'monthly', 'yearly', 'snap', 'clean',
                'dest', 'dest_keys', 'compress', 'exclude', 'raw_send', 'resume', 'dest_auto_create',
-               'retry', 'retry_interval']
+               'retries', 'retry_interval']
 
     for section in parser.sections():
         dic = {}
@@ -116,7 +116,7 @@ def read_config(path):
                 elif option in ['raw_send', 'resume', 'dest_auto_create']:
                     dic[option] = [{'yes': True, 'no': False}.get(i.strip().lower(), None)
                                    for i in value.split(',')]
-                elif option in ['retry', 'retry_interval']:
+                elif option in ['retries', 'retry_interval']:
                     dic[option] = [int(i) for i in value.split(',')]
     # Pass through values recursively
     for parent in config:

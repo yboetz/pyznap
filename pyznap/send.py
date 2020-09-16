@@ -241,7 +241,7 @@ def send_config(config):
             # check if raw send was requested
             raw = conf['raw_send'].pop(0) if conf.get('raw_send', None) else False
             # check if we need to retry
-            retry = conf['retry'].pop(0) if conf.get('retry', None) else 0
+            retries = conf['retries'].pop(0) if conf.get('retries', None) else 0
             retry_interval = conf['retry_interval'].pop(0) if conf.get('retry_interval', None) else 10
             # check if resumable send was requested
             resume = conf['resume'].pop(0) if conf.get('resume', None) else False
@@ -367,14 +367,12 @@ def send_config(config):
                     logger.debug('Matched {} in exclude rules, not sending...'.format(source_fs))
                     continue
                 # send not excluded filesystems
-                for r in range(retry):
-                    if send_filesystem(source_fs, dest_name, ssh_dest=ssh_dest, raw=raw, resume=resume) == 2:
-                        logger.info('Retrying send in {:d}s (retry {:d} of {:d})...'.format(retry_interval, r+1, retry))
+                for retry in range(1,retries+2):
+                    if send_filesystem(source_fs, dest_name, ssh_dest=ssh_dest, raw=raw, resume=resume) == 2 and retry <= retries:
+                        logger.info('Retrying send in {:d}s (retry {:d} of {:d})...'.format(retry_interval, retry, retries))
                         sleep(retry_interval)
                     else:
                         break
-                else:
-                    logger.error('Send was not successful...')
 
             if ssh_dest:
                 ssh_dest.close()

@@ -74,8 +74,8 @@ def _main():
     parser_send.add_argument('--dest-auto-create', action="store_true",
                              dest='dest_auto_create',
                              help='create destination filesystem if not exists')
-    parser_send.add_argument('--retry', action="store", type=int,
-                             dest='retry', default=0,
+    parser_send.add_argument('--retries', action="store", type=int,
+                             dest='retries', default=0,
                              help='number of retries when have ssh connection error')
     parser_send.add_argument('--retry-interval', action="store", type=int,
                              dest='retry_interval', default=10,
@@ -134,7 +134,7 @@ def _main():
             # use receive resume token
             resume = [args.resume] if args.resume else None
             # retry zfs send/receive
-            retry = [args.retry] if args.retry else None
+            retries = [args.retries] if args.retries else None
             # wait interval for retry
             retry_interval = [args.retry_interval] if args.retry_interval else None
             # automatically create dest dataset if it does not exist
@@ -143,7 +143,7 @@ def _main():
             send_config([{'name': args.source, 'dest': [args.dest], 'key': source_key,
                           'dest_keys': dest_key, 'compress': compress, 'exclude': exclude,
                           'raw_send': raw, 'resume': resume, 'dest_auto_create': dest_auto_create,
-                          'retry': retry, 'retry_interval': retry_interval}])
+                          'retries': retries, 'retry_interval': retry_interval}])
 
         elif args.source and not args.dest:
             logger.error('Missing dest...')
