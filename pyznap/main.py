@@ -70,16 +70,16 @@ def _main():
     parser_send.add_argument('-w', '--raw', action="store_true",
                              dest='raw', help='raw zfs send. default is false')
     parser_send.add_argument('-r', '--resume', action="store_true",
-                             dest='resume', help='use -s option in zfs receive, retry with network errors. default is false')
+                             dest='resume', help='resumable send. default is false')
     parser_send.add_argument('--dest-auto-create', action="store_true",
                              dest='dest_auto_create',
-                             help='create destination filesystem if not exists')
+                             help='create destination if it does not exist. default is false')
     parser_send.add_argument('--retries', action="store", type=int,
                              dest='retries', default=0,
-                             help='number of retries when have ssh connection error')
+                             help='number of retries on error. default is 0')
     parser_send.add_argument('--retry-interval', action="store", type=int,
                              dest='retry_interval', default=10,
-                             help='interval in seconds between retries')
+                             help='interval in seconds between retries. default is 10')
 
     if len(sys.argv)==1:
         parser.print_help(sys.stderr)
