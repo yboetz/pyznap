@@ -47,7 +47,7 @@ def send_snap(snapshot, dest_name, base=None, ssh_dest=None, raw=False, resume=F
 
     try:
         ssh_source = snapshot.ssh
-        stream_size = snapshot.stream_size(base=base, resume_token=resume_token)
+        stream_size = snapshot.stream_size(base=base, raw=raw, resume_token=resume_token)
 
         send = snapshot.send(ssh_dest=ssh_dest, base=base, intermediates=True, raw=raw, resume_token=resume_token)
         recv = zfs.receive(name=dest_name, stdin=send.stdout, ssh=ssh_dest, ssh_source=ssh_source,
@@ -148,18 +148,18 @@ def send_filesystem(source_fs, dest_name, ssh_dest=None, raw=False, resume=False
     #     if not abort:
     #         logger.error('{:s} contains partially-complete state from "zfs receive -s" (~{:s}), '
     #                      'but neither resume nor abort option is given...'
-    #                      .format(dest_name_log, bytes_fmt(base.stream_size(resume_token=resume_token))))
+    #                      .format(dest_name_log, bytes_fmt(base.stream_size(raw=raw, resume_token=resume_token))))
     #         return 1
     #     else:
     #         logger.info('{:s} contains partially-complete state from "zfs receive -s" (~{:s}), '
     #                     'will abort it...'
-    #                     .format(dest_name_log, bytes_fmt(base.stream_size(resume_token=resume_token))))
+    #                     .format(dest_name_log, bytes_fmt(base.stream_size(raw=raw, resume_token=resume_token))))
     #         if abort_resume(dest_fs):
     #             return 1
 
     if resume_token is not None:
         logger.info('Found resume token. Resuming last transfer of {:s} (~{:s})...'
-                    .format(dest_name_log, bytes_fmt(base.stream_size(resume_token=resume_token))))
+                    .format(dest_name_log, bytes_fmt(base.stream_size(raw=raw, resume_token=resume_token))))
         rc = send_snap(base, dest_name, base=None, ssh_dest=ssh_dest, raw=raw, resume=True, resume_token=resume_token)
         if rc:
             return rc
@@ -174,7 +174,7 @@ def send_filesystem(source_fs, dest_name, ssh_dest=None, raw=False, resume=False
             return 1
         else:
             logger.info('No common snapshots on {:s}, sending oldest snapshot {} (~{:s})...'
-                        .format(dest_name_log, base, bytes_fmt(base.stream_size())))
+                        .format(dest_name_log, base, bytes_fmt(base.stream_size(raw=raw))))
             rc = send_snap(base, dest_name, base=None, ssh_dest=ssh_dest, raw=raw, resume=resume)
             if rc:
                 return rc
@@ -184,7 +184,7 @@ def send_filesystem(source_fs, dest_name, ssh_dest=None, raw=False, resume=False
 
     if base.name != snapshot.name:
         logger.info('Updating {:s} with recent snapshot {} (~{:s})...'
-                    .format(dest_name_log, snapshot, bytes_fmt(snapshot.stream_size(base))))
+                    .format(dest_name_log, snapshot, bytes_fmt(snapshot.stream_size(base, raw=raw))))
         rc = send_snap(snapshot, dest_name, base=base, ssh_dest=ssh_dest, raw=raw, resume=resume)
         if rc:
             return rc
@@ -289,7 +289,7 @@ def send_config(config):
                     if create_dataset(dest_name, dest_name_log, ssh=ssh_dest):
                         continue
                 else:
-                    logger.error('Destination {:s} does not exist, manually create it or use "dest_auto_create" option...'
+                    logger.error('Destination {:s} does not exist, manually create it or use "dest-auto-create" option...'
                                  .format(dest_name_log))
                     continue
             except ValueError as err:
