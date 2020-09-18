@@ -143,18 +143,24 @@ def send_filesystem(source_fs, dest_name, ssh_dest=None, raw=False, resume=False
         # find common snapshots between source & dest
         dest_snapnames = [snap.name.split('@')[1] for snap in dest_fs.snapshots()]
         common = set(snapnames) & set(dest_snapnames)
-    
-    if not resume and resume_token is not None:
-        logger.error('{:s} contains partially-complete state from "zfs receive -s" (~{:s})...'
-                     .format(dest_name_log, bytes_fmt(base.stream_size(resume_token=resume_token))))
-        logger.error('Use resume option or force full send...')
-        # TODO: implement force option to destroy receive resume token
-        return 1
 
-    if resume and resume_token is not None:
+    # if not resume and resume_token is not None:
+    #     if not abort:
+    #         logger.error('{:s} contains partially-complete state from "zfs receive -s" (~{:s}), '
+    #                      'but neither resume nor abort option is given...'
+    #                      .format(dest_name_log, bytes_fmt(base.stream_size(resume_token=resume_token))))
+    #         return 1
+    #     else:
+    #         logger.info('{:s} contains partially-complete state from "zfs receive -s" (~{:s}), '
+    #                     'will abort it...'
+    #                     .format(dest_name_log, bytes_fmt(base.stream_size(resume_token=resume_token))))
+    #         if abort_resume(dest_fs):
+    #             return 1
+
+    if resume_token is not None:
         logger.info('Found resume token. Resuming last transfer of {:s} (~{:s})...'
                     .format(dest_name_log, bytes_fmt(base.stream_size(resume_token=resume_token))))
-        rc = send_snap(base, dest_name, base=None, ssh_dest=ssh_dest, raw=raw, resume=resume, resume_token=resume_token)
+        rc = send_snap(base, dest_name, base=None, ssh_dest=ssh_dest, raw=raw, resume=True, resume_token=resume_token)
         if rc:
             return rc
         # we need to update common snapshots after finishing the resumable send
@@ -345,3 +351,31 @@ def create_dataset(name, name_log, ssh=None):
     else:
         logger.info('Successfully created {:s}...'.format(name_log))
         return 0
+
+
+# def abort_resume(filesystem):
+#     """Aborts the resumable receive state (deletes resume token) and logs success/fail
+
+#     Parameters
+#     ----------
+#     filesystem : {ZFSFilesystem}
+#         Name of the receiving dataset to be aborted
+
+#     Returns
+#     -------
+#     int
+#         0 if success, 1 if not
+#     """
+#     logger = logging.getLogger(__name__)
+#     try:
+#         filesystem.receive_abort()
+#     except CalledProcessError as err:
+#         logger.error('Error while aborting resumable receive state on {}: \'{:s}\'...'
+#                      .format(filesystem, err.stderr.rstrip()))
+#         return 1
+#     except Exception as err:
+#         logger.error('Error while aborting resumable receive state on {}: {}...'.format(filesystem, err))
+#         return 1
+#     else:
+#         logger.info('Aborted resumable receive state on {:}...'.format(filesystem))
+#         return 0

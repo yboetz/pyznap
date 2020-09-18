@@ -264,6 +264,15 @@ class ZFSDataset(object):
         check_output(cmd, ssh=self.ssh)
         return ZFSSnapshot(name, ssh=self.ssh)
 
+    def receive_abort(self):
+        """Aborts the resumeable receive state"""
+        cmd = ['zfs', 'receive']
+
+        cmd.append('-A')
+        cmd.append(self.name)
+
+        check_output(cmd, ssh=self.ssh)
+
     # TODO: split force to allow -f, -r and -R to be specified individually
     def rollback(self, snapname, force=False):
         raise NotImplementedError()
