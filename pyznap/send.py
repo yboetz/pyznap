@@ -100,7 +100,7 @@ def send_filesystem(source_fs, dest_name, ssh_dest=None, raw=False, resume=False
     Returns
     -------
     int
-        0 if success, 1 if not
+        0 if success, 1 if not, 2 for ssh errors
     """
 
     logger = logging.getLogger(__name__)
@@ -120,9 +120,15 @@ def send_filesystem(source_fs, dest_name, ssh_dest=None, raw=False, resume=False
         logger.error('Error while opening source {}: {}...'.format(source_fs, err))
         return 1
     except CalledProcessError as err:
-        logger.error('Error while opening source {}: \'{:s}\'...'
-                     .format(source_fs, err.stderr.rstrip()))
-        return 1
+        message = err.stderr.rstrip()
+        if message.startswith('ssh: '):
+            logger.error('Connection issue while opening source {}: \'{:s}\'...'
+                         .format(source_fs, message))
+            return 2
+        else:
+            logger.error('Error while opening source {}: \'{:s}\'...'
+                         .format(source_fs, message))
+            return 1
     snapnames = [snap.name.split('@')[1] for snap in snapshots]
 
     try:
@@ -138,9 +144,15 @@ def send_filesystem(source_fs, dest_name, ssh_dest=None, raw=False, resume=False
         dest_snapnames = []
         common = set()
     except CalledProcessError as err:
-        logger.error('Error while opening dest {:s}: \'{:s}\'...'
-                     .format(dest_name_log, err.stderr.rstrip()))
-        return 1
+        message = err.stderr.rstrip()
+        if message.startswith('ssh: '):
+            logger.error('Connection issue while opening dest {:s}: \'{:s}\'...'
+                         .format(dest_name_log, message))
+            return 2
+        else:
+            logger.error('Error while opening dest {:s}: \'{:s}\'...'
+                         .format(dest_name_log, message))
+            return 1
     else:
         # if dest exists, check for resume token
         resume_token = dest_fs.getprops().get('receive_resume_token', (None, None))[0]
@@ -316,7 +328,7 @@ def send_config(config):
                 # send not excluded filesystems
                 for retry in range(1,retries+2):
                     rc = send_filesystem(source_fs, dest_name, ssh_dest=ssh_dest, raw=raw, resume=resume)
-                    if rc != 0 and retry <= retries:
+                    if rc == 2 and retry <= retries:
                         logger.info('Retrying send in {:d}s (retry {:d} of {:d})...'.format(retry_interval, retry, retries))
                         sleep(retry_interval)
                     else:
