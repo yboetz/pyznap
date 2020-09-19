@@ -119,6 +119,10 @@ def send_filesystem(source_fs, dest_name, ssh_dest=None, raw=False, resume=False
     except (DatasetNotFoundError, DatasetBusyError) as err:
         logger.error('Error while opening source {}: {}...'.format(source_fs, err))
         return 1
+    except CalledProcessError as err:
+        logger.error('Error while opening source {}: \'{:s}\'...'
+                     .format(source_fs, err.stderr.rstrip()))
+        return 1
     snapnames = [snap.name.split('@')[1] for snap in snapshots]
 
     try:
