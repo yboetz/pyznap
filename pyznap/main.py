@@ -70,16 +70,16 @@ def _main():
     parser_send.add_argument('-w', '--raw', action="store_true",
                              dest='raw', help='raw zfs send. default is false')
     parser_send.add_argument('-r', '--resume', action="store_true",
-                             dest='resume', help='use -s option in zfs receive, retry with network errors. default is false')
+                             dest='resume', help='resumable send. default is false')
     parser_send.add_argument('--dest-auto-create', action="store_true",
                              dest='dest_auto_create',
-                             help='create destination filesystem if not exists')
-    parser_send.add_argument('--retry', action="store", type=int,
-                             dest='retry', default=0,
-                             help='number of retries when have ssh connection error')
+                             help='create destination if it does not exist. default is false')
+    parser_send.add_argument('--retries', action="store", type=int,
+                             dest='retries', default=0,
+                             help='number of retries on error. default is 0')
     parser_send.add_argument('--retry-interval', action="store", type=int,
                              dest='retry_interval', default=10,
-                             help='interval in seconds between retries')
+                             help='interval in seconds between retries. default is 10')
 
     if len(sys.argv)==1:
         parser.print_help(sys.stderr)
@@ -129,17 +129,22 @@ def _main():
             exclude = [args.exclude] if args.exclude else None
             # check if raw send was requested
             raw = [args.raw] if args.raw else None
-
+            # compress ssh zfs send/receive
             compress = [args.compress] if args.compress else None
-            resume = args.resume
-            retry = args.retry
-            retry_interval = args.retry_interval
-            dest_auto_create = args.dest_auto_create
+            # use receive resume token
+            resume = [args.resume] if args.resume else None
+            # retry zfs send/receive
+            retries = [args.retries] if args.retries else None
+            # wait interval for retry
+            retry_interval = [args.retry_interval] if args.retry_interval else None
+            # automatically create dest dataset if it does not exist
+            dest_auto_create = [args.dest_auto_create] if args.dest_auto_create else None
+
             send_config([{'name': args.source, 'dest': [args.dest], 'key': source_key,
                           'dest_keys': dest_key, 'compress': compress, 'exclude': exclude,
                           'raw_send': raw, 'resume': resume, 'dest_auto_create': dest_auto_create,
-                          'retry': retry, 'retry_interval': retry_interval,
-                        }])
+                          'retries': retries, 'retry_interval': retry_interval}])
+
         elif args.source and not args.dest:
             logger.error('Missing dest...')
         elif args.dest and not args.source:

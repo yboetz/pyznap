@@ -46,7 +46,7 @@ class SSH:
         ssh command to use with subprocess
     """
 
-    def __init__(self, user, host, key=None, port=22, compress=None, **kwargs):
+    def __init__(self, user, host, key=None, port=22, compress=None):
         """Initializes SSH class.
 
         Parameters
@@ -84,14 +84,7 @@ class SSH:
 
         self.cmd = ['ssh', '-i', self.key, '-o', 'ControlMaster=auto', '-o', 'ControlPersist=1m',
                     '-o', 'ControlPath={:s}'.format(self.socket), '-p', str(self.port),
-                    '{:s}@{:s}'.format(self.user, self.host)]
-
-        if kwargs.get("ServerAliveInterval"):
-            self.cmd.insert(1, '-o')
-            self.cmd.insert(2, 'ServerAliveInterval={}'.format(kwargs.get('ServerAliveInterval')))
-        if kwargs.get("ServerAliveCountMax"):
-            self.cmd.insert(1, '-o')
-            self.cmd.insert(2, 'ServerAliveCountMax={}'.format(kwargs.get('ServerAliveCountMax')))
+                    '-o', 'ServerAliveInterval=60', '{:s}@{:s}'.format(self.user, self.host)]
 
         # setup ControlMaster. Process will hang if we call Popen with stderr=sp.PIPE, see
         # https://lists.mindrot.org/pipermail/openssh-unix-dev/2014-January/031976.html

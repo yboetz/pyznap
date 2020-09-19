@@ -65,12 +65,6 @@ class CompletedProcess(sp.CompletedProcess):
                               HoldTagExistsError):
                     if reason == error.strerror:
                         raise error(dataset)
-        elif self.stderr.startswith('ssh:'):
-            # e.g. ssh will return 255 and have error message like 'ssh:*' when server has no response for a long time.
-            # this is a very simple criterion, may be improved
-            # will have circular import problem if put this import at top
-            from .ssh import SSHConnectError
-            raise SSHConnectError(self.stderr)
 
         # did not match known errors, defer to superclass
         super(CompletedProcess, self).check_returncode()
