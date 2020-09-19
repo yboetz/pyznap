@@ -84,7 +84,7 @@ class SSH:
 
         self.cmd = ['ssh', '-i', self.key, '-o', 'ControlMaster=auto', '-o', 'ControlPersist=1m',
                     '-o', 'ControlPath={:s}'.format(self.socket), '-p', str(self.port),
-                    '-o', 'ServerAliveInterval=60', '{:s}@{:s}'.format(self.user, self.host)]
+                    '-o', 'ServerAliveInterval=30', '{:s}@{:s}'.format(self.user, self.host)]
 
         # setup ControlMaster. Process will hang if we call Popen with stderr=sp.PIPE, see
         # https://lists.mindrot.org/pipermail/openssh-unix-dev/2014-January/031976.html

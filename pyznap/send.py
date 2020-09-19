@@ -119,6 +119,10 @@ def send_filesystem(source_fs, dest_name, ssh_dest=None, raw=False, resume=False
     except (DatasetNotFoundError, DatasetBusyError) as err:
         logger.error('Error while opening source {}: {}...'.format(source_fs, err))
         return 1
+    except CalledProcessError as err:
+        logger.error('Error while opening source {}: \'{:s}\'...'
+                     .format(source_fs, err.stderr.rstrip()))
+        return 1
     snapnames = [snap.name.split('@')[1] for snap in snapshots]
 
     try:
@@ -345,6 +349,14 @@ def create_dataset(name, name_log, ssh=None):
     logger = logging.getLogger(__name__)
     try:
         zfs.create(name, ssh=ssh, force=True)
+    except CalledProcessError as err:
+        message = err.stderr.rstrip()
+        if message == "filesystem successfully created, but it may only be mounted by root":
+            logger.info('Successfully created {:s}, but cannot mount as non-root...'.format(name_log))
+            return 0
+        else:
+            logger.info('Error while creating {}: \'{:s}\'...'.format(name_log, message))
+            return 1
     except Exception as err:
         logger.error('Error while creating {:s}: {}...'.format(name_log, err))
         return 1
