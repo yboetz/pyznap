@@ -316,7 +316,7 @@ def send_config(config):
                 # send not excluded filesystems
                 for retry in range(1,retries+2):
                     rc = send_filesystem(source_fs, dest_name, ssh_dest=ssh_dest, raw=raw, resume=resume)
-                    if rc == 2 and retry <= retries:
+                    if rc != 0 and retry <= retries:
                         logger.info('Retrying send in {:d}s (retry {:d} of {:d})...'.format(retry_interval, retry, retries))
                         sleep(retry_interval)
                     else:
