@@ -432,7 +432,7 @@ class ZFSSnapshot(ZFSDataset):
         return sp.Popen(cmd, stdout=sp.PIPE, stderr=sp.PIPE) # return zfs send process
 
     def stream_size(self, base=None, raw=False, resume_token=None):
-        cache_key = (str(base), resume_token)
+        cache_key = (str(base), raw, resume_token)
         # cache stream sizes
         if not hasattr(self, 'stream_cache'):
             self.stream_cache = {}
