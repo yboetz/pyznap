@@ -20,10 +20,6 @@ class SSHException(Exception):
     """General ssh exception to be raised if anything fails"""
     pass
 
-class SSHConnectError(SSHException):
-    """General ssh exception to be raised if anything fails"""
-    pass
-
 
 class SSH:
     """SSH class.
