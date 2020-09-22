@@ -128,6 +128,32 @@ If that is not the case just run
     chown root:root -R /etc/pyznap/
 
 
+#### Config options ####
+
+Here is a list of all options you can set in the config fie:
+
+| Option             | Input           | Description |
+|--------------------|-----------------|-------------|
+| `key`              | String          | Path to ssh keyfile for source |
+| `frequent`         | Integer         | Number of frequent snapshots. These can be created every minute (whenever pyznap is called) |
+| `hourly`           | Integer         | Number of hourly snapshots |
+| `daily`            | Integer         | Number of daily snapshots |
+| `weekly`           | Integer         | Number of weekly snapshots |
+| `monthly`          | Integer         | Number of monthly snapshots |
+| `yearly`           | Integer         | Number of yearly snapshots |
+| `snap`             | yes/no          | Should snapshots be taken |
+| `clean`            | yes/no          | Should snapshots be cleaned |
+| `dest`             | List of string  | Comma-separated list of destinations where to send source filesystem |
+| `dest_key`         | List of string  | Path to ssh keyfile for dest. Comma-separated list for multiple dest |
+| `compress`         | List of string  | Compression to use over ssh, supported are gzip, lzop, bzip2, pigz, xz & lz4. Default is lzop. Comma-separated list for multiple dest |
+| `exclude`          | List of string  | Whitespace-separated list of datasets to exclude from sending. Exclude lists for different dests are separated by comma |
+| `raw_send`         | List of yes/no  | Use zfs raw send. Comma-separated list for multiple dest |
+| `resume`           | List of yes/no  | Use resumable send/receive. Comma-separated list for multiple dest |
+| `dest_auto_create` | List of yes/no  | Automatically create missing root datasets. Comma-separated list for multiple dest |
+| `retries`          | List of integer | Number of retries on connection issues. Comma-separated list for multiple dest |
+| `retry_interval`   | List of integer | Time in seconds between retries. Comma-separated list for multiple dest |
+
+
 #### Command line options ####
 
 Run `pyznap -h` to see all available options.
@@ -169,7 +195,7 @@ Run `pyznap -h` to see all available options.
 
     Send snapshots to backup locations according to policy.
 
-  + -s SOURCE -d DESTINATION [-c COMPRESSION] [-i KEYFILE] [-j SOURCE_KEY] [-k DEST_KEY] [-e EXCLUDE] [-w]
+  + -s SOURCE -d DESTINATION [-c COMPRESSION] [-i KEYFILE] [-j SOURCE_KEY] [-k DEST_KEY] [-e EXCLUDE] [-w] [-r] [--dest-auto-create] [--retries RETRIES] [--retry-interval RETRY_INTERVAL]
 
     Send source filesystem to destination filesystem. If either source OR dest is a remote location,
     you can specify the keyfile with the `-i` flag. If both source AND dest are remote, you specify
@@ -179,7 +205,10 @@ Run `pyznap -h` to see all available options.
     multiple (whitespace separated) wildcard exclude rules with the `-e` flag. Note that you should
     probably pass these as strings or escape the wildcard (e.g. `-e '*/data'` or `-e \*/data`), else
     your shell might expand the pattern. ZFS raw send can be enabled with the `-w` flag, in which case
-    compression will be disabled.
+    compression will be disabled. Resumable zfs send/receive can be enabled with the `-r` flag. You
+    can specify a number of retries on connection issues with the `--retries` option, and set the
+    retry interval with `--retry-interval`. Normally pyznap will not create missing root datasets,
+    but you can set the `--dest-auto-create` flag to automatically create it.
 
 
 #### Usage examples ####
