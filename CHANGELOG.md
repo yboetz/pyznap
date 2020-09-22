@@ -5,10 +5,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.6.0] - 2020-09-22
+### Added
+- Added resumable send/receive.
+Use the `resume` option in the config file or the `-r` flag for `pyznap send`.
+- Added options `dest_auto_create`, `retries` and `retry_interval`.
+
+
 ## [1.5.0] - 2020-03-15
 ### Added
 - Added zfs raw send for encrypted or compressed datasets.
 Use the `raw_send` option in the config file or the `-w` flag for `pyznap send`.
+
 
 ## [1.4.3] - 2019-09-07
 ### Fixed
