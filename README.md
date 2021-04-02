@@ -34,7 +34,7 @@ so you don't clutter your system python installation with additional packages.
 
 pyznap uses `mbuffer` and `lzop` (by default) to speed up zfs send/recv, and `pv` to show progress, 
 but also works if they are not installed. Other supported compression methods are: `none`, `lz4`, 
-`gzip`, `pigz`, `bzip2` and `xz`.
+`gzip`, `pigz`, `bzip2`, `xz` and `zstd`.
 
 Note that ZFS needs root access to run commands. Due to this you should install pyznap under your
 root user.
@@ -145,7 +145,7 @@ Here is a list of all options you can set in the config fie:
 | `clean`            | yes/no          | Should snapshots be cleaned |
 | `dest`             | List of string  | Comma-separated list of destinations where to send source filesystem |
 | `dest_key`         | List of string  | Path to ssh keyfile for dest. Comma-separated list for multiple dest |
-| `compress`         | List of string  | Compression to use over ssh, supported are gzip, lzop, bzip2, pigz, xz & lz4. Default is lzop. Comma-separated list for multiple dest |
+| `compress`         | List of string  | Compression to use over ssh, supported are gzip, lzop, bzip2, pigz, xz, lz4 & zstd. Default is lzop. Comma-separated list for multiple dest |
 | `exclude`          | List of string  | Whitespace-separated list of datasets to exclude from sending. Exclude lists for different dests are separated by comma |
 | `raw_send`         | List of yes/no  | Use zfs raw send. Comma-separated list for multiple dest |
 | `resume`           | List of yes/no  | Use resumable send/receive. Comma-separated list for multiple dest |
