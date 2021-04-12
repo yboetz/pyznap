@@ -132,7 +132,7 @@ class SSH:
                  'pigz': (['pigz'], ['pigz', '-dc']),
                  'xz': (['xz'], ['xz', '-d']),
                  'lz4': (['lz4'], ['lz4', '-dc']),
-                 'zstd': (['zstd --adapt'], ['unzstd'])}
+                 'zstd': (['zstd', ' --adapt'], ['unzstd'])}
 
         if _type not in algos:
             self.logger.warning('Compression method {:s} not supported. Will continue without...'.format(_type))
