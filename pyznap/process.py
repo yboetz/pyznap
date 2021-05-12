@@ -10,6 +10,7 @@
 
 import re
 import errno as _errno
+import logging
 import subprocess as sp
 import socket
 
@@ -93,6 +94,7 @@ def check_output(*popenargs, timeout=None, ssh=None, **kwargs):
         List of all lines from the output, seperated at '\t' into lists
     """
 
+    logger = logging.getLogger(__name__)
     if 'stdout' in kwargs:
         raise ValueError('stdout argument not allowed, it will be overridden.')
     if 'universal_newlines' in kwargs:
@@ -100,6 +102,7 @@ def check_output(*popenargs, timeout=None, ssh=None, **kwargs):
     if 'input' in kwargs:
         raise ValueError('input argument not allowed, it will be overridden.')
 
+    logger.debug('cmd="{}"'.format(' '.join(*popenargs)))
     ret = run(*popenargs, stdout=PIPE, stderr=PIPE, timeout=timeout,
               universal_newlines=True, ssh=ssh, **kwargs)
     ret.check_returncode()

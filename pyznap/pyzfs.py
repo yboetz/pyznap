@@ -196,6 +196,7 @@ def receive(name, stdin, ssh=None, ssh_source=None, append_name=False, append_pa
     # execute command with shell (sh or ssh)
     cmd = shell + [' '.join(cmd)]
 
+    logger.debug('cmd="{}"'.format(' '.join(cmd)))
     return sp.Popen(cmd, stdin=stdin, stderr=sp.PIPE) # zfs receive process
 
 
