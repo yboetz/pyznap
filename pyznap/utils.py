@@ -76,7 +76,7 @@ def read_config(path):
         logger.error('Error while loading config: File {:s} does not exist.'.format(path))
         return None
 
-    parser = ConfigParser()
+    parser = ConfigParser(inline_comment_prefixes="#")
     try:
         parser.read(path)
     except (MissingSectionHeaderError, DuplicateSectionError, DuplicateOptionError) as e:
