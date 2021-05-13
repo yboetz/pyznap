@@ -62,7 +62,8 @@ def take_filesystem(filesystem, conf):
     """
 
     logger = logging.getLogger(__name__)
-    logger.debug('Taking snapshots on {}...'.format(filesystem))
+    prunes = 'pyznap' if (conf.get('prune_sanoid', None) == False) else ('autosnap', 'pyznap')
+    logger.debug("Taking snapshots on {}... prunes={}".format(filesystem, prunes ) )
     now = datetime.now
 
     filesystem.dry_run = conf.get('dry_run', None)
@@ -75,8 +76,8 @@ def take_filesystem(filesystem, conf):
         return 1
     # categorize snapshots
     for snap in fs_snapshots:
-        # Ignore snapshots not taken with pyznap or sanoid
-        if not snap.name.split('@')[1].startswith(('pyznap', 'autosnap')):
+        # Ignore snapshots not taken with pyznap or sanoid, depending on configuration
+        if not snap.name.split('@')[1].startswith(prunes):
             continue
         try:
             _date, _time, snap_type = snap.name.split('_')[-3:]
