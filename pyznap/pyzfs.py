@@ -119,7 +119,7 @@ def roots(ssh=None):
     return find(ssh=ssh, max_depth=0)
 
 # note: force means create missing parent filesystems
-def create(name, ssh=None, type='filesystem', props={}, force=False):
+def create(name, ssh=None, type='filesystem', props={}, force=False, dry_run=False):
     cmd = ['zfs', 'create']
 
     if type == 'volume':
@@ -129,6 +129,9 @@ def create(name, ssh=None, type='filesystem', props={}, force=False):
 
     if force:
         cmd.append('-p')
+
+    if dry_run:
+        cmd.append('-n')
 
     for prop, value in props.items():
         cmd.append('-o')
@@ -142,7 +145,7 @@ def create(name, ssh=None, type='filesystem', props={}, force=False):
 
 
 def receive(name, stdin, ssh=None, ssh_source=None, append_name=False, append_path=False,
-            force=False, nomount=False, stream_size=0, raw=False, resume=False):
+            force=False, nomount=False, stream_size=0, raw=False, resume=False, dry_run=False):
     """Returns Popen instance for zfs receive"""
     logger = logging.getLogger(__name__)
 
@@ -181,6 +184,8 @@ def receive(name, stdin, ssh=None, ssh_source=None, append_name=False, append_pa
         cmd.append('-u')
     if resume:
         cmd.append('-s')
+    if dry_run:
+        cmd.append('-n')
 
     cmd.append(quote(name)) # use shlex to quote the name
 
@@ -196,7 +201,7 @@ def receive(name, stdin, ssh=None, ssh_source=None, append_name=False, append_pa
     # execute command with shell (sh or ssh)
     cmd = shell + [' '.join(cmd)]
 
-    logger.debug('cmd="{}"'.format(' '.join(cmd)))
+    logger.debug("'{}'...".format(' '.join(cmd)))
     return sp.Popen(cmd, stdin=stdin, stderr=sp.PIPE) # zfs receive process
 
 
@@ -233,7 +238,7 @@ class ZFSDataset(object):
 
     # TODO: split force to allow -f, -r and -R to be specified individually
     # TODO: remove or ignore defer option for non-snapshot datasets
-    def destroy(self, defer=False, force=False):
+    def destroy(self, defer=False, force=False, dry_run=False):
         cmd = ['zfs', 'destroy']
 
         cmd.append('-v')
@@ -244,6 +249,9 @@ class ZFSDataset(object):
         if force:
             cmd.append('-f')
             cmd.append('-R')
+
+        if dry_run:
+            cmd.append('-n')
 
         cmd.append(self.name)
 

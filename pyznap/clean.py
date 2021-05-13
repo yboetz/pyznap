@@ -27,10 +27,11 @@ def clean_snap(snap):
     """
 
     logger = logging.getLogger(__name__)
-
-    logger.info('Deleting snapshot {}...'.format(snap))
+    dry_run = snap.dry_run == True
+    dry_msg = '*** DRY RUN ***' if dry_run else ''
+    logger.info('Deleting snapshot {}... {}'.format(snap, dry_msg))
     try:
-        snap.destroy()
+      snap.destroy(dry_run=dry_run)
     except DatasetBusyError as err:
         logger.error(err)
     except CalledProcessError as err:
@@ -70,6 +71,7 @@ def clean_filesystem(filesystem, conf):
             continue
         try:
             snap_type = snap.name.split('_')[-1]
+            snap.dry_run = conf.get('dry_run', None)
             snapshots[snap_type].append(snap)
         except (ValueError, KeyError):
             continue

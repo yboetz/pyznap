@@ -102,7 +102,7 @@ def check_output(*popenargs, timeout=None, ssh=None, **kwargs):
     if 'input' in kwargs:
         raise ValueError('input argument not allowed, it will be overridden.')
 
-    logger.debug('cmd="{}"'.format(' '.join(*popenargs)))
+    logger.debug("'{}'...".format(' '.join(*popenargs)))
     ret = run(*popenargs, stdout=PIPE, stderr=PIPE, timeout=timeout,
               universal_newlines=True, ssh=ssh, **kwargs)
     ret.check_returncode()

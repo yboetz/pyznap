@@ -5,6 +5,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.6.0+local-b1] - 2021-05-15
+### Added
+- Allow in-line comments in configuration file
+- Added command line `dry-run` and config `dry_run` options
+Use the `dry-run` option to see what changes would be made, but not make them
+- Added option `prune_sanoid`
+Use the `prune_sanoid` option to control if pyznap prunes existing sanoid snapshots
+Note that the default has changed to NO
+
+
 ## [1.6.0] - 2020-09-22
 ### Added
 - Added resumable send/receive.

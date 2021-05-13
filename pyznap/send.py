@@ -22,7 +22,7 @@ import pyznap.pyzfs as zfs
 from .process import DatasetBusyError, DatasetNotFoundError, DatasetExistsError
 
 
-def send_snap(snapshot, dest_name, base=None, ssh_dest=None, raw=False, resume=False, resume_token=None):
+def send_snap(snapshot, dest_name, base=None, ssh_dest=None, raw=False, resume=False, resume_token=None, dry_run=False):
     """Sends snapshot to destination, incrementally and over ssh if specified.
 
     Parameters:
@@ -35,6 +35,8 @@ def send_snap(snapshot, dest_name, base=None, ssh_dest=None, raw=False, resume=F
         Base snapshot for incremental stream (the default is None, meaning a full stream)
     ssh_dest : {ssh.SSH}, optional
         Open ssh connection for remote backup (the default is None, meaning local backup)
+    dry_run : {boolean}, optional
+        Don't change filesystem
 
     Returns
     -------
@@ -51,7 +53,7 @@ def send_snap(snapshot, dest_name, base=None, ssh_dest=None, raw=False, resume=F
 
         send = snapshot.send(ssh_dest=ssh_dest, base=base, intermediates=True, raw=raw, resume_token=resume_token)
         recv = zfs.receive(name=dest_name, stdin=send.stdout, ssh=ssh_dest, ssh_source=ssh_source,
-                           force=True, nomount=True, stream_size=stream_size, raw=raw, resume=resume)
+                           force=True, nomount=True, stream_size=stream_size, raw=raw, resume=resume, dry_run=dry_run)
         send.stdout.close()
 
         # write pv output to stderr / stdout
@@ -83,7 +85,7 @@ def send_snap(snapshot, dest_name, base=None, ssh_dest=None, raw=False, resume=F
         return 0
 
 
-def send_filesystem(source_fs, dest_name, ssh_dest=None, raw=False, resume=False):
+def send_filesystem(source_fs, dest_name, ssh_dest=None, raw=False, resume=False, dry_run=False):
     """Checks for common snapshots between source and dest.
     If none are found, send the oldest snapshot, then update with the most recent one.
     If there are common snaps, update destination with the most recent one.
@@ -96,6 +98,8 @@ def send_filesystem(source_fs, dest_name, ssh_dest=None, raw=False, resume=False
         Name of the location to send to
     ssh_dest : {ssh.SSH}, optional
         Open ssh connection for remote backup (the default is None, meaning local backup)
+    dry_run : {boolean}, optional
+        Don't change filesystem
 
     Returns
     -------
@@ -106,7 +110,8 @@ def send_filesystem(source_fs, dest_name, ssh_dest=None, raw=False, resume=False
     logger = logging.getLogger(__name__)
     dest_name_log = '{:s}@{:s}:{:s}'.format(ssh_dest.user, ssh_dest.host, dest_name) if ssh_dest else dest_name
 
-    logger.debug('Sending {} to {:s}...'.format(source_fs, dest_name_log))
+    dry_msg = '*** DRY RUN ***' if dry_run else ''
+    logger.debug('Sending {} to {:s}... {}'.format(source_fs, dest_name_log, dry_msg))
 
     resume_token = None
     # Check if dest already has a 'zfs receive' ongoing
@@ -176,7 +181,7 @@ def send_filesystem(source_fs, dest_name, ssh_dest=None, raw=False, resume=False
     if resume_token is not None:
         logger.info('Found resume token. Resuming last transfer of {:s} (~{:s})...'
                     .format(dest_name_log, bytes_fmt(base.stream_size(raw=raw, resume_token=resume_token))))
-        rc = send_snap(base, dest_name, base=None, ssh_dest=ssh_dest, raw=raw, resume=True, resume_token=resume_token)
+        rc = send_snap(base, dest_name, base=None, ssh_dest=ssh_dest, raw=raw, resume=True, resume_token=resume_token, dry_run=dry_run)
         if rc:
             return rc
         # we need to update common snapshots after finishing the resumable send
@@ -191,7 +196,7 @@ def send_filesystem(source_fs, dest_name, ssh_dest=None, raw=False, resume=False
         else:
             logger.info('No common snapshots on {:s}, sending oldest snapshot {} (~{:s})...'
                         .format(dest_name_log, base, bytes_fmt(base.stream_size(raw=raw))))
-            rc = send_snap(base, dest_name, base=None, ssh_dest=ssh_dest, raw=raw, resume=resume)
+            rc = send_snap(base, dest_name, base=None, ssh_dest=ssh_dest, raw=raw, resume=resume, dry_run=dry_run)
             if rc:
                 return rc
     else:
@@ -199,9 +204,9 @@ def send_filesystem(source_fs, dest_name, ssh_dest=None, raw=False, resume=False
         base = next(filter(lambda x: x.name.split('@')[1] in common, snapshots), None)
 
     if base.name != snapshot.name:
-        logger.info('Updating {:s} with recent snapshot {} (~{:s})...'
-                    .format(dest_name_log, snapshot, bytes_fmt(snapshot.stream_size(base, raw=raw))))
-        rc = send_snap(snapshot, dest_name, base=base, ssh_dest=ssh_dest, raw=raw, resume=resume)
+        logger.info('Updating {:s} with recent snapshot {} (~{:s})... {}'
+                    .format(dest_name_log, snapshot, bytes_fmt(snapshot.stream_size(base, raw=raw)), dry_msg))
+        rc = send_snap(snapshot, dest_name, base=base, ssh_dest=ssh_dest, raw=raw, resume=resume, dry_run=dry_run)
         if rc:
             return rc
 
@@ -225,7 +230,9 @@ def send_config(config):
     for conf in config:
         if not conf.get('dest', None):
             continue
-
+        
+        dry_run = conf.get('dry_run', None)
+        dry_msg = '*** DRY RUN ***' if dry_run else ''
         backup_source = conf['name']
         try:
             _type, source_name, user, host, port = parse_name(backup_source)
@@ -301,8 +308,8 @@ def send_config(config):
                 zfs.open(dest_name, ssh=ssh_dest)
             except DatasetNotFoundError:
                 if dest_auto_create:
-                    logger.info('Destination {:s} does not exist, will create it...'.format(dest_name_log))
-                    if create_dataset(dest_name, dest_name_log, ssh=ssh_dest):
+                    logger.info('Destination {:s} does not exist, will create it... {}'.format(dest_name_log, dry_msg))
+                    if create_dataset(dest_name, dest_name_log, ssh=ssh_dest, dry_run=dry_run):
                         continue
                 else:
                     logger.error('Destination {:s} does not exist, manually create it or use "dest-auto-create" option...'
@@ -327,7 +334,7 @@ def send_config(config):
                     continue
                 # send not excluded filesystems
                 for retry in range(1,retries+2):
-                    rc = send_filesystem(source_fs, dest_name, ssh_dest=ssh_dest, raw=raw, resume=resume)
+                    rc = send_filesystem(source_fs, dest_name, ssh_dest=ssh_dest, raw=raw, resume=resume, dry_run=dry_run)
                     if rc == 2 and retry <= retries:
                         logger.info('Retrying send in {:d}s (retry {:d} of {:d})...'.format(retry_interval, retry, retries))
                         sleep(retry_interval)
@@ -341,7 +348,7 @@ def send_config(config):
             ssh_source.close()
 
 
-def create_dataset(name, name_log, ssh=None):
+def create_dataset(name, name_log, ssh=None, dry_run=False):
     """Creates a dataset and logs success/fail
 
     Parameters
@@ -352,6 +359,8 @@ def create_dataset(name, name_log, ssh=None):
         Name used for logging
     ssh : {SSH}, optional
         Open ssh connection, by default None
+    dry_run : {boolean}, optional
+        Dry run, don't change ZFS pool
 
     Returns
     -------
@@ -360,7 +369,7 @@ def create_dataset(name, name_log, ssh=None):
     """
     logger = logging.getLogger(__name__)
     try:
-        zfs.create(name, ssh=ssh, force=True)
+        zfs.create(name, ssh=ssh, force=True, dry_run=dry_run)
     except CalledProcessError as err:
         message = err.stderr.rstrip()
         if message == "filesystem successfully created, but it may only be mounted by root":
