@@ -18,6 +18,7 @@ from fnmatch import fnmatch
 from time import sleep
 from .ssh import SSH, SSHException
 from .utils import parse_name, exists, check_recv, bytes_fmt
+from .utils import parse_size
 import pyznap.pyzfs as zfs
 from .process import DatasetBusyError, DatasetNotFoundError, DatasetExistsError
 
@@ -332,6 +333,33 @@ def send_config(config):
                 if any(fnmatch(source_fs.name, pattern) for pattern in exclude):
                     logger.debug('Matched {} in exclude rules, not sending...'.format(source_fs))
                     continue
+                
+                # Check for ZFS user property to bypass filesystem
+                fs_props = source_fs.getprops()
+                
+                exclude_prop='pyznap:exclude'
+                ignore_me = fs_props.get(exclude_prop, ('false', 'false'))[0].lower()
+                logger.debug("Property {}={} for {}".format(exclude_prop, ignore_me, source_fs))
+                if ignore_me == 'true':
+                    logger.info('Matched {}={} for {}, not sending...'
+                      .format(exclude_prop, ignore_me, source_fs))
+                    continue
+                
+                # Check for max size
+                used_prop='used'
+                fs_used_bytes = int(fs_props.get(used_prop, ('0', '0'))[0])   # Bytes
+                fs_used_fmt   = bytes_fmt(fs_used_bytes) # MB
+                logger.debug("Property {}={} ({}) for {}".format(used_prop, fs_used_fmt, fs_used_bytes, source_fs))
+                
+                max_prop='pyznap:max_size'
+                fs_max_fmt   = fs_props.get(max_prop, ('0', '0'))[0] # String
+                fs_max_bytes = parse_size(fs_max_fmt)   # Bytes  
+                logger.debug("Property {}={} ({}) for {}".format(max_prop, fs_max_fmt, fs_max_bytes, source_fs))
+                if fs_max_bytes > 0 and fs_used_bytes > fs_max_bytes:
+                    logger.info('Filesystem size {} exceeds {}={} for {}, not sending...'
+                      .format(fs_used_fmt, max_prop, fs_max_fmt, source_fs))
+                    continue
+
                 # send not excluded filesystems
                 for retry in range(1,retries+2):
                     rc = send_filesystem(source_fs, dest_name, ssh_dest=ssh_dest, raw=raw, resume=resume, dry_run=dry_run)

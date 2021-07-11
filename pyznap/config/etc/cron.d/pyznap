@@ -1,0 +1,9 @@
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+# Take pyznap snapshots every 15 minutes
+*/15 * * * *  root  /root/pyznap/bin/python /root/pyznap/bin/pyznap snap >> /var/log/pyznap.log 2>&1
+
+# Copy to pyznap backup at midnight
+0 0  * * *    root  /root/pyznap/bin/python /root/pyznap/bin/pyznap send >> /var/log/pyznap.log 2>&1
+

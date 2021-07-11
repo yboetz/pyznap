@@ -227,6 +227,25 @@ Run `pyznap -h` to see all available options.
     but you can set the `--dest-auto-create` flag to automatically create it.
 
 
+#### ZFS User Properties ####
+pyznap now supports finely grained settings via ZFS user properties in the "pyznap:" domain. The following properties are in use:
+
++ pyznap:exclude [true|false]
+  Setting this property to true will caused the dateset to be excluded during *send*. Any other value, including the default, is assume to be "false"
+    
+    + Example: Set the dataset to be excluded by pyznap send
+  
+      `ZFS set pyznap:exclude=true tank/some_dataset`
+
++ pyznap:max_size [size]
+  Sets the maximum dataset size to be processed during this run. The following suffixes are supported:
+    
+    `B, KB, MB, GB, TB, PB`
+    
+    + Example: Set the maximum dataset processing size to 60GB
+      
+      `ZFS set pyznap:max_size=60G tank/some_other_dataset`
+
 #### Usage examples ####
 
 + Take snapshots according to policy in default config file:

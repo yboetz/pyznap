@@ -5,6 +5,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [1.6.0+local-b2] - 2021-07-10
+### Added
+- Finely grained processing via ZFS user properties in the "pyznap:" domain
+  + pyznap:exclude=[true|false]
+    use pyznap:exclude to skip ZFS *send* processing of tagged datasets
+  + pyznap:max_size=[size <units>] units=B|KB|MB|TB|PB
+    use pyznap:max_size=500M to skip processing of tagged datasets
+
+
+Note that the default has changed to NO
 ## [1.6.0+local-b1] - 2021-05-15
 ### Added
 - Allow in-line comments in configuration file
