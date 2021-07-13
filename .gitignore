@@ -7,3 +7,6 @@ __pycache__/
 /build/
 /*.egg-info
 /*.egg
+env/
+venv/
+pyznap.local.conf

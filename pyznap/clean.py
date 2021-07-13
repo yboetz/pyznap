@@ -27,10 +27,11 @@ def clean_snap(snap):
     """
 
     logger = logging.getLogger(__name__)
-
-    logger.info('Deleting snapshot {}...'.format(snap))
+    dry_run = snap.dry_run == True
+    dry_msg = '*** DRY RUN ***' if dry_run else ''
+    logger.info('Deleting snapshot {}... {}'.format(snap, dry_msg))
     try:
-        snap.destroy()
+      snap.destroy(dry_run=dry_run)
     except DatasetBusyError as err:
         logger.error(err)
     except CalledProcessError as err:
@@ -54,7 +55,8 @@ def clean_filesystem(filesystem, conf):
     """
 
     logger = logging.getLogger(__name__)
-    logger.debug('Cleaning snapshots on {}...'.format(filesystem))
+    prunes = 'pyznap' if (conf.get('prune_sanoid', None) == False) else ('autosnap', 'pyznap')
+    logger.debug("Cleaning snapshots on {}... prunes={}".format(filesystem, prunes ) )
 
     snapshots = {'frequent': [], 'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
     # catch exception if dataset was destroyed since pyznap was started
@@ -65,11 +67,12 @@ def clean_filesystem(filesystem, conf):
         return 1
     # categorize snapshots
     for snap in fs_snapshots:
-        # Ignore snapshots not taken with pyznap or sanoid
-        if not snap.name.split('@')[1].startswith(('pyznap', 'autosnap')):
+        # Ignore snapshots not taken with pyznap or sanoid, depending on configuration
+        if not snap.name.split('@')[1].startswith(prunes):
             continue
         try:
             snap_type = snap.name.split('_')[-1]
+            snap.dry_run = conf.get('dry_run', None)
             snapshots[snap_type].append(snap)
         except (ValueError, KeyError):
             continue

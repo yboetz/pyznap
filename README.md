@@ -56,7 +56,7 @@ Before you can use pyznap, you will need to create a config file. For initial se
     pyznap setup [-p PATH]
 
 This will create a directory `PATH` (default is `/etc/pyznap/`) and copy a sample config there. A
-config for your system might look like this (remove the comments):
+config for your system might look like this:
 
     [rpool/filesystem]
     frequent = 4                          # Keep 4 frequent snapshots
@@ -67,6 +67,8 @@ config for your system might look like this (remove the comments):
     yearly = 1                            # Keep 1 yearly snapshot
     snap = yes                            # Take snapshots on this filesystem
     clean = yes                           # Delete old snapshots on this filesystem
+    prune_sanoid = no                     # Don't delete old sanoid snapshots on this filesystem
+    dry_run = no                          # Run in normal mode, don't use dry_run
     dest = backup/filesystem              # Backup this filesystem on this location
     exclude = rpool/filesystem/data/*     # Exclude these datasets for pyznap send
 
@@ -76,7 +78,7 @@ Then set up a cronjob by creating a file under `/etc/cron.d/`
 
 and let pyznap run regularly by adding the following lines
 
-    SHELL=/bin/sh
+    SHELL=/bin/bash
     PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 
     */15 * * * *   root    /path/to/pyznap snap >> /var/log/pyznap.log 2>&1
@@ -84,11 +86,19 @@ and let pyznap run regularly by adding the following lines
 This will run pyznap every quarter hour to take and delete snapshots. 'frequent' snapshots can be
 taken up to once per minute, so adjust your cronjob accordingly.
 
+For installation in a python virtual environment (venv) you can replace the line above with:
+
+    */15 * * * *   root   /path/to/pyznap/bin/python /path/to/pyznap/bin/pyznap snap >> /var/log/pyznap.log 2>&1
+
 If you also want to send your filesystems to another location you can add a line
 
     0 0 * * *   root    /path/to/pyznap send >> /var/log/pyznap.log 2>&1
 
 This will backup your data once per day at 12am.
+
+Or for a venv:
+
+    0 0 * * *   root    /path/to/pyznap/bin/python /path/to/pyznap/bin/pyznap send >> /var/log/pyznap.log 2>&1
 
 You can also manage, send to and pull from remote ssh locations. Always specify ssh locations with
 
@@ -143,6 +153,8 @@ Here is a list of all options you can set in the config fie:
 | `yearly`           | Integer         | Number of yearly snapshots |
 | `snap`             | yes/no          | Should snapshots be taken |
 | `clean`            | yes/no          | Should snapshots be cleaned |
+| `prune_sanoid`     | yes/no          | Should sanoid snapshots be cleaned |
+| `dry_run`          | yes/no          | Display commands/changes, but don't update filesystem |
 | `dest`             | List of string  | Comma-separated list of destinations where to send source filesystem |
 | `dest_key`         | List of string  | Path to ssh keyfile for dest. Comma-separated list for multiple dest |
 | `compress`         | List of string  | Compression to use over ssh, supported are gzip, lzop, bzip2, pigz, xz & lz4. Default is lzop. Comma-separated list for multiple dest |
@@ -165,6 +177,10 @@ Run `pyznap -h` to see all available options.
 + -v, --versbose
 
   Print more verbose output.
+
++ -n, --dry-run
+
+  Use dry-run mode.
 
 + setup [-p PATH]
 
@@ -211,6 +227,25 @@ Run `pyznap -h` to see all available options.
     but you can set the `--dest-auto-create` flag to automatically create it.
 
 
+#### ZFS User Properties ####
+pyznap now supports finely grained settings via ZFS user properties in the "pyznap:" domain. The following properties are in use:
+
++ pyznap:exclude [true|false]
+  Setting this property to true will caused the dateset to be excluded during *send*. Any other value, including the default, is assume to be "false"
+    
+    + Example: Set the dataset to be excluded by pyznap send
+  
+      `ZFS set pyznap:exclude=true tank/some_dataset`
+
++ pyznap:max_size [size]
+  Sets the maximum dataset size to be processed during this run. The following suffixes are supported:
+    
+    `B, KB, MB, GB, TB, PB`
+    
+    + Example: Set the maximum dataset processing size to 60GB
+      
+      `ZFS set pyznap:max_size=60G tank/some_other_dataset`
+
 #### Usage examples ####
 
 + Take snapshots according to policy in default config file:
@@ -232,6 +267,10 @@ Run `pyznap -h` to see all available options.
 + Backup a single filesystem locally:
 
     `pyznap send -s tank/data -d backup/data`
+
++ Backup a single filesystem locally, display ZFS commands, and run in dry-run (dummy) mode:
+
+    `pyznap --verbose --dry-run send -s tank/data -d backup/data`
 
 + Send a single filesystem to a remote location, using `pigz` compression:
 

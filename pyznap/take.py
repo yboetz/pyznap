@@ -33,9 +33,12 @@ def take_snap(filesystem, _type):
 
     snapname = lambda _type: 'pyznap_{:s}_{:s}'.format(now().strftime('%Y-%m-%d_%H:%M:%S'), _type)
 
-    logger.info('Taking snapshot {}@{:s}...'.format(filesystem, snapname(_type)))
+    dry_run = filesystem.dry_run == True
+    dry_msg = '*** DRY RUN ***' if dry_run else ''
+    logger.info('Taking snapshot {}@{:s}... {}'.format(filesystem, snapname(_type), dry_msg))
     try:
-        filesystem.snapshot(snapname=snapname(_type), recursive=True)
+        if not dry_run:
+          filesystem.snapshot(snapname=snapname(_type), recursive=True)
     except (DatasetBusyError, DatasetExistsError) as err:
         logger.error(err)
     except CalledProcessError as err:
@@ -59,9 +62,11 @@ def take_filesystem(filesystem, conf):
     """
 
     logger = logging.getLogger(__name__)
-    logger.debug('Taking snapshots on {}...'.format(filesystem))
+    prunes = 'pyznap' if (conf.get('prune_sanoid', None) == False) else ('autosnap', 'pyznap')
+    logger.debug("Taking snapshots on {}... prunes={}".format(filesystem, prunes ) )
     now = datetime.now
 
+    filesystem.dry_run = conf.get('dry_run', None)
     snapshots = {'frequent': [], 'hourly': [], 'daily': [], 'weekly': [], 'monthly': [], 'yearly': []}
     # catch exception if dataset was destroyed since pyznap was started
     try:
@@ -71,8 +76,8 @@ def take_filesystem(filesystem, conf):
         return 1
     # categorize snapshots
     for snap in fs_snapshots:
-        # Ignore snapshots not taken with pyznap or sanoid
-        if not snap.name.split('@')[1].startswith(('pyznap', 'autosnap')):
+        # Ignore snapshots not taken with pyznap or sanoid, depending on configuration
+        if not snap.name.split('@')[1].startswith(prunes):
             continue
         try:
             _date, _time, snap_type = snap.name.split('_')[-3:]

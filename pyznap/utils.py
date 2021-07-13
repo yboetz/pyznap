@@ -76,7 +76,7 @@ def read_config(path):
         logger.error('Error while loading config: File {:s} does not exist.'.format(path))
         return None
 
-    parser = ConfigParser()
+    parser = ConfigParser(inline_comment_prefixes="#")
     try:
         parser.read(path)
     except (MissingSectionHeaderError, DuplicateSectionError, DuplicateOptionError) as e:
@@ -86,7 +86,8 @@ def read_config(path):
     config = []
     options = ['key', 'frequent', 'hourly', 'daily', 'weekly', 'monthly', 'yearly', 'snap', 'clean',
                'dest', 'dest_keys', 'compress', 'exclude', 'raw_send', 'resume', 'dest_auto_create',
-               'retries', 'retry_interval']
+               'retries', 'retry_interval', 
+               'dry_run', 'prune_sanoid']
 
     for section in parser.sections():
         dic = {}
@@ -118,6 +119,11 @@ def read_config(path):
                                    for i in value.split(',')]
                 elif option in ['retries', 'retry_interval']:
                     dic[option] = [int(i) for i in value.split(',')]
+                elif option in ['dry_run']:
+                    dic[option] = {'yes': True, 'no': False}.get(value.lower(), None)
+                elif option in ['prune_sanoid']:
+                    dic[option] = {'yes': True, 'no': False}.get(value.lower(), None)
+
     # Pass through values recursively
     for parent in config:
         for child in config:
@@ -171,7 +177,7 @@ def create_config(path):
     logger = logging.getLogger(__name__)
 
     CONFIG_FILE = os.path.join(path, 'pyznap.conf')
-    config = resource_string(__name__, 'config/pyznap.conf').decode("utf-8")
+    config = resource_string(__name__, 'config/etc/pyznap.conf').decode("utf-8")
 
     logger.info('Initial setup...')
 
@@ -266,3 +272,40 @@ def bytes_fmt(num):
         num /= 1024
     else:
         return "{:3.1f}{:s}".format(num, 'Y')
+
+
+# based on https://stackoverflow.com/a/42865957/2002471
+def parse_size(size):
+    """Converts human readable format to bytes
+
+    Parameters
+    ----------
+    str : size
+        formatted size
+
+    Returns
+    -------
+    float
+        actual bytes
+    """
+
+    units = {"B": 1, "KB": 2**10, "MB": 2**20, "GB": 2**30, "TB": 2**40, "PB": 2**50}
+    
+    logger = logging.getLogger(__name__)
+    
+    size = str(size).upper()
+    #print("parsing size ", size)
+    if size[-1].strip() != "B":
+      size = size + "B"
+    if not re.match(r' ', size):
+        size = re.sub(r'([KMGT]?B)', r' \1', size)
+    
+    result = 0
+    try:
+      number, unit = [string.strip() for string in size.split()]
+      result = int(float(number)*units[unit])
+    except:
+      logger.error("Could not convert {} to a size in bytes, using default={}".format(size, result))
+    
+    return result
+

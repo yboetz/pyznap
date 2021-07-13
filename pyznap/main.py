@@ -19,6 +19,7 @@ from .utils import read_config, create_config
 from .clean import clean_config
 from .take import take_config
 from .send import send_config
+from pyznap import __version__
 
 
 DIRNAME = os.path.dirname(os.path.abspath(__file__))
@@ -33,7 +34,10 @@ def _main():
         Exit code
     """
 
-    parser = ArgumentParser(prog='pyznap', description='ZFS snapshot tool written in python')
+    parser = ArgumentParser(prog='pyznap', 
+                            description='ZFS snapshot tool written in python {}'.format(__version__))
+    parser.add_argument('-n', '--dry-run', action="store_true",
+                        dest="dry_run", help="Dry-run, don't execute commands")
     parser.add_argument('-v', '--verbose', action="store_true",
                         dest="verbose", help='print more verbose output')
     parser.add_argument('--config', action="store",
@@ -80,6 +84,8 @@ def _main():
     parser_send.add_argument('--retry-interval', action="store", type=int,
                              dest='retry_interval', default=10,
                              help='interval in seconds between retries. default is 10')
+    
+    parser.epilog = "ZFS properties: [pyznap:exclude, pyznap:max_size]"
 
     if len(sys.argv)==1:
         parser.print_help(sys.stderr)
@@ -91,13 +97,20 @@ def _main():
                         datefmt='%b %d %H:%M:%S', stream=sys.stdout)
     logger = logging.getLogger(__name__)
 
-    logger.info('Starting pyznap...')
+    logger.info('Starting pyznap {}...'.format(__version__))
 
     if args.command in ('snap', 'send'):
         config_path = args.config if args.config else os.path.join(CONFIG_DIR, 'pyznap.conf')
         config = read_config(config_path)
         if config == None:
             return 1
+
+    # Append global dry_run flag don't override existing dry-run = yes
+    try:
+      for conf in config: 
+        conf['dry_run'] = True if (args.dry_run or conf.get('dry_run', None)) else False
+    except UnboundLocalError:
+      pass
 
     if args.command == 'setup':
         path = args.path if args.path else CONFIG_DIR
@@ -143,7 +156,8 @@ def _main():
             send_config([{'name': args.source, 'dest': [args.dest], 'key': source_key,
                           'dest_keys': dest_key, 'compress': compress, 'exclude': exclude,
                           'raw_send': raw, 'resume': resume, 'dest_auto_create': dest_auto_create,
-                          'retries': retries, 'retry_interval': retry_interval}])
+                          'retries': retries, 'retry_interval': retry_interval,
+                          'dry_run': dry_run}])
 
         elif args.source and not args.dest:
             logger.error('Missing dest...')
