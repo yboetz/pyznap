@@ -66,7 +66,9 @@ def _main():
     parser_send.add_argument('-c', '--compress', action="store",
                              dest='compress', help='compression to use for ssh transfer. default is lzop')
     parser_send.add_argument('-e', '--exclude', nargs = '+',
-                             dest='exclude', help='datasets to exclude')
+                             dest='exclude', help='datasets to exclude from send')
+    parser_send.add_argument('--dest-snap-exclude', nargs = '+',
+                             dest='dest_snap_exclude', help='regular expressions for snapshots to exclude from send')
     parser_send.add_argument('-w', '--raw', action="store_true",
                              dest='raw', help='raw zfs send. default is false')
     parser_send.add_argument('-r', '--resume', action="store_true",
@@ -125,8 +127,10 @@ def _main():
             # if source_key and dest_key are given, overwrite previous value
             source_key = args.source_key if args.source_key else source_key
             dest_key = [args.dest_key] if args.dest_key else dest_key
-            # get exclude rules
+            # get dataset exclusions
             exclude = [args.exclude] if args.exclude else None
+            # get snapshot exclusions
+            dest_snap_exclude = [args.dest_snap_exclude] if args.dest_snap_exclude else None
             # check if raw send was requested
             raw = [args.raw] if args.raw else None
             # compress ssh zfs send/receive
@@ -143,7 +147,8 @@ def _main():
             send_config([{'name': args.source, 'dest': [args.dest], 'key': source_key,
                           'dest_keys': dest_key, 'compress': compress, 'exclude': exclude,
                           'raw_send': raw, 'resume': resume, 'dest_auto_create': dest_auto_create,
-                          'retries': retries, 'retry_interval': retry_interval}])
+                          'retries': retries, 'retry_interval': retry_interval,
+                          'dest_snap_exclude': dest_snap_exclude}])
 
         elif args.source and not args.dest:
             logger.error('Missing dest...')

@@ -8,7 +8,7 @@
     :license: GPLv3, see LICENSE for more details.
 """
 
-
+import re
 import sys
 import logging
 from io import TextIOWrapper
@@ -83,7 +83,7 @@ def send_snap(snapshot, dest_name, base=None, ssh_dest=None, raw=False, resume=F
         return 0
 
 
-def send_filesystem(source_fs, dest_name, ssh_dest=None, raw=False, resume=False):
+def send_filesystem(source_fs, dest_name, ssh_dest=None, raw=False, resume=False, snap_pred=(lambda x:True)):
     """Checks for common snapshots between source and dest.
     If none are found, send the oldest snapshot, then update with the most recent one.
     If there are common snaps, update destination with the most recent one.
@@ -115,7 +115,7 @@ def send_filesystem(source_fs, dest_name, ssh_dest=None, raw=False, resume=False
 
     # get snapshots on source, catch exception if dataset was destroyed since pyznap was started
     try:
-        snapshots = source_fs.snapshots()[::-1]
+        snapshots = list(filter(lambda snap:snap_pred(snap.name), source_fs.snapshots()[::-1]))
     except (DatasetNotFoundError, DatasetBusyError) as err:
         logger.error('Error while opening source {}: {}...'.format(source_fs, err))
         return 1
@@ -264,6 +264,7 @@ def send_config(config):
         for backup_dest in conf['dest']:
             # get exclude rules
             exclude = conf['exclude'].pop(0) if conf.get('exclude', None) else []
+            dest_snap_exclude = conf['dest_snap_exclude'].pop(0) if conf.get('dest_snap_exclude', None) else []
             # check if raw send was requested
             raw = conf['raw_send'].pop(0) if conf.get('raw_send', None) else False
             # check if we need to retry
@@ -325,9 +326,15 @@ def send_config(config):
                 if any(fnmatch(source_fs.name, pattern) for pattern in exclude):
                     logger.debug('Matched {} in exclude rules, not sending...'.format(source_fs))
                     continue
+                def snap_pred(snap):
+                    for pattern in dest_snap_exclude:
+                        if re.search(pattern, snap):
+                            logger.debug('Matched {} in snapshot exclude rules, not sending...'.format(snap))
+                            return False
+                    return True
                 # send not excluded filesystems
                 for retry in range(1,retries+2):
-                    rc = send_filesystem(source_fs, dest_name, ssh_dest=ssh_dest, raw=raw, resume=resume)
+                    rc = send_filesystem(source_fs, dest_name, ssh_dest=ssh_dest, raw=raw, resume=resume, snap_pred=snap_pred)
                     if rc == 2 and retry <= retries:
                         logger.info('Retrying send in {:d}s (retry {:d} of {:d})...'.format(retry_interval, retry, retries))
                         sleep(retry_interval)
