@@ -115,7 +115,7 @@ def send_filesystem(source_fs, dest_name, ssh_dest=None, raw=False, resume=False
 
     # get snapshots on source, catch exception if dataset was destroyed since pyznap was started
     try:
-        snapshots = list(filter(lambda snap:snap_pred(snap.name), source_fs.snapshots()[::-1]))
+        snapshots = list(filter(lambda snap:snap_pred(snap.name.split('@')[1]), source_fs.snapshots()[::-1]))
     except (DatasetNotFoundError, DatasetBusyError) as err:
         logger.error('Error while opening source {}: {}...'.format(source_fs, err))
         return 1
