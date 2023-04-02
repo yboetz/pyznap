@@ -273,7 +273,6 @@ def send_config(config):
             resume = conf['resume'].pop(0) if conf.get('resume', None) else False
             # check if we should create dataset if it doesn't exist
             dest_auto_create = conf['dest_auto_create'].pop(0) if conf.get('dest_auto_create', None) else False
-
             try:
                 _type, dest_name, user, host, port = parse_name(backup_dest)
             except ValueError as err:
@@ -302,8 +301,10 @@ def send_config(config):
             except DatasetNotFoundError:
                 if dest_auto_create:
                     logger.info('Destination {:s} does not exist, will create it...'.format(dest_name_log))
-                    if create_dataset(dest_name, dest_name_log, ssh=ssh_dest):
+                    if not raw:
+                      if create_dataset(dest_name, dest_name_log, ssh=ssh_dest):
                         continue
+                    pass
                 else:
                     logger.error('Destination {:s} does not exist, manually create it or use "dest-auto-create" option...'
                                  .format(dest_name_log))
