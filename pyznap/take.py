@@ -127,11 +127,14 @@ def take_config(config):
     logger = logging.getLogger(__name__)
     logger.info('Taking snapshots...')
 
+    config_d = {}
     for conf in config:
+        config_d[conf['name']] = conf
+
+    for name,conf in config_d.items():
         if not conf.get('snap', None):
             continue
 
-        name = conf['name']
         try:
             _type, fsname, user, host, port = parse_name(name)
         except ValueError as err:
@@ -164,9 +167,20 @@ def take_config(config):
         else:
             # Take recursive snapshot of parent filesystem
             take_filesystem(children[0], conf)
-            # Take snapshot of all children that don't have all snapshots yet
+
+            # Take snapshot of all children that do not have a more specific config
             for child in children[1:]:
-                take_filesystem(child, conf)
+                skip = False
+                if child.name in config_d:
+                    skip = True
+                else:
+                    for other_name in config_d.keys():
+                        if other_name.startswith(name + '/') and child.name.startswith(other_name + '/'):
+                            skip = True
+                            break
+
+                if not skip:
+                    take_filesystem(child, conf)
         finally:
             if ssh:
                 ssh.close()
